@@ -8,11 +8,17 @@ import org.eclipse.jdt.core.dom.AbstractTypeDeclaration
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.EnumDeclaration
+import org.eclipse.jdt.core.dom.FieldAccess
 import org.eclipse.jdt.core.dom.FileASTRequestor
+import org.eclipse.jdt.core.dom.IVariableBinding
+import org.eclipse.jdt.core.dom.MethodDeclaration
+import org.eclipse.jdt.core.dom.MethodInvocation
 import org.eclipse.jdt.core.dom.NameQualifiedType
+import org.eclipse.jdt.core.dom.SimpleName
 import org.eclipse.jdt.core.dom.SimpleType
 import org.eclipse.jdt.core.dom.Type
 import org.eclipse.jdt.core.dom.TypeDeclaration
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -63,8 +69,34 @@ class SourceFileParser(private val path: Path) {
 
                 private fun visitTypeDecl(node: AbstractTypeDeclaration): Boolean {
                     val binding = Bindings.toString(node.resolveBinding())
-                    printer.registerType(binding, relativePath)
-                    annotatedSourceFile.annotate(node, BindingDecl(binding))
+                    if (binding != null) {
+                        printer.registerBinding(binding, relativePath)
+                        annotatedSourceFile.annotate(node.name, BindingDecl(binding))
+                    }
+                    return true
+                }
+
+                override fun visit(node: MethodDeclaration): Boolean {
+                    val resolved = node.resolveBinding()
+                    if (resolved != null) {
+                        val binding = Bindings.toString(resolved)
+                        if (binding != null) {
+                            printer.registerBinding(binding, relativePath)
+                            annotatedSourceFile.annotate(node.name, BindingDecl(binding))
+                        }
+                    }
+                    return true
+                }
+
+                override fun visit(node: VariableDeclarationFragment): Boolean {
+                    val resolved = node.resolveBinding()
+                    if (resolved != null && resolved.isField) {
+                        val binding = Bindings.toString(resolved)
+                        if (binding != null) {
+                            printer.registerBinding(binding, relativePath)
+                            annotatedSourceFile.annotate(node.name, BindingDecl(binding))
+                        }
+                    }
                     return true
                 }
 
@@ -74,7 +106,37 @@ class SourceFileParser(private val path: Path) {
 
                 private fun visitType(node: Type): Boolean {
                     val binding = node.resolveBinding()
-                    if (binding != null) annotatedSourceFile.annotate(node, BindingRef(Bindings.toString(binding)))
+                    if (binding != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
+                    }
+                    return true
+                }
+
+                override fun visit(node: MethodInvocation): Boolean {
+                    val binding = node.resolveMethodBinding()
+                    if (binding != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                    }
+                    return true
+                }
+
+                override fun visit(node: FieldAccess): Boolean {
+                    val binding = node.resolveFieldBinding()
+                    if (binding != null && binding.declaringClass != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                    }
+                    return true
+                }
+
+                override fun visit(node: SimpleName): Boolean {
+                    val binding = node.resolveBinding()
+                    if (binding is IVariableBinding && binding.isField && binding.declaringClass != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
+                    }
                     return true
                 }
             })

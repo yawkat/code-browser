@@ -15,7 +15,7 @@ class Printer {
     private val sourceFiles = HashMap<String, AnnotatedSourceFile>()
     private val bindings = HashMap<String, String>()
 
-    fun registerType(binding: String, sourceFilePath: String) {
+    fun registerBinding(binding: String, sourceFilePath: String) {
         bindings[binding] = sourceFilePath
     }
 
@@ -38,9 +38,9 @@ class Printer {
                         }
                     }
                     is BindingDecl -> {
-                        return listOf(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
+                        Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
                             it.attr("id", annotation.binding)
-                        }) + members
+                        }
                     }
                 }
                 members.forEach { o.appendChild(it) }
