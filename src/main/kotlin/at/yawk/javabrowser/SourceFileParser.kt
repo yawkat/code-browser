@@ -4,6 +4,7 @@ import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTParser
 import org.eclipse.jdt.core.dom.ASTVisitor
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.EnumDeclaration
@@ -53,36 +54,32 @@ class SourceFileParser(private val path: Path) {
 
             val annotatedSourceFile = AnnotatedSourceFile(Files.readAllBytes(Paths.get(sourceFilePath))
                     .toString(Charsets.UTF_8))
-            ast.accept(object : Visitor(annotatedSourceFile) {
-                override fun visit(node: TypeDeclaration): Boolean {
-                    printer.registerType(node.resolveBinding().binaryName, relativePath)
-                    return super.visit(node)
+            ast.accept(object : ASTVisitor() {
+                override fun visit(node: TypeDeclaration) = visitTypeDecl(node)
+
+                override fun visit(node: AnnotationTypeDeclaration) = visitTypeDecl(node)
+
+                override fun visit(node: EnumDeclaration) = visitTypeDecl(node)
+
+                private fun visitTypeDecl(node: AbstractTypeDeclaration): Boolean {
+                    val binding = Bindings.toString(node.resolveBinding())
+                    printer.registerType(binding, relativePath)
+                    annotatedSourceFile.annotate(node, BindingDecl(binding))
+                    return true
                 }
 
-                override fun visit(node: AnnotationTypeDeclaration): Boolean {
-                    printer.registerType(node.resolveBinding().binaryName, relativePath)
-                    return super.visit(node)
-                }
+                override fun visit(node: NameQualifiedType) = visitType(node)
 
-                override fun visit(node: EnumDeclaration): Boolean {
-                    printer.registerType(node.resolveBinding().binaryName, relativePath)
-                    return super.visit(node)
+                override fun visit(node: SimpleType) = visitType(node)
+
+                private fun visitType(node: Type): Boolean {
+                    val binding = node.resolveBinding()
+                    if (binding != null) annotatedSourceFile.annotate(node, BindingRef(Bindings.toString(binding)))
+                    return true
                 }
             })
 
             printer.addSourceFile(relativePath, annotatedSourceFile)
-        }
-    }
-
-    private open class Visitor(val annotatedSourceFile: AnnotatedSourceFile) : ASTVisitor() {
-        override fun visit(node: NameQualifiedType) = visitType(node)
-
-        override fun visit(node: SimpleType) = visitType(node)
-
-        private fun visitType(node: Type): Boolean {
-            val binding = node.resolveBinding()
-            if (binding != null) annotatedSourceFile.annotate(node, TypeRef(binding.binaryName))
-            return true
         }
     }
 }

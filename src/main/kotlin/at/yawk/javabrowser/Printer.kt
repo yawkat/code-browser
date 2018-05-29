@@ -1,5 +1,6 @@
 package at.yawk.javabrowser
 
+import org.eclipse.jdt.core.dom.IBinding
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
@@ -12,10 +13,10 @@ import java.nio.file.Path
  */
 class Printer {
     private val sourceFiles = HashMap<String, AnnotatedSourceFile>()
-    private val types = HashMap<String, String>()
+    private val bindings = HashMap<String, String>()
 
-    fun registerType(type: String, sourceFilePath: String) {
-        types[type] = sourceFilePath
+    fun registerType(binding: String, sourceFilePath: String) {
+        bindings[binding] = sourceFilePath
     }
 
     fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
@@ -28,13 +29,18 @@ class Printer {
 
             fun toNode(annotation: SourceAnnotation, members: List<Node>): List<Node> {
                 val o = when (annotation) {
-                    is TypeRef -> {
-                        val tgt = types[annotation.binaryName] ?: return members
+                    is BindingRef -> {
+                        val tgt = bindings[annotation.binding] ?: return members
                         Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
                             it.attr("href",
                                     generatedName.replace("[^/]+$".toRegex(), "").replace("[^/]+/".toRegex(),
-                                            "../") + generatedName(tgt))
+                                            "../") + generatedName(tgt) + "#" + annotation.binding)
                         }
+                    }
+                    is BindingDecl -> {
+                        return listOf(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
+                            it.attr("id", annotation.binding)
+                        }) + members
                     }
                 }
                 members.forEach { o.appendChild(it) }
