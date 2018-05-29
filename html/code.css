@@ -1,0 +1,59 @@
+code {
+    max-width: 120em;
+    margin: 0 auto;
+    display: block;
+}
+
+a:link {
+    color: inherit;
+    text-decoration: underline #888;
+}
+
+.variable {
+    text-decoration: underline dotted #ccc;
+}
+
+.variable.effectively-final {
+    text-decoration: none;
+}
+
+.comment {
+    color: #808080;
+    font-style: italic;
+}
+
+.comment.javadoc {
+    color: #0033cc;
+    font-style: inherit;
+}
+
+.field {
+    color: #660E7A;
+    font-weight: bold;
+}
+
+.field.static {
+    font-weight: inherit;
+    font-style: italic;
+}
+
+.keyword {
+    color: #000080;
+    font-weight: bold;
+}
+
+.type-variable {
+    color: #20999D;
+}
+
+.number-literal {
+    color: #00f;
+}
+
+.string-literal {
+    color: #008000;
+}
+
+.annotation {
+    color: #808000;
+}

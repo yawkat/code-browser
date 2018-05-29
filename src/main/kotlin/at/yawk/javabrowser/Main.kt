@@ -1,6 +1,5 @@
 package at.yawk.javabrowser
 
-import java.nio.file.Files
 import java.nio.file.Paths
 
 /**
@@ -12,6 +11,6 @@ fun main(args: Array<String>) {
     val printer = Printer()
     SourceFileParser(i).parse(printer)
 
-    val o = Paths.get("out")
+    val o = Paths.get("html/types")
     printer.print(o)
 }

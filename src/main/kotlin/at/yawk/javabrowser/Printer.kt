@@ -1,6 +1,5 @@
 package at.yawk.javabrowser
 
-import org.eclipse.jdt.core.dom.IBinding
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
@@ -26,20 +25,24 @@ class Printer {
     fun print(root: Path) {
         for ((name, asf) in sourceFiles) {
             val generatedName = generatedName(name)
+            val toRoot = generatedName.replace("[^/]+$".toRegex(), "").replace("[^/]+/".toRegex(), "../")
 
             fun toNode(annotation: SourceAnnotation, members: List<Node>): List<Node> {
                 val o = when (annotation) {
                     is BindingRef -> {
                         val tgt = bindings[annotation.binding] ?: return members
                         Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
-                            it.attr("href",
-                                    generatedName.replace("[^/]+$".toRegex(), "").replace("[^/]+/".toRegex(),
-                                            "../") + generatedName(tgt) + "#" + annotation.binding)
+                            it.attr("href", toRoot + generatedName(tgt) + "#" + annotation.binding)
                         }
                     }
                     is BindingDecl -> {
                         Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
                             it.attr("id", annotation.binding)
+                        }
+                    }
+                    is Style -> {
+                        Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
+                            it.attr("class", annotation.styleClass.joinToString(" "))
                         }
                     }
                 }
@@ -48,6 +51,10 @@ class Printer {
             }
 
             val document = Document.createShell(AnnotatedSourceFile.URI)
+
+            val styleLink = document.head().appendElement("link")
+            styleLink.attr("rel", "stylesheet")
+            styleLink.attr("href", "$toRoot../code.css")
 
             val pre = document.body().appendElement("code").appendElement("pre")
 

@@ -8,7 +8,7 @@ import org.jsoup.nodes.TextNode
  * @author yawkat
  */
 
-class AnnotatedSourceFile(private val text: String) {
+class AnnotatedSourceFile(val text: String) {
     companion object {
         const val URI = ""
     }

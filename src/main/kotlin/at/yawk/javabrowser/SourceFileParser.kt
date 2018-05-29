@@ -2,10 +2,12 @@ package at.yawk.javabrowser
 
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST
+import org.eclipse.jdt.core.dom.ASTNode
 import org.eclipse.jdt.core.dom.ASTParser
 import org.eclipse.jdt.core.dom.ASTVisitor
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
+import org.eclipse.jdt.core.dom.Comment
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.EnumDeclaration
 import org.eclipse.jdt.core.dom.FieldAccess
@@ -60,6 +62,11 @@ class SourceFileParser(private val path: Path) {
 
             val annotatedSourceFile = AnnotatedSourceFile(Files.readAllBytes(Paths.get(sourceFilePath))
                     .toString(Charsets.UTF_8))
+            val styleVisitor = StyleVisitor(annotatedSourceFile)
+            for (comment in ast.commentList) {
+                (comment as ASTNode).accept(styleVisitor)
+            }
+            ast.accept(styleVisitor)
             ast.accept(object : ASTVisitor() {
                 override fun visit(node: TypeDeclaration) = visitTypeDecl(node)
 
@@ -140,6 +147,7 @@ class SourceFileParser(private val path: Path) {
                     return true
                 }
             })
+            KeywordHandler.annotateKeywords(annotatedSourceFile, styleVisitor.noKeywordRanges)
 
             printer.addSourceFile(relativePath, annotatedSourceFile)
         }
