@@ -22,12 +22,37 @@ class AnnotatedSourceFile(val text: String) {
         entries.add(Entry(start, length, annotation))
     }
 
-    private fun sort() {
+    private fun bake() {
         entries.sortWith(Comparator.comparingInt { it: Entry -> it.start }.thenComparingInt { it -> it.length.inv() })
+
+        // try to merge entries that affect the same text
+        var i = 0
+        while (i < entries.size) {
+            val head = entries[i]
+            var j = i + 1
+            var merged: SourceAnnotation? = null
+            while (merged == null && j < entries.size &&
+                    entries[j].start == head.start && entries[j].length == head.length) {
+                merged = tryMerge(head.annotation, entries[j++].annotation)
+            }
+            if (merged == null) {
+                i++
+            } else {
+                entries.removeAt(j - 1)
+                entries[i] = head.copy(annotation = merged)
+            }
+        }
+    }
+
+    private fun tryMerge(a: SourceAnnotation, b: SourceAnnotation): SourceAnnotation? {
+        if (a is Style && b is Style) {
+            return Style(a.styleClass + b.styleClass)
+        }
+        return null
     }
 
     fun toHtml(toNode: (SourceAnnotation, List<Node>) -> List<Node>): List<Node> {
-        sort()
+        bake()
         var line = 1
         var entryIndex = 0
         var textIndex = 0

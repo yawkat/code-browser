@@ -1,26 +1,7 @@
 package at.yawk.javabrowser
 
 import org.eclipse.jdt.core.JavaCore
-import org.eclipse.jdt.core.dom.AST
-import org.eclipse.jdt.core.dom.ASTNode
-import org.eclipse.jdt.core.dom.ASTParser
-import org.eclipse.jdt.core.dom.ASTVisitor
-import org.eclipse.jdt.core.dom.AbstractTypeDeclaration
-import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
-import org.eclipse.jdt.core.dom.Comment
-import org.eclipse.jdt.core.dom.CompilationUnit
-import org.eclipse.jdt.core.dom.EnumDeclaration
-import org.eclipse.jdt.core.dom.FieldAccess
-import org.eclipse.jdt.core.dom.FileASTRequestor
-import org.eclipse.jdt.core.dom.IVariableBinding
-import org.eclipse.jdt.core.dom.MethodDeclaration
-import org.eclipse.jdt.core.dom.MethodInvocation
-import org.eclipse.jdt.core.dom.NameQualifiedType
-import org.eclipse.jdt.core.dom.SimpleName
-import org.eclipse.jdt.core.dom.SimpleType
-import org.eclipse.jdt.core.dom.Type
-import org.eclipse.jdt.core.dom.TypeDeclaration
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment
+import org.eclipse.jdt.core.dom.*
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -36,7 +17,8 @@ class SourceFileParser(private val path: Path) {
         val parser = ASTParser.newParser(AST.JLS10)
         parser.setCompilerOptions(mapOf(
                 JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
-                JavaCore.CORE_ENCODING to "UTF-8"
+                JavaCore.CORE_ENCODING to "UTF-8",
+                JavaCore.COMPILER_DOC_COMMENT_SUPPORT to JavaCore.ENABLED
         ))
         parser.setResolveBindings(true)
         parser.setKind(ASTParser.K_COMPILATION_UNIT)
@@ -67,7 +49,7 @@ class SourceFileParser(private val path: Path) {
                 (comment as ASTNode).accept(styleVisitor)
             }
             ast.accept(styleVisitor)
-            ast.accept(object : ASTVisitor() {
+            ast.accept(object : ASTVisitor(true) {
                 override fun visit(node: TypeDeclaration) = visitTypeDecl(node)
 
                 override fun visit(node: AnnotationTypeDeclaration) = visitTypeDecl(node)
@@ -145,6 +127,27 @@ class SourceFileParser(private val path: Path) {
                     if (binding is IVariableBinding && binding.isField && binding.declaringClass != null) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
+                    }
+                    return true
+                }
+
+                override fun visit(node: MethodRef): Boolean {
+                    val binding = node.resolveBinding()
+                    if (binding is IMethodBinding) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                    }
+                    return true
+                }
+
+                override fun visit(node: MemberRef): Boolean {
+                    val binding = node.resolveBinding()
+                    if (binding is IMethodBinding) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                    } else if (binding is IVariableBinding && binding.isField && binding.declaringClass != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
                     }
                     return true
                 }

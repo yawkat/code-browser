@@ -20,8 +20,10 @@ object Bindings {
 
     fun toString(typeBinding: IMethodBinding): String? {
         val builder = StringBuilder(toString(typeBinding.declaringClass) ?: return null)
-        builder.append('#')
-        builder.append(typeBinding.name)
+        if (!typeBinding.isConstructor) {
+            builder.append('#')
+            builder.append(typeBinding.name)
+        }
         builder.append('(')
         for ((i, parameterType) in typeBinding.parameterTypes.withIndex()) {
             if (i > 0) builder.append(',')

@@ -27,6 +27,10 @@ a:link {
     font-style: inherit;
 }
 
+.javadoc-tag {
+    font-weight: bold;
+}
+
 .field {
     color: #660E7A;
     font-weight: bold;

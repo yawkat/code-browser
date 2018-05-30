@@ -2,28 +2,16 @@ package at.yawk.javabrowser
 
 import com.google.common.collect.Range
 import com.google.common.collect.TreeRangeSet
-import org.eclipse.jdt.core.dom.ASTNode
-import org.eclipse.jdt.core.dom.ASTVisitor
-import org.eclipse.jdt.core.dom.BlockComment
-import org.eclipse.jdt.core.dom.ITypeBinding
-import org.eclipse.jdt.core.dom.IVariableBinding
-import org.eclipse.jdt.core.dom.Javadoc
-import org.eclipse.jdt.core.dom.LineComment
-import org.eclipse.jdt.core.dom.MarkerAnnotation
-import org.eclipse.jdt.core.dom.Modifier
-import org.eclipse.jdt.core.dom.NormalAnnotation
-import org.eclipse.jdt.core.dom.NumberLiteral
-import org.eclipse.jdt.core.dom.SimpleName
-import org.eclipse.jdt.core.dom.StringLiteral
+import org.eclipse.jdt.core.dom.*
 
 /**
  * @author yawkat
  */
-class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVisitor() {
+class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVisitor(true) {
     val noKeywordRanges = TreeRangeSet.create<Int>()!!
 
     override fun visit(node: SimpleName): Boolean {
-        val classes = ArrayList<String>()
+        val classes = HashSet<String>()
         if (node.isDeclaration) classes.add("declaration")
         val binding = node.resolveBinding()
         when (binding) {
@@ -47,7 +35,7 @@ class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVi
 
     override fun visit(node: BlockComment): Boolean {
         annotatedSourceFile.annotate(node,
-                Style(if (node.isDocComment) listOf("comment", "javadoc") else listOf("comment")))
+                Style(if (node.isDocComment) setOf("comment", "javadoc") else setOf("comment")))
         disableKeywords(node)
         return true
     }
@@ -87,6 +75,14 @@ class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVi
 
     override fun visit(node: MarkerAnnotation): Boolean {
         annotatedSourceFile.annotate(node, Style("annotation"))
-        return super.visit(node)
+        return true
+    }
+
+    override fun visit(node: TagElement): Boolean {
+        if (node.tagName != null) {
+            // we just want the name and the @
+            annotatedSourceFile.annotate(node.startPosition, node.tagName.length + 1, Style("javadoc-tag"))
+        }
+        return true
     }
 }
