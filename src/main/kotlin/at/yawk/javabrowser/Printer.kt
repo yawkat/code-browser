@@ -72,6 +72,8 @@ class Printer {
 
         val byPackage = HashMap<String, MutableList<String>>()
         for (type in types) {
+            if (type.isEmpty()) continue
+
             val sourceFilePath = bindings[type]!!
             var pkg = sourceFilePath
             while (!pkg.isEmpty()) {
