@@ -60,6 +60,7 @@ class SourceFileParser(private val path: Path) {
                     val binding = Bindings.toString(node.resolveBinding())
                     if (binding != null) {
                         printer.registerBinding(binding, relativePath)
+                        printer.registerType(binding)
                         annotatedSourceFile.annotate(node.name, BindingDecl(binding))
                         annotatedSourceFile.annotate(node.name, BindingRef(binding))
                     }

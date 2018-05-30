@@ -1,5 +1,6 @@
 package at.yawk.javabrowser
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
@@ -13,9 +14,14 @@ import java.nio.file.Path
 class Printer {
     private val sourceFiles = HashMap<String, AnnotatedSourceFile>()
     private val bindings = HashMap<String, String>()
+    private val types = HashSet<String>()
 
     fun registerBinding(binding: String, sourceFilePath: String) {
         bindings[binding] = sourceFilePath
+    }
+
+    fun registerType(type: String) {
+        types.add(type)
     }
 
     fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
@@ -63,7 +69,25 @@ class Printer {
             Files.createDirectories(to.parent)
             Files.write(to, document.html().toByteArray())
         }
+
+        val byPackage = HashMap<String, MutableList<String>>()
+        for (type in types) {
+            val sourceFilePath = bindings[type]!!
+            var pkg = sourceFilePath
+            while (!pkg.isEmpty()) {
+                pkg = pkg.substring(0, pkg.lastIndexOf('/') + 1)
+                byPackage.computeIfAbsent(pkg, { ArrayList() }).add(type)
+            }
+        }
+
+        val objectMapper = ObjectMapper()
+        for ((pkg, types) in byPackage) {
+            types.sort()
+            Files.newOutputStream(root.resolve(pkg + "package.json")).use {
+                objectMapper.writeValue(it, types)
+            }
+        }
     }
 
-    private fun generatedName(name: String) = name.removeSuffix(".java").replace('.', '/') + ".html"
+    private fun generatedName(name: String) = name.removeSuffix(".java") + ".html"
 }
