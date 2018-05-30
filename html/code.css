@@ -57,3 +57,18 @@ a:link {
 .annotation {
     color: #808000;
 }
+
+.line {
+    display: inline-block !important;
+    width: 5em !important;
+    padding-right: 1em !important;
+    text-align: right !important;
+    color: #888 !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    text-decoration: none !important;
+}
+
+.line:before {
+    content: attr(data-line);
+}
