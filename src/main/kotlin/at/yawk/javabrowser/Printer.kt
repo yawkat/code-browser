@@ -82,12 +82,22 @@ class Printer {
             }
         }
 
+        val packageHtmlTemplate = Printer::class.java.getResourceAsStream("package.html").bufferedReader().readText()
+
         val objectMapper = ObjectMapper()
         for ((pkg, types) in byPackage) {
-            types.sort()
-            Files.newOutputStream(root.resolve(pkg + "package.json")).use {
-                objectMapper.writeValue(it, types)
+            val packageDir = root.resolve(pkg)
+            val toFile = types.associate {
+                val sourceFilePath = bindings[it]!!
+                it to (generatedName(sourceFilePath.removePrefix(pkg)) + "#" + it)
             }
+            Files.newOutputStream(packageDir.resolve("package.json")).use {
+                objectMapper.writeValue(it, toFile)
+            }
+            Files.write(packageDir.resolve("index.html"), packageHtmlTemplate
+                    .replace("##root##", pkg.replace("[^/]+/".toRegex(), "../"))
+                    .replace("##package-name##", pkg.replace('/', '.'))
+                    .toByteArray())
         }
     }
 
