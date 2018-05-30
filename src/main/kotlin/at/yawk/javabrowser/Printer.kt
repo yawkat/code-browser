@@ -77,7 +77,7 @@ class Printer {
             val sourceFilePath = bindings[type]!!
             var pkg = sourceFilePath
             while (!pkg.isEmpty()) {
-                pkg = pkg.substring(0, pkg.lastIndexOf('/') + 1)
+                pkg = pkg.substring(0, pkg.lastIndexOf('/', pkg.length - 1) + 1)
                 byPackage.computeIfAbsent(pkg, { ArrayList() }).add(type)
             }
         }
