@@ -79,6 +79,7 @@ class SourceFileParser(private val path: Path) {
                     if (binding != null) {
                         printer.registerBinding(binding, relativePath)
                         annotatedSourceFile.annotate(node.name, BindingDecl(binding))
+                        annotatedSourceFile.annotate(node.name, BindingRef(binding))
                     }
                     return true
                 }
@@ -90,6 +91,7 @@ class SourceFileParser(private val path: Path) {
                         if (binding != null) {
                             printer.registerBinding(binding, relativePath)
                             annotatedSourceFile.annotate(node.name, BindingDecl(binding))
+                            annotatedSourceFile.annotate(node.name, BindingRef(binding))
                         }
                     }
                     return true
