@@ -9,7 +9,7 @@ import org.eclipse.jdt.core.dom.IVariableBinding
  */
 object Bindings {
     fun toString(typeBinding: ITypeBinding): String? = try {
-        typeBinding.binaryName
+        typeBinding.qualifiedName
     } catch (e: UnsupportedOperationException) {
         null
     }
