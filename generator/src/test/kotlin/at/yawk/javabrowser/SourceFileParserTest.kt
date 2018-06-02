@@ -112,4 +112,14 @@ class SourceFileParserTest {
                 Matchers.hasItem(annotate(a, lvr, "variable", 1))
         )
     }
+
+    @Test
+    fun genericCall() {
+        val a = "class A { { x(3); } static <T> T x(T t) { return t; } }"
+        write("A.java", a)
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(annotate(a, BindingRef("A#x(java.lang.Object)"), "x", 1))
+        )
+    }
 }

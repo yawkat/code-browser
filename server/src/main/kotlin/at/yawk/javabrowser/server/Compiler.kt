@@ -41,7 +41,7 @@ private inline fun tempDir(f: (Path) -> Unit) {
 class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     companion object {
         private val log = LoggerFactory.getLogger(Compiler::class.java)
-        const val VERSION = 3
+        const val VERSION = 4
     }
 
     fun needsRecompile(artifactId: String): Boolean {

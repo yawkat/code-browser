@@ -9,24 +9,28 @@ import org.eclipse.jdt.core.dom.IVariableBinding
  */
 object Bindings {
     fun toString(typeBinding: ITypeBinding): String? = try {
-        val qname = typeBinding.typeDeclaration.qualifiedName
+        val decl = typeBinding.typeDeclaration.erasure
+        val qname = decl.qualifiedName
         if (qname.isEmpty()) null else qname
     } catch (e: UnsupportedOperationException) {
         null
     }
 
-    fun toString(typeBinding: IVariableBinding): String? {
-        return (toString(typeBinding.declaringClass) ?: return null) + "#" + typeBinding.name
+    fun toString(varBinding: IVariableBinding): String? {
+        val decl = varBinding.variableDeclaration
+        if (decl.declaringClass == null) return null // array length for example
+        return (toString(decl.declaringClass) ?: return null) + "#" + decl.name
     }
 
     fun toString(methodBinding: IMethodBinding): String? {
-        val builder = StringBuilder(toString(methodBinding.declaringClass) ?: return null)
-        if (!methodBinding.isConstructor) {
+        val decl = methodBinding.methodDeclaration
+        val builder = StringBuilder(toString(decl.declaringClass) ?: return null)
+        if (!decl.isConstructor) {
             builder.append('#')
-            builder.append(methodBinding.name)
+            builder.append(decl.name)
         }
         builder.append('(')
-        for ((i, parameterType) in methodBinding.parameterTypes.withIndex()) {
+        for ((i, parameterType) in decl.parameterTypes.withIndex()) {
             if (i > 0) builder.append(',')
             builder.append(toString(parameterType) ?: return null)
         }

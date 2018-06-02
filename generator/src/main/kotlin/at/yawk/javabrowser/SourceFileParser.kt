@@ -146,16 +146,18 @@ object SourceFileParser {
 
                 override fun visit(node: MethodInvocation): Boolean {
                     val binding = node.resolveMethodBinding()
-                    if (binding != null && binding.declaringClass != null) {
+                    if (binding != null) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                    } else {
+                        println()
                     }
                     return true
                 }
 
                 override fun visit(node: SuperMethodInvocation): Boolean {
                     val binding = node.resolveMethodBinding()
-                    if (binding != null && binding.declaringClass != null) {
+                    if (binding != null) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
                     }
@@ -176,7 +178,7 @@ object SourceFileParser {
 
                 override fun visit(node: FieldAccess): Boolean {
                     val binding = node.resolveFieldBinding()
-                    if (binding != null && binding.declaringClass != null) {
+                    if (binding != null) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
                     }
@@ -185,7 +187,7 @@ object SourceFileParser {
 
                 override fun visit(node: SuperFieldAccess): Boolean {
                     val binding = node.resolveFieldBinding()
-                    if (binding != null && binding.declaringClass != null) {
+                    if (binding != null) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
                     }
@@ -196,10 +198,8 @@ object SourceFileParser {
                     val binding = node.resolveBinding()
                     if (binding is IVariableBinding) {
                         if (binding.isField) {
-                            if (binding.declaringClass != null) {
-                                val s = Bindings.toString(binding)
-                                if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
-                            }
+                            val s = Bindings.toString(binding)
+                            if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
                         } else { // local
                             val id = Long.toHexString(Hashing.goodFastHash(64)
                                     .hashString(binding.key, Charsets.UTF_8).asLong())
@@ -217,7 +217,9 @@ object SourceFileParser {
                     val binding = node.resolveBinding()
                     if (binding is IMethodBinding) {
                         val s = Bindings.toString(binding)
-                        if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                        if (s != null) {
+                            annotatedSourceFile.annotate(node.name, BindingRef(s))
+                        }
                     }
                     return true
                 }
@@ -227,7 +229,7 @@ object SourceFileParser {
                     if (binding is IMethodBinding) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
-                    } else if (binding is IVariableBinding && binding.isField && binding.declaringClass != null) {
+                    } else if (binding is IVariableBinding && binding.isField) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
                     }

@@ -4,9 +4,9 @@ code {
     display: block;
 }
 
-a:link {
+a:link, a:visited {
     color: inherit;
-    text-decoration: underline #888;
+    text-decoration: underline #ccc;
 }
 
 .variable {
