@@ -11,7 +11,8 @@ object Bindings {
     fun toString(typeBinding: ITypeBinding): String? = try {
         val decl = typeBinding.typeDeclaration.erasure
         val qname = decl.qualifiedName
-        if (qname.isEmpty()) null else qname
+        // empty for local / anon types
+        if (qname.isEmpty()) decl.binaryName else qname
     } catch (e: UnsupportedOperationException) {
         null
     }
