@@ -1,12 +1,12 @@
 create table artifacts (
   id                 varchar primary key,
-  lastCompileVersion integer not null default 0,
+  lastCompileVersion integer not null default 0
 );
 
 create table sourceFiles (
   artifactId varchar references artifacts,
   path       varchar not null,
-  json       blob    not null,
+  json       bytea   not null,
   primary key (artifactId, path)
 );
 
