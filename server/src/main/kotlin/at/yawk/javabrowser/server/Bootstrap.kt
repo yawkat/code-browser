@@ -2,6 +2,7 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.server.view.SourceFileView
+import at.yawk.javabrowser.server.view.TypeSearchView
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.dropwizard.Application
 import io.dropwizard.assets.AssetsBundle
@@ -11,11 +12,14 @@ import io.dropwizard.views.ViewBundle
 import org.flywaydb.core.Flyway
 import org.glassfish.jersey.server.model.Resource
 import org.skife.jdbi.v2.Handle
+import org.skife.jdbi.v2.TransactionStatus
 import org.slf4j.LoggerFactory
+import java.net.URI
 import java.sql.Blob
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.ws.rs.HttpMethod
+import javax.ws.rs.RedirectionException
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 
@@ -56,12 +60,14 @@ class Bootstrap : Application<Config>() {
             @Suppress("IfThenToElvis")
             if (it is Artifact.Maven) it.versions.map { v -> it.copy(versions = listOf(v)) } else listOf(it)
         }
+        val artifactIds = ArrayList<String>()
         for (artifact in artifacts) {
             val artifactId = when (artifact) {
                 is Artifact.OldJava -> "java/${artifact.version}"
                 is Artifact.Java -> "java.base/${artifact.version}"
                 is Artifact.Maven -> "${artifact.groupId}/${artifact.artifactId}/${artifact.versions.single()}"
             }
+            artifactIds.add(artifactId)
             compileExecutor.execute {
                 try {
                     when (artifact) {
@@ -79,7 +85,7 @@ class Bootstrap : Application<Config>() {
             }
 
             val builder = Resource.builder(artifactId)
-            builder.addChildResource("{sourceFile:.+}")
+            builder.addChildResource("{sourceFile:.+\\.java}")
                     .addMethod(HttpMethod.GET)
                     .produces(MediaType.TEXT_HTML_TYPE)
                     .handledBy { ctx ->
@@ -103,9 +109,26 @@ class Bootstrap : Application<Config>() {
                                     annotatedSourceFile)
                         }
                     }
+            builder.addChildResource("package.json")
+                    .addMethod(HttpMethod.GET)
+                    .produces(MediaType.APPLICATION_JSON_TYPE)
+                    .handledBy { _ -> TypeListResponse(dbi, artifactId) }
+            builder
+                    .addMethod(HttpMethod.GET)
+                    .produces(MediaType.TEXT_HTML)
+                    .handledBy { ctx ->
+                        // need trailing slash for search to work
+                        if (ctx.uriInfo.absolutePath.toString().endsWith("/")) {
+                            TypeSearchView(artifactId)
+                        } else {
+                            throw RedirectionException(Response.Status.MOVED_PERMANENTLY, URI.create("/$artifactId/"))
+                        }
+                    }
             val resource = builder.build()
             environment.jersey().resourceConfig.registerResources(resource)
         }
         compileExecutor.shutdown()
+
+        environment.jersey().register(RootResource(artifactIds))
     }
 }
