@@ -16,9 +16,8 @@ class BindingResolver(private val dbi: DBI) {
             .maximumSize(100000)
             .build(CacheLoader.from { binding ->
                 dbi.inTransaction { conn: Handle, _ ->
-                    val candidates = conn.select("select artifactId, sourceFile from bindings join artifacts a on bindings.artifactId = a.id where a.lastCompileVersion = ? and binding = ?",
-                            Compiler.VERSION,
-                            binding)
+                    val candidates = conn.select(
+                            "select artifactId, sourceFile from bindings where binding = ?", binding)
 
                     candidates.map { BindingLocation(it["artifactId"] as String, it["sourceFile"] as String, binding!!) }
                 }
