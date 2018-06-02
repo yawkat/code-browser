@@ -54,7 +54,7 @@ class Bootstrap : Application<Config>() {
         val bindingResolver = BindingResolver(dbi)
 
         val compiler = Compiler(dbi, objectMapper)
-        val compileExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+        val compileExecutor = Executors.newFixedThreadPool(configuration.compilerThreads)
         // flatten maven artifacts to one artifact per version, so that multiple versions can be compiled in parallel
         val artifacts = configuration.artifacts.flatMap {
             @Suppress("IfThenToElvis")

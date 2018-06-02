@@ -9,6 +9,7 @@ import java.nio.file.Paths
  */
 class Config : Configuration() {
     lateinit var database: DataSourceFactory
+    var compilerThreads = Runtime.getRuntime().availableProcessors()
     var artifacts = listOf(
             Artifact.OldJava("8", Paths.get("/usr/lib/jvm/java-8-openjdk/src.zip")),
             Artifact.Java("10", Paths.get("/usr/lib/jvm/java-10-openjdk/lib/src.zip")),
