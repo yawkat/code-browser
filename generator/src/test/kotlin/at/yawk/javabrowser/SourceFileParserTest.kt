@@ -86,4 +86,14 @@ class SourceFileParserTest {
                 Matchers.hasItem(annotate(a, BindingRef("java.lang.Object()"), "super"))
         )
     }
+
+    @Test
+    fun staticCall() {
+        val a = "class A { static void x() { A.x(); } }"
+        write("A.java", a)
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(annotate(a, BindingRef("A"), "A", 1))
+        )
+    }
 }

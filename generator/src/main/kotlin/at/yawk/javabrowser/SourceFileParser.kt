@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.dom.EnumDeclaration
 import org.eclipse.jdt.core.dom.FieldAccess
 import org.eclipse.jdt.core.dom.FileASTRequestor
 import org.eclipse.jdt.core.dom.IMethodBinding
+import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
 import org.eclipse.jdt.core.dom.MemberRef
 import org.eclipse.jdt.core.dom.MethodDeclaration
@@ -192,6 +193,10 @@ object SourceFileParser {
                 override fun visit(node: SimpleName): Boolean {
                     val binding = node.resolveBinding()
                     if (binding is IVariableBinding && binding.isField && binding.declaringClass != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
+                    }
+                    if (binding is ITypeBinding) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
                     }
