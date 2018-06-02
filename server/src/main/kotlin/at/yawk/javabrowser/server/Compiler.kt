@@ -63,34 +63,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     ) {
         log.info("Compiling $artifactId at $sourceRoot with dependencies $dependencies (boot=$includeRunningVmBootclasspath)")
 
-        val parser = ASTParser.newParser(AST.JLS10)
-        parser.setCompilerOptions(mapOf(
-                JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
-                JavaCore.CORE_ENCODING to "UTF-8",
-                JavaCore.COMPILER_DOC_COMMENT_SUPPORT to JavaCore.ENABLED
-        ))
-        parser.setResolveBindings(true)
-        parser.setKind(ASTParser.K_COMPILATION_UNIT)
-        parser.setEnvironment(
-                dependencies.map { it.toString() }.toTypedArray(),
-                arrayOf(sourceRoot.toString()),
-                arrayOf("UTF-8"),
-                includeRunningVmBootclasspath)
-
-
-        val files = Files.walk(sourceRoot)
-                .filter { it.toString().endsWith(".java") }
-                .collect(Collectors.toList())
-
-        val printer = Printer()
-
-        parser.createASTs(
-                files.map { it.toString() }.toTypedArray(),
-                files.map { "UTF-8" }.toTypedArray(),
-                emptyArray<String>(),
-                SourceFileParser.Requestor(sourceRoot, printer),
-                null
-        )
+        val printer = SourceFileParser.compile(sourceRoot, dependencies, includeRunningVmBootclasspath)
 
         dbi.inTransaction { conn: Handle, _: TransactionStatus ->
             conn.update("delete from bindings where artifactId = ?", artifactId)

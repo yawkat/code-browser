@@ -9,7 +9,8 @@ import org.eclipse.jdt.core.dom.IVariableBinding
  */
 object Bindings {
     fun toString(typeBinding: ITypeBinding): String? = try {
-        typeBinding.qualifiedName
+        val qname = typeBinding.typeDeclaration.qualifiedName
+        if (qname.isEmpty()) null else qname
     } catch (e: UnsupportedOperationException) {
         null
     }

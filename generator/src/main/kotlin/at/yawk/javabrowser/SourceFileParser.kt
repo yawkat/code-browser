@@ -11,9 +11,13 @@ import java.util.stream.Collectors
 /**
  * @author yawkat
  */
-class SourceFileParser(private val path: Path) {
+object SourceFileParser {
 
-    fun parse(printer: Printer) {
+    fun compile(
+            sourceRoot: Path,
+            dependencies: List<Path>,
+            includeRunningVmBootclasspath: Boolean = true
+    ): Printer {
         val parser = ASTParser.newParser(AST.JLS10)
         parser.setCompilerOptions(mapOf(
                 JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
@@ -22,20 +26,28 @@ class SourceFileParser(private val path: Path) {
         ))
         parser.setResolveBindings(true)
         parser.setKind(ASTParser.K_COMPILATION_UNIT)
-        parser.setEnvironment(emptyArray<String>(), arrayOf(path.toString()), arrayOf("UTF-8"), true)
+        parser.setEnvironment(
+                dependencies.map { it.toString() }.toTypedArray(),
+                arrayOf(sourceRoot.toString()),
+                arrayOf("UTF-8"),
+                includeRunningVmBootclasspath)
 
 
-        val files = Files.walk(path)
+        val files = Files.walk(sourceRoot)
                 .filter { it.toString().endsWith(".java") }
                 .collect(Collectors.toList())
+
+        val printer = Printer()
 
         parser.createASTs(
                 files.map { it.toString() }.toTypedArray(),
                 files.map { "UTF-8" }.toTypedArray(),
                 emptyArray<String>(),
-                Requestor(path, printer),
+                SourceFileParser.Requestor(sourceRoot, printer),
                 null
         )
+
+        return printer
     }
 
     class Requestor(val root: Path, val printer: Printer) : FileASTRequestor() {
@@ -114,7 +126,25 @@ class SourceFileParser(private val path: Path) {
                     return true
                 }
 
+                override fun visit(node: SuperMethodInvocation): Boolean {
+                    val binding = node.resolveMethodBinding()
+                    if (binding != null && binding.declaringClass != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                    }
+                    return true
+                }
+
                 override fun visit(node: FieldAccess): Boolean {
+                    val binding = node.resolveFieldBinding()
+                    if (binding != null && binding.declaringClass != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                    }
+                    return true
+                }
+
+                override fun visit(node: SuperFieldAccess): Boolean {
                     val binding = node.resolveFieldBinding()
                     if (binding != null && binding.declaringClass != null) {
                         val s = Bindings.toString(binding)
