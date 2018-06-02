@@ -1,5 +1,6 @@
 package at.yawk.javabrowser
 
+import com.google.common.hash.Hashing
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTNode
@@ -27,6 +28,7 @@ import org.eclipse.jdt.core.dom.SuperMethodInvocation
 import org.eclipse.jdt.core.dom.Type
 import org.eclipse.jdt.core.dom.TypeDeclaration
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment
+import java.lang.Long
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -192,9 +194,17 @@ object SourceFileParser {
 
                 override fun visit(node: SimpleName): Boolean {
                     val binding = node.resolveBinding()
-                    if (binding is IVariableBinding && binding.isField && binding.declaringClass != null) {
-                        val s = Bindings.toString(binding)
-                        if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
+                    if (binding is IVariableBinding) {
+                        if (binding.isField) {
+                            if (binding.declaringClass != null) {
+                                val s = Bindings.toString(binding)
+                                if (s != null) annotatedSourceFile.annotate(node, BindingRef(s))
+                            }
+                        } else { // local
+                            val id = Long.toHexString(Hashing.goodFastHash(64)
+                                    .hashString(binding.key, Charsets.UTF_8).asLong())
+                            annotatedSourceFile.annotate(node, LocalVariableRef(id))
+                        }
                     }
                     if (binding is ITypeBinding) {
                         val s = Bindings.toString(binding)

@@ -6,6 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>${artifactId} : ${sourceFilePath}</title>
   <link rel="stylesheet" href="/assets/code.css">
+  <script src="/assets/code.js"></script>
 </head>
 <body>
 <code><pre>${codeHtml?no_esc}</pre></code>

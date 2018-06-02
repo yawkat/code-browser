@@ -96,4 +96,20 @@ class SourceFileParserTest {
                 Matchers.hasItem(annotate(a, BindingRef("A"), "A", 1))
         )
     }
+
+    @Test
+    fun local() {
+        val a = "class A { { int variable; variable++; } }"
+        write("A.java", a)
+        val entries = compileOne().entries
+        val lvr = entries.find { it.annotation is LocalVariableRef }!!.annotation
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(annotate(a, lvr, "variable"))
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(annotate(a, lvr, "variable", 1))
+        )
+    }
 }

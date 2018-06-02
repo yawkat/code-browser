@@ -12,12 +12,10 @@ import io.dropwizard.views.ViewBundle
 import org.flywaydb.core.Flyway
 import org.glassfish.jersey.server.model.Resource
 import org.skife.jdbi.v2.Handle
-import org.skife.jdbi.v2.TransactionStatus
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.sql.Blob
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import javax.ws.rs.HttpMethod
 import javax.ws.rs.RedirectionException
 import javax.ws.rs.core.MediaType

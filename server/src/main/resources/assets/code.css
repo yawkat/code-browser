@@ -76,3 +76,7 @@ a:link {
 .line:before {
     content: attr(data-line);
 }
+
+.local-hover {
+    background: #ddd;
+}

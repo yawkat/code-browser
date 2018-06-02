@@ -3,6 +3,7 @@ package at.yawk.javabrowser.server.view
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
+import at.yawk.javabrowser.LocalVariableRef
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
@@ -48,6 +49,11 @@ class SourceFileView(
         })
         is Style -> listOf(Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
             it.attr("class", annotation.styleClass.joinToString(" "))
+            it.appendChildren(members)
+        })
+        is LocalVariableRef -> listOf(Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
+            it.attr("class", "local-variable")
+            it.attr("data-local-variable", annotation.id)
             it.appendChildren(members)
         })
     }
