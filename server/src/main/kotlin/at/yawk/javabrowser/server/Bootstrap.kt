@@ -95,7 +95,7 @@ class Bootstrap : Application<Config>() {
                                     sourceFile)
                             if (result.isEmpty()) null
                             else objectMapper.readValue(
-                                    (result.single()["json"] as Blob).binaryStream,
+                                    result.single()["json"] as ByteArray,
                                     AnnotatedSourceFile::class.java)
                         }
                         if (annotatedSourceFile == null) {

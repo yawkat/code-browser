@@ -31,7 +31,7 @@ class CompilerTest {
                     (conn.select("select count(*) from sourceFiles").single().values.single() as Number).toInt() > 100
             )
 
-            println((conn.select("select * from sourceFiles limit 1").single()["json"] as Blob).binaryStream.readBytes()
+            println((conn.select("select * from sourceFiles limit 1").single()["json"] as ByteArray)
                     .toString(Charsets.UTF_8))
         }
     }
