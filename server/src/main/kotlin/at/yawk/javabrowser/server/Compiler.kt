@@ -116,8 +116,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         }
     }
 
-    fun compileOldJava(artifact: Artifact.OldJava) {
-        val artifactId = "java/${artifact.version}"
+    fun compileOldJava(artifactId: String, artifact: Artifact.OldJava) {
         if (!needsRecompile(artifactId)) return
         tempDir { tmp ->
             val src = tmp.resolve("src")
@@ -130,8 +129,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         }
     }
 
-    fun compileJava(artifact: Artifact.Java) {
-        val artifactId = "java.base/${artifact.version}"
+    fun compileJava(artifactId: String, artifact: Artifact.Java) {
         if (!needsRecompile(artifactId)) return
         tempDir { tmp ->
             val src = tmp.resolve("src")
@@ -162,34 +160,31 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         })
     }
 
-    fun compileMaven(artifact: Artifact.Maven) {
-        for (version in artifact.versions) {
-            val artifactId = "${artifact.groupId}/${artifact.artifactId}/$version"
-            if (!needsRecompile(artifactId)) return
+    fun compileMaven(artifactId: String, artifact: Artifact.Maven, version: String) {
+        if (!needsRecompile(artifactId)) return
 
-            val dependencies = getMavenDependencies(artifact.groupId, artifact.artifactId, version)
-                    .filter {
-                        it.coordinate.groupId != artifact.groupId &&
-                                it.coordinate.artifactId != artifact.artifactId
-                    }
-                    .map { (it as MavenResolvedArtifact).asFile().toPath() }
-            val sourceJar = Maven.resolver()
-                    .addDependency(MavenDependencies.createDependency(
-                            MavenCoordinates.createCoordinate(
-                                    artifact.groupId, artifact.artifactId, version,
-                                    PackagingType.JAR, "sources"),
-                            ScopeType.COMPILE,
-                            false
-                    ))
-                    .resolve().withoutTransitivity().asSingleFile().toPath()
-            tempDir { tmp ->
-                val src = tmp.resolve("src")
-                FileSystems.newFileSystem(sourceJar, null).use {
-                    val root = it.rootDirectories.single()
-                    copyDirectory(root, src)
+        val dependencies = getMavenDependencies(artifact.groupId, artifact.artifactId, version)
+                .filter {
+                    it.coordinate.groupId != artifact.groupId &&
+                            it.coordinate.artifactId != artifact.artifactId
                 }
-                compile(artifactId, src, dependencies)
+                .map { (it as MavenResolvedArtifact).asFile().toPath() }
+        val sourceJar = Maven.resolver()
+                .addDependency(MavenDependencies.createDependency(
+                        MavenCoordinates.createCoordinate(
+                                artifact.groupId, artifact.artifactId, version,
+                                PackagingType.JAR, "sources"),
+                        ScopeType.COMPILE,
+                        false
+                ))
+                .resolve().withoutTransitivity().asSingleFile().toPath()
+        tempDir { tmp ->
+            val src = tmp.resolve("src")
+            FileSystems.newFileSystem(sourceJar, null).use {
+                val root = it.rootDirectories.single()
+                copyDirectory(root, src)
             }
+            compile(artifactId, src, dependencies)
         }
     }
 }

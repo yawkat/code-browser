@@ -10,7 +10,9 @@ import org.jsoup.parser.Tag
  * @author yawkat
  */
 
-class AnnotatedSourceFile(val text: String, val entries: MutableList<Entry> = ArrayList()) {
+data class AnnotatedSourceFile(
+        val text: String,
+        @Suppress("MemberVisibilityCanBePrivate") val entries: MutableList<Entry> = ArrayList()) {
     companion object {
         const val URI = ""
     }

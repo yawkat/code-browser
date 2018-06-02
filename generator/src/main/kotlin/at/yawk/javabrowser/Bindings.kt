@@ -18,14 +18,14 @@ object Bindings {
         return (toString(typeBinding.declaringClass) ?: return null) + "#" + typeBinding.name
     }
 
-    fun toString(typeBinding: IMethodBinding): String? {
-        val builder = StringBuilder(toString(typeBinding.declaringClass) ?: return null)
-        if (!typeBinding.isConstructor) {
+    fun toString(methodBinding: IMethodBinding): String? {
+        val builder = StringBuilder(toString(methodBinding.declaringClass) ?: return null)
+        if (!methodBinding.isConstructor) {
             builder.append('#')
-            builder.append(typeBinding.name)
+            builder.append(methodBinding.name)
         }
         builder.append('(')
-        for ((i, parameterType) in typeBinding.parameterTypes.withIndex()) {
+        for ((i, parameterType) in methodBinding.parameterTypes.withIndex()) {
             if (i > 0) builder.append(',')
             builder.append(toString(parameterType) ?: return null)
         }

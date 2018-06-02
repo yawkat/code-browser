@@ -107,7 +107,7 @@ class SourceFileParser(private val path: Path) {
 
                 override fun visit(node: MethodInvocation): Boolean {
                     val binding = node.resolveMethodBinding()
-                    if (binding != null) {
+                    if (binding != null && binding.declaringClass != null) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
                     }

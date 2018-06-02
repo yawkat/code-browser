@@ -14,7 +14,9 @@ class CompilerTest {
     fun maven() {
         val dbi = createDb()
         val compiler = Compiler(dbi, ObjectMapper().findAndRegisterModules())
-        compiler.compileMaven(Artifact.Maven("com.google.guava", "guava", listOf("25.1-jre")))
+        compiler.compileMaven("com.google.guava/guava/25.1-jre",
+                Artifact.Maven("com.google.guava", "guava", listOf("25.1-jre")),
+                "25.1-jre")
 
         dbi.inTransaction { conn: Handle, _ ->
             Assert.assertEquals(

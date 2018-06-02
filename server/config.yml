@@ -1,0 +1,5 @@
+database:
+  driverClass: org.h2.Driver
+  user: java-browser
+  password:
+  url: jdbc:h2:./java-browser-db
