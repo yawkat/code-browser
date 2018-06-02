@@ -6,7 +6,9 @@ import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.intellij.lang.annotations.Language
 import org.testng.Assert
+import org.testng.annotations.AfterMethod
 import org.testng.annotations.AfterTest
+import org.testng.annotations.BeforeMethod
 import org.testng.annotations.BeforeTest
 import org.testng.annotations.Test
 import java.nio.file.Files
@@ -19,12 +21,12 @@ import java.nio.file.Paths
 class SourceFileParserTest {
     private var tmp = Paths.get("/null")
 
-    @BeforeTest
+    @BeforeMethod
     fun setup() {
         tmp = Files.createTempDirectory("SourceFileParserTest")
     }
 
-    @AfterTest
+    @AfterMethod
     fun tearDown() {
         MoreFiles.deleteRecursively(tmp)
     }
@@ -43,16 +45,16 @@ class SourceFileParserTest {
                          word: String,
                          index: Int = 0): AnnotatedSourceFile.Entry {
         var i = index
-        var j = 0
+        var j = -1
         while (i-- >= 0) {
-            j = code.indexOf(word, j)
+            j = code.indexOf(word, j + 1)
             if (j == -1) throw NoSuchElementException()
         }
 
         return AnnotatedSourceFile.Entry(j, word.length, annotation)
     }
 
-    private fun compileOne() = SourceFileParser.compile(src, emptyList(), false).sourceFiles.values.single()
+    private fun compileOne() = SourceFileParser.compile(src, emptyList(), true).sourceFiles.values.single()
 
     @Test
     fun superMethodCall() {
@@ -61,6 +63,27 @@ class SourceFileParserTest {
         MatcherAssert.assertThat(
                 compileOne().entries,
                 Matchers.hasItem(annotate(a, BindingRef("java.lang.Object#hashCode()"), "hashCode", 1))
+        )
+    }
+
+    @Test
+    fun superConstructorCall() {
+        val a = "class A extends B { public A() { super(); } }"
+        write("A.java", a)
+        write("B.java", "class B { public B() {} }")
+        MatcherAssert.assertThat(
+                SourceFileParser.compile(src, emptyList(), false).sourceFiles["A.java"]!!.entries,
+                Matchers.hasItem(annotate(a, BindingRef("B()"), "super"))
+        )
+    }
+
+    @Test
+    fun superConstructorCallImplicit() {
+        val a = "class A { public A() { super(); } }"
+        write("A.java", a)
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(annotate(a, BindingRef("java.lang.Object()"), "super"))
         )
     }
 }

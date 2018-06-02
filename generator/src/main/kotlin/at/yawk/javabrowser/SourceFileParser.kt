@@ -1,7 +1,31 @@
 package at.yawk.javabrowser
 
 import org.eclipse.jdt.core.JavaCore
-import org.eclipse.jdt.core.dom.*
+import org.eclipse.jdt.core.dom.AST
+import org.eclipse.jdt.core.dom.ASTNode
+import org.eclipse.jdt.core.dom.ASTParser
+import org.eclipse.jdt.core.dom.ASTVisitor
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration
+import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
+import org.eclipse.jdt.core.dom.CompilationUnit
+import org.eclipse.jdt.core.dom.EnumDeclaration
+import org.eclipse.jdt.core.dom.FieldAccess
+import org.eclipse.jdt.core.dom.FileASTRequestor
+import org.eclipse.jdt.core.dom.IMethodBinding
+import org.eclipse.jdt.core.dom.IVariableBinding
+import org.eclipse.jdt.core.dom.MemberRef
+import org.eclipse.jdt.core.dom.MethodDeclaration
+import org.eclipse.jdt.core.dom.MethodInvocation
+import org.eclipse.jdt.core.dom.MethodRef
+import org.eclipse.jdt.core.dom.NameQualifiedType
+import org.eclipse.jdt.core.dom.SimpleName
+import org.eclipse.jdt.core.dom.SimpleType
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation
+import org.eclipse.jdt.core.dom.SuperFieldAccess
+import org.eclipse.jdt.core.dom.SuperMethodInvocation
+import org.eclipse.jdt.core.dom.Type
+import org.eclipse.jdt.core.dom.TypeDeclaration
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -131,6 +155,18 @@ object SourceFileParser {
                     if (binding != null && binding.declaringClass != null) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
+                    }
+                    return true
+                }
+
+                override fun visit(node: SuperConstructorInvocation): Boolean {
+                    val superKeywordStart =
+                            if (node.expression == null) node.startPosition
+                            else node.expression.startPosition + node.expression.length + 1
+                    val binding = node.resolveConstructorBinding()
+                    if (binding != null && binding.declaringClass != null) {
+                        val s = Bindings.toString(binding)
+                        if (s != null) annotatedSourceFile.annotate(superKeywordStart, "super".length, BindingRef(s))
                     }
                     return true
                 }
