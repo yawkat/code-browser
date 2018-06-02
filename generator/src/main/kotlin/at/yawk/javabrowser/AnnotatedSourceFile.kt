@@ -10,12 +10,11 @@ import org.jsoup.parser.Tag
  * @author yawkat
  */
 
-class AnnotatedSourceFile(val text: String) {
+class AnnotatedSourceFile(val text: String, val entries: MutableList<Entry> = ArrayList()) {
     companion object {
         const val URI = ""
     }
 
-    private val entries = ArrayList<Entry>()
     fun annotate(node: ASTNode, annotation: SourceAnnotation) = annotate(node.startPosition, node.length, annotation)
 
     fun annotate(start: Int, length: Int, annotation: SourceAnnotation) {
@@ -108,7 +107,7 @@ class AnnotatedSourceFile(val text: String) {
         return out
     }
 
-    private data class Entry(
+    data class Entry(
             val start: Int,
             val length: Int,
             val annotation: SourceAnnotation

@@ -12,9 +12,9 @@ import java.nio.file.Path
  * @author yawkat
  */
 class Printer {
-    private val sourceFiles = HashMap<String, AnnotatedSourceFile>()
-    private val bindings = HashMap<String, String>()
-    private val types = HashSet<String>()
+    val sourceFiles: MutableMap<String, AnnotatedSourceFile> = HashMap()
+    val bindings: MutableMap<String, String> = HashMap()
+    val types: MutableSet<String> = HashSet()
 
     fun registerBinding(binding: String, sourceFilePath: String) {
         bindings[binding] = sourceFilePath

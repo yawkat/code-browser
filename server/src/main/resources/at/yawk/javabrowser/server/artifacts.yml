@@ -1,0 +1,11 @@
+- type: old-java
+  version: 8
+  src: /usr/lib/jvm/java-8-openjdk/src.zip
+- type: java
+  version: 10
+  src: /usr/lib/jvm/java-10-openjdk/lib/src.zip
+- type: maven
+  groupId: com.google.guava
+  artifactId: guava
+  versions:
+  - 25.1-jre

@@ -38,7 +38,7 @@ class SourceFileParser(private val path: Path) {
         )
     }
 
-    private class Requestor(val root: Path, val printer: Printer) : FileASTRequestor() {
+    class Requestor(val root: Path, val printer: Printer) : FileASTRequestor() {
         override fun acceptAST(sourceFilePath: String, ast: CompilationUnit) {
             val relativePath = root.relativize(Paths.get(sourceFilePath)).toString()
 
