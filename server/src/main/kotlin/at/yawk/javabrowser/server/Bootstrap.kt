@@ -62,7 +62,7 @@ class Bootstrap : Application<Config>() {
         for (artifact in artifacts) {
             val artifactId = when (artifact) {
                 is Artifact.OldJava -> "java/${artifact.version}"
-                is Artifact.Java -> "java.base/${artifact.version}"
+                is Artifact.Java -> "java/${artifact.version}"
                 is Artifact.Maven -> "${artifact.groupId}/${artifact.artifactId}/${artifact.versions.single()}"
             }
             artifactIds.add(artifactId)
@@ -77,6 +77,9 @@ class Bootstrap : Application<Config>() {
                     bindingResolver.invalidate()
 
                     log.info("$artifactId is ready")
+
+                    // ask nicely for a gc to free up resources from compilation (MaxHeapFreeRatio)
+                    System.gc()
                 } catch (e: Exception) {
                     log.error("Failed to compile artifact {}", artifact, e)
                 }

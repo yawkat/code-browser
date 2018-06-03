@@ -54,7 +54,13 @@ class SourceFileParserTest {
         return AnnotatedSourceFile.Entry(j, word.length, annotation)
     }
 
-    private fun compileOne() = SourceFileParser.compile(src, emptyList(), true).sourceFiles.values.single()
+    private fun compile(): Map<String, AnnotatedSourceFile> {
+        val parser = SourceFileParser(src)
+        parser.compile()
+        return parser.printer.sourceFiles
+    }
+
+    private fun compileOne() = compile().values.single()
 
     @Test
     fun superMethodCall() {
@@ -72,7 +78,7 @@ class SourceFileParserTest {
         write("A.java", a)
         write("B.java", "class B { public B() {} }")
         MatcherAssert.assertThat(
-                SourceFileParser.compile(src, emptyList(), false).sourceFiles["A.java"]!!.entries,
+                compile()["A.java"]!!.entries,
                 Matchers.hasItem(annotate(a, BindingRef("B()"), "super"))
         )
     }

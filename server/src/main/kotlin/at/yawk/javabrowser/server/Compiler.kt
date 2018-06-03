@@ -4,9 +4,6 @@ import at.yawk.javabrowser.Printer
 import at.yawk.javabrowser.SourceFileParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.io.MoreFiles
-import org.eclipse.jdt.core.JavaCore
-import org.eclipse.jdt.core.dom.AST
-import org.eclipse.jdt.core.dom.ASTParser
 import org.jboss.shrinkwrap.resolver.api.maven.Maven
 import org.jboss.shrinkwrap.resolver.api.maven.MavenResolvedArtifact
 import org.jboss.shrinkwrap.resolver.api.maven.PackagingType
@@ -17,13 +14,15 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.skife.jdbi.v2.TransactionStatus
 import org.slf4j.LoggerFactory
+import java.io.IOException
 import java.nio.file.FileSystems
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
-import java.util.stream.Collectors
+import java.util.zip.ZipFile
 
 /**
  * @author yawkat
@@ -55,16 +54,35 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         }
     }
 
-    fun compile(
+    private fun compile(
+            artifactId: String,
+            sourceRoot: Path,
+            dependencies: List<Path>,
+            includeRunningVmBootclasspath: Boolean,
+            printer: Printer,
+            pathPrefix: String = ""
+    ) {
+        log.info("Compiling $artifactId at $sourceRoot with dependencies $dependencies (boot=$includeRunningVmBootclasspath prefix=$pathPrefix)")
+
+        val parser = SourceFileParser(sourceRoot, printer)
+        parser.includeRunningVmBootclasspath = includeRunningVmBootclasspath
+        parser.pathPrefix = pathPrefix
+        parser.dependencies = dependencies
+        parser.compile()
+    }
+
+    private fun compileAndCommit(
             artifactId: String,
             sourceRoot: Path,
             dependencies: List<Path>,
             includeRunningVmBootclasspath: Boolean = true
     ) {
-        log.info("Compiling $artifactId at $sourceRoot with dependencies $dependencies (boot=$includeRunningVmBootclasspath)")
+        val printer = Printer()
+        compile(artifactId, sourceRoot, dependencies, includeRunningVmBootclasspath, printer)
+        commit(artifactId, printer)
+    }
 
-        val printer = SourceFileParser.compile(sourceRoot, dependencies, includeRunningVmBootclasspath)
-
+    private fun commit(artifactId: String, printer: Printer) {
         dbi.inTransaction { conn: Handle, _: TransactionStatus ->
             conn.update("delete from bindings where artifactId = ?", artifactId)
             conn.update("delete from sourceFiles where artifactId = ?", artifactId)
@@ -98,36 +116,66 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                 copyDirectory(root, src)
             }
 
-            compile(artifactId, src, dependencies = emptyList(), includeRunningVmBootclasspath = false)
+            compileAndCommit(artifactId, src, dependencies = emptyList(), includeRunningVmBootclasspath = false)
         }
     }
 
     fun compileJava(artifactId: String, artifact: Artifact.Java) {
         if (!needsRecompile(artifactId)) return
+        val printer = Printer()
         tempDir { tmp ->
-            val src = tmp.resolve("src")
-            // TODO: other modules than java.base
-            FileSystems.newFileSystem(artifact.src, null).use {
-                val root = it.rootDirectories.single().resolve("java.base")
-                copyDirectory(root, src)
+            val jmodClassCache = tmp.resolve("jmodClassCache")
+            Files.list(artifact.baseDir.resolve("jmods")).iterator().forEach {
+                ZipFile(it.toFile()).use { zipFile ->
+                    val entries = zipFile.entries()
+                    while (entries.hasMoreElements()) {
+                        val entry = entries.nextElement()
+                        if (entry.name.startsWith("classes/")) {
+                            val target = jmodClassCache.resolve(entry.name.removePrefix("classes/"))
+                            Files.createDirectories(target.parent)
+                            zipFile.getInputStream(entry).use {
+                                Files.copy(it, target, StandardCopyOption.REPLACE_EXISTING)
+                            }
+                        }
+                    }
+                }
             }
 
-            compile(artifactId,
-                    src,
-                    dependencies = emptyList(),
-                    includeRunningVmBootclasspath = false)
+            FileSystems.newFileSystem(artifact.baseDir.resolve("lib/src.zip"), null).use {
+                Files.list(it.rootDirectories.single()).iterator().forEach { moduleDir ->
+                    val moduleName = moduleDir.fileName.toString().removeSuffix("/")
+                    val src = tmp.resolve("src-$moduleName")
+                    copyDirectory(moduleDir, src)
+
+                    compile(artifactId,
+                            src,
+                            dependencies = listOf(jmodClassCache),
+                            includeRunningVmBootclasspath = false,
+                            pathPrefix = "$moduleName/",
+                            printer = printer)
+
+                    MoreFiles.deleteRecursively(src)
+                }
+            }
         }
+        commit(artifactId, printer)
     }
 
     private fun copyDirectory(src: Path, dest: Path): Path? {
-        return Files.walkFileTree(src, object : SimpleFileVisitor<Path>() {
+        val norm = src.normalize()
+        return Files.walkFileTree(norm, object : SimpleFileVisitor<Path>() {
             override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
-                Files.createDirectories(dest.resolve(src.relativize(dir).toString()))
+                Files.createDirectories(dest.resolve(norm.relativize(dir).toString()))
                 return FileVisitResult.CONTINUE
             }
 
             override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-                Files.copy(file, dest.resolve(src.relativize(file).toString()))
+                try {
+                    Files.copy(file, dest.resolve(norm.relativize(file).toString()))
+                } catch (e: IOException) {
+                    log.error("Failed to copy $file", e)
+                    throw e
+                }
                 return FileVisitResult.CONTINUE
             }
         })
@@ -157,7 +205,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                 val root = it.rootDirectories.single()
                 copyDirectory(root, src)
             }
-            compile(artifactId, src, dependencies)
+            compileAndCommit(artifactId, src, dependencies)
         }
     }
 }

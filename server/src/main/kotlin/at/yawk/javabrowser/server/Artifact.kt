@@ -27,7 +27,7 @@ sealed class Artifact {
 
     data class Java(
             val version: String,
-            val src: Path
+            val baseDir: Path
     ) : Artifact()
 
     data class Maven(

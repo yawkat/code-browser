@@ -38,13 +38,15 @@ import java.util.stream.Collectors
 /**
  * @author yawkat
  */
-object SourceFileParser {
+class SourceFileParser(
+        private val sourceRoot: Path,
+        val printer: Printer = Printer()
+) {
+    var dependencies = emptyList<Path>()
+    var includeRunningVmBootclasspath = true
+    var pathPrefix = ""
 
-    fun compile(
-            sourceRoot: Path,
-            dependencies: List<Path>,
-            includeRunningVmBootclasspath: Boolean = true
-    ): Printer {
+    fun compile() {
         val parser = ASTParser.newParser(AST.JLS10)
         parser.setCompilerOptions(mapOf(
                 JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
@@ -61,25 +63,21 @@ object SourceFileParser {
 
 
         val files = Files.walk(sourceRoot)
-                .filter { it.toString().endsWith(".java") }
+                .filter { it.toString().endsWith(".java") && !Files.isDirectory(it) }
                 .collect(Collectors.toList())
-
-        val printer = Printer()
 
         parser.createASTs(
                 files.map { it.toString() }.toTypedArray(),
                 files.map { "UTF-8" }.toTypedArray(),
                 emptyArray<String>(),
-                SourceFileParser.Requestor(sourceRoot, printer),
+                SourceFileParser.Requestor(sourceRoot, printer, pathPrefix),
                 null
         )
-
-        return printer
     }
 
-    class Requestor(val root: Path, val printer: Printer) : FileASTRequestor() {
+    private class Requestor(val root: Path, val printer: Printer, val pathPrefix: String) : FileASTRequestor() {
         override fun acceptAST(sourceFilePath: String, ast: CompilationUnit) {
-            val relativePath = root.relativize(Paths.get(sourceFilePath)).toString()
+            val relativePath = pathPrefix + root.relativize(Paths.get(sourceFilePath))
 
             val annotatedSourceFile = AnnotatedSourceFile(Files.readAllBytes(Paths.get(sourceFilePath))
                     .toString(Charsets.UTF_8))
@@ -149,8 +147,6 @@ object SourceFileParser {
                     if (binding != null) {
                         val s = Bindings.toString(binding)
                         if (s != null) annotatedSourceFile.annotate(node.name, BindingRef(s))
-                    } else {
-                        println()
                     }
                     return true
                 }
