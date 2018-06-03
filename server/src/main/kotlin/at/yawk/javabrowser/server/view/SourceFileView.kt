@@ -9,6 +9,7 @@ import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.appendChildren
 import io.dropwizard.views.View
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
 import org.jsoup.parser.Tag
@@ -26,7 +27,9 @@ class SourceFileView(
 ) : View("source-file.ftl") {
 
     val codeHtml by lazy {
-        val pre = Element(Tag.valueOf("pre"), AnnotatedSourceFile.URI)
+        val doc = Document("")
+        doc.outputSettings().prettyPrint(false)
+        val pre = doc.appendElement("pre")
         pre.appendChildren(sourceFile.toHtml(::toNode))
         pre.html()!! // inner HTML, we need the pre so jsoup properly formats
     }
