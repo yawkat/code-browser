@@ -25,4 +25,9 @@ window.onload = function () {
             currentLocalSet = [];
         });
     }
+    document.addEventListener('keypress', function (e) {
+        if (e.key === "t") {
+            openSearch(document.querySelector(".search-dialog-wrapper"));
+        }
+    });
 };

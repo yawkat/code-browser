@@ -7,11 +7,24 @@
   <title>Package index</title>
   <script src="/assets/search.js"></script>
   <link rel="stylesheet" href="/assets/search.css"/>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      overflow-y: scroll;
+    }
+  </style>
 </head>
 <body id="app">
   <h1>${artifactId}</h1>
 
-  <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId}">
-<ul id="result-list"></ul>
+  <div class="search-box">
+    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId}" data-load-immediately>
+    <ul id="result-list"></ul>
+  </div>
 </body>
 </html>

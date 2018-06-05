@@ -28,7 +28,7 @@ class SearchResource(private val dbi: DBI) {
         }
     }
 
-    @Path("/{query}")
+    @Path("/{query:.*}")
     @Produces(MediaType.APPLICATION_JSON)
     @GET
     fun search(@PathParam("query") query: String,
