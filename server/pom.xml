@@ -62,6 +62,11 @@
             <artifactId>HikariCP</artifactId>
             <version>3.1.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-jdk8</artifactId>
+            <version>0.22.5</version>
+        </dependency>
 
         <dependency>
             <groupId>at.yawk.java-browser</groupId>
@@ -81,6 +86,7 @@
                 <version>${kotlin.version}</version>
                 <configuration>
                     <jvmTarget>1.8</jvmTarget>
+                    <experimentalCoroutines>enable</experimentalCoroutines>
                 </configuration>
                 <executions>
                     <execution>

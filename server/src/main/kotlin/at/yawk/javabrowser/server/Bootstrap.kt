@@ -14,7 +14,6 @@ import org.glassfish.jersey.server.model.Resource
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
 import java.net.URI
-import java.sql.Blob
 import java.util.concurrent.Executors
 import javax.ws.rs.HttpMethod
 import javax.ws.rs.RedirectionException
@@ -50,6 +49,7 @@ class Bootstrap : Application<Config>() {
         val dbi = DBIFactory().build(environment, configuration.database, dataSource, "h2")
 
         val bindingResolver = BindingResolver(dbi)
+        val searchResource = SearchResource(dbi)
 
         val compiler = Compiler(dbi, objectMapper)
         val compileExecutor = Executors.newFixedThreadPool(configuration.compilerThreads)
@@ -73,8 +73,10 @@ class Bootstrap : Application<Config>() {
                         is Artifact.Java -> compiler.compileJava(artifactId, artifact)
                         is Artifact.Maven -> compiler.compileMaven(artifactId, artifact, artifact.versions.single())
                     }
+                    log.info("Readying $artifactId...")
 
                     bindingResolver.invalidate()
+                    searchResource.ready(artifactId)
 
                     log.info("$artifactId is ready")
 
@@ -131,5 +133,6 @@ class Bootstrap : Application<Config>() {
         compileExecutor.shutdown()
 
         environment.jersey().register(RootResource(artifactIds))
+        environment.jersey().register(searchResource)
     }
 }

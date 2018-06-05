@@ -11,7 +11,7 @@
 <body id="app">
   <h1>${artifactId}</h1>
 
-<input type="text" id="search" autofocus autocomplete="off">
+  <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId}">
 <ul id="result-list"></ul>
 </body>
 </html>
