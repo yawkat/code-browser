@@ -45,7 +45,7 @@ import java.util.stream.Collectors
  */
 class SourceFileParser(
         private val sourceRoot: Path,
-        val printer: Printer = Printer()
+        private val printer: Printer
 ) {
     var dependencies = emptyList<Path>()
     var includeRunningVmBootclasspath = true
@@ -153,7 +153,6 @@ class SourceFileParser(
 
                     val binding = Bindings.toString(resolved)
                     if (binding != null) {
-                        printer.registerType(binding)
                         annotatedSourceFile.annotate(node.name, BindingDecl(binding, superBindings))
                     }
                     return true

@@ -6,7 +6,6 @@ create table binding_references (
   sourceFileLine   int     not null,
   sourceFileId     int     not null,
 
-  foreign key (sourceArtifactId) references artifacts,
   foreign key (sourceArtifactId, sourceFile) references sourceFiles,
   primary key (sourceArtifactId, sourceFile, sourceFileId)
 );

@@ -3,15 +3,14 @@ package at.yawk.javabrowser
 /**
  * @author yawkat
  */
-class Printer {
-    val sourceFiles: MutableMap<String, AnnotatedSourceFile> = HashMap()
-    val types: MutableSet<String> = HashSet()
+interface Printer {
+    fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile)
 
-    fun registerType(type: String) {
-        types.add(type)
-    }
+    class SimplePrinter : Printer {
+        val sourceFiles: MutableMap<String, AnnotatedSourceFile> = HashMap()
 
-    fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
-        sourceFiles[path] = sourceFile
+        override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
+            sourceFiles[path] = sourceFile
+        }
     }
 }

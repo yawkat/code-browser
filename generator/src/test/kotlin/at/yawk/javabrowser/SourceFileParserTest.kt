@@ -51,9 +51,10 @@ class SourceFileParserTest {
     }
 
     private fun compile(): Map<String, AnnotatedSourceFile> {
-        val parser = SourceFileParser(src)
+        val printer = Printer.SimplePrinter()
+        val parser = SourceFileParser(src, printer)
         parser.compile()
-        return parser.printer.sourceFiles
+        return printer.sourceFiles
     }
 
     private fun compileOne() = compile().values.single()
@@ -64,7 +65,7 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.SUPER_METHOD_CALL, "java.lang.Object#hashCode()", 0), "hashCode", 1))
+                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.SUPER_METHOD_CALL, "java.lang.Object#hashCode()", 3), "hashCode", 1))
         )
     }
 
@@ -87,7 +88,7 @@ class SourceFileParserTest {
                 compileOne().entries,
                 Matchers.hasItem(annotate(
                         a,
-                        BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL, "java.lang.Object()", 0),
+                        BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL, "java.lang.Object()", 1),
                         "super"
                 ))
         )
@@ -99,7 +100,7 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.UNCLASSIFIED, "A", 1), "A", 1))
+                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.UNCLASSIFIED, "A", 3), "A", 1))
         )
     }
 
@@ -127,7 +128,7 @@ class SourceFileParserTest {
                 compileOne().entries,
                 Matchers.hasItem(annotate(
                         a,
-                        BindingRef(BindingRefType.METHOD_CALL, "A#x(java.lang.Object)", 0),
+                        BindingRef(BindingRefType.METHOD_CALL, "A#x(java.lang.Object)", 1),
                         "x",
                         0
                 ))
