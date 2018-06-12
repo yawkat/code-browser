@@ -57,13 +57,15 @@ class SourceFileView(
             val link = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
             link.attr("id", annotation.binding)
             link.attr("href", BindingResolver.bindingHash(annotation.binding))
-            link.appendChild(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also { moreInfo ->
-                moreInfo.attr("class", "show-refs")
-                moreInfo.attr("href", "javascript:showReferences('${annotation.binding}')")
-            })
             link.appendChildren(members)
 
-            listOf(link)
+            listOf(
+                Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also { moreInfo ->
+                    moreInfo.attr("class", "show-refs")
+                    moreInfo.attr("href", "javascript:showReferences('${annotation.binding}')")
+                },
+                link
+            )
         }
         is Style -> listOf(Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
             it.attr("class", annotation.styleClass.joinToString(" "))
