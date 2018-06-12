@@ -28,7 +28,7 @@
                 consumer(resp);
             }
         };
-        req.open("GET", "/api/search/" + encodeURI(query) + (artifactId ? "?artifactId=" + encodeURI(artifactId) : ""), true);
+        req.open("GET", "/api/search/" + encodeURIComponent(query) + (artifactId ? "?artifactId=" + encodeURIComponent(artifactId) : ""), true);
         req.send();
     }
 

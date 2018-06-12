@@ -34,7 +34,7 @@ window.onload = function () {
 
 function showReferences(bindingName) {
     $.ajax({
-        url: '/api/references/' + encodeURI(bindingName),
+        url: '/api/references/' + encodeURIComponent(bindingName) + "?limit=5",
         dataType: 'json',
         success: function (data) {
             const tooltip = $("#tooltip");
@@ -44,10 +44,37 @@ function showReferences(bindingName) {
             for (const key of Object.keys(data)) {
                 if (data[key].length > 0) {
                     anyItems = true;
-                    tooltip.append(key);
+                    let name;
+                    switch (key) {
+                        case "UNCLASSIFIED":
+                            name = "Unclassified";
+                            break;
+                        case "SUPER_CONSTRUCTOR_CALL":
+                            name = "Super constructor call";
+                            break;
+                        case "SUPER_METHOD_CALL":
+                            name = "Super method call";
+                            break;
+                        case "METHOD_CALL":
+                            name = "Method call";
+                            break;
+                        case "FIELD_ACCESS":
+                            name = "Field access";
+                            break;
+                        case "SUPER_TYPE":
+                            name = "Super type";
+                            break;
+                        case "SUPER_METHOD":
+                            name = "Super method";
+                            break;
+                        case "JAVADOC":
+                            name = "Javadoc";
+                            break;
+                    }
+                    tooltip.append("<span class='reference-type'>" + name + "</span>");
                     let list = $("<ul>");
                     for (const item of data[key]) {
-                        list.append("<a href='" + item.uri + "'>" + item.artifactId + '/' + item.sourceFile + ":" + item.line + "</a>");
+                        list.append("<li><a href='" + item.uri + "'>" + item.artifactId + '&nbsp;&nbsp;' + item.sourceFile + ":" + item.line + "</a></li>");
                     }
                     tooltip.append(list);
                 }
@@ -62,6 +89,12 @@ function showReferences(bindingName) {
                 top: pos.bottom + pageYOffset,
                 left: pos.left + pageXOffset
             });
+        }
+    });
+
+    $(document).click(function (evt) {
+        if (!$(evt.target).closest("#tooltip").length) {
+            $("#tooltip").hide();
         }
     });
 }
