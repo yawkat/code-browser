@@ -3,16 +3,17 @@ package at.yawk.javabrowser.server.view
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
-import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableRef
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.appendChildren
 import io.dropwizard.views.View
+import org.apache.commons.text.StringEscapeUtils
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
+import org.jsoup.nodes.TextNode
 import org.jsoup.parser.Tag
 
 /**
@@ -37,21 +38,7 @@ class SourceFileView(
 
     private fun toNode(annotation: SourceAnnotation, members: List<Node>): List<Node> = when (annotation) {
         is BindingRef -> {
-            val uris = bindingResolver.resolveBinding(artifactId, annotation.binding)
-            if (uris.isEmpty()) {
-                members
-            } else {
-                listOf(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
-                    if (annotation.type == BindingRefType.SUPER_TYPE || annotation.type == BindingRefType.SUPER_METHOD) {
-                        // no href for super references so that we don't hide our own declaration link
-                        it.attr("data-super-href", uris[0].toASCIIString())
-                    } else {
-                        it.attr("href", uris[0].toASCIIString())
-                    }
-                    it.attr("id", "ref-${annotation.id}")
-                    it.appendChildren(members)
-                })
-            }
+            linkToBinding(members, annotation.binding, annotation.id)
         }
         is BindingDecl -> {
             val link = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
@@ -59,13 +46,26 @@ class SourceFileView(
             link.attr("href", BindingResolver.bindingHash(annotation.binding))
             link.appendChildren(members)
 
-            listOf(
-                Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also { moreInfo ->
-                    moreInfo.attr("class", "show-refs")
-                    moreInfo.attr("href", "javascript:showReferences('${annotation.binding}')")
-                },
-                link
-            )
+            val moreInfo = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
+            moreInfo.attr("class", "show-refs")
+
+            val superHtml = if (!annotation.superBindings.isEmpty()) {
+                val superList = Element(Tag.valueOf("ul"), AnnotatedSourceFile.URI)
+                for (superBinding in annotation.superBindings) {
+                    val entry = superList.appendElement("li")
+                    entry.appendChildren(linkToBinding(
+                            listOf(TextNode(superBinding.name, AnnotatedSourceFile.URI)),
+                            superBinding.binding,
+                            refId = null
+                    ))
+                }
+                StringEscapeUtils.escapeEcmaScript(superList.html())
+            } else {
+                ""
+            }
+            moreInfo.attr("href", "javascript:showReferences('${annotation.binding}', '$superHtml')")
+
+            listOf(moreInfo, link)
         }
         is Style -> listOf(Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
             it.attr("class", annotation.styleClass.joinToString(" "))
@@ -76,5 +76,20 @@ class SourceFileView(
             it.attr("data-local-variable", annotation.id)
             it.appendChildren(members)
         })
+    }
+
+    private fun linkToBinding(members: List<Node>,
+                              binding: String,
+                              refId: Int?): List<Node> {
+        val uris = bindingResolver.resolveBinding(artifactId, binding)
+        return if (uris.isEmpty()) {
+            members
+        } else {
+            listOf(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
+                it.attr("href", uris[0].toASCIIString())
+                if (refId != null) it.attr("id", "ref-$refId")
+                it.appendChildren(members)
+            })
+        }
     }
 }

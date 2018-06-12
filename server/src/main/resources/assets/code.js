@@ -32,14 +32,18 @@ window.onload = function () {
     });
 };
 
-function showReferences(bindingName) {
+function showReferences(bindingName, superHtml) {
     $.ajax({
-        url: '/api/references/' + encodeURIComponent(bindingName) + "?limit=5",
+        url: '/api/references/' + encodeURIComponent(bindingName),
         dataType: 'json',
         success: function (data) {
             const tooltip = $("#tooltip");
 
             tooltip.empty();
+            if (superHtml) {
+                tooltip.append("<b>Super</b>");
+                tooltip.append(superHtml);
+            }
             let anyItems = false;
             for (const key of Object.keys(data)) {
                 if (data[key].length > 0) {
@@ -70,17 +74,43 @@ function showReferences(bindingName) {
                         case "JAVADOC":
                             name = "Javadoc";
                             break;
+                        case "RETURN_TYPE":
+                            name = "Return type";
+                            break;
+                        case "LOCAL_VARIABLE_TYPE":
+                            name = "Local variable type";
+                            break;
+                        case "PARAMETER_TYPE":
+                            name = "Parameter type";
+                            break;
+                        case "FIELD_TYPE":
+                            name = "Field type";
+                            break;
                     }
                     tooltip.append("<span class='reference-type'>" + name + "</span>");
                     let list = $("<ul>");
+                    let i = 0;
                     for (const item of data[key]) {
-                        list.append("<li><a href='" + item.uri + "'>" + item.artifactId + '&nbsp;&nbsp;' + item.sourceFile + ":" + item.line + "</a></li>");
+                        if (i === 10) {
+                            const expandButton = $("<li><i>More search results</i></li>");
+                            expandButton.click(function () {
+                                list.find(".hide-search-results").toggle();
+                            });
+                            list.append(expandButton);
+                        }
+                        const element = $("<li><a href='" + item.uri + "'>" + item.artifactId + '&nbsp;&nbsp;' + item.sourceFile + ":" + item.line + "</a></li>");
+                        if (i >= 10) {
+                            element.hide();
+                            element.addClass("hide-search-results");
+                        }
+                        list.append(element);
+                        i++;
                     }
                     tooltip.append(list);
                 }
             }
             if (!anyItems) {
-                tooltip.html("<i>No references found</i>");
+                tooltip.append("<i>No references found</i>");
             }
 
             tooltip.show();

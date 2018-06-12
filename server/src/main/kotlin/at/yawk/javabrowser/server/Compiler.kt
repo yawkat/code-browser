@@ -86,6 +86,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     }
 
     private fun commit(artifactId: String, printer: Printer) {
+        log.info("Committing artifact {}", artifactId)
         dbi.inTransaction { conn: Handle, _: TransactionStatus ->
             conn.update("delete from bindings where artifactId = ?", artifactId)
             conn.update("delete from sourceFiles where artifactId = ?", artifactId)
@@ -115,7 +116,6 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                         )
                     } else if (annotation is BindingDecl) {
                         declBatch.add(
-                                "insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)",
                                 artifactId,
                                 annotation.binding,
                                 path,

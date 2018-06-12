@@ -34,7 +34,11 @@ enum class BindingRefType(@get:JsonValue val id: Int) {
     FIELD_ACCESS(4),
     SUPER_TYPE(5),
     SUPER_METHOD(6),
-    JAVADOC(7);
+    JAVADOC(7),
+    RETURN_TYPE(8),
+    LOCAL_VARIABLE_TYPE(9),
+    PARAMETER_TYPE(10),
+    FIELD_TYPE(11);
 
     companion object {
         @JsonCreator
@@ -43,7 +47,12 @@ enum class BindingRefType(@get:JsonValue val id: Int) {
     }
 }
 
-data class BindingDecl(val binding: String) : SourceAnnotation()
+data class BindingDecl(val binding: String, val superBindings: List<Super> = emptyList()) : SourceAnnotation() {
+    data class Super(
+            val name: String,
+            val binding: String
+    )
+}
 data class Style(val styleClass: Set<String>) : SourceAnnotation()
 data class LocalVariableRef(val id: String) : SourceAnnotation()
 

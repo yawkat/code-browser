@@ -24,7 +24,11 @@ data class AnnotatedSourceFile(
     }
 
     fun bake() {
-        entries.sortWith(Comparator.comparingInt { it: Entry -> it.start }.thenComparingInt { it -> it.length.inv() })
+        entries.sortWith(Comparator
+                .comparingInt { it: Entry -> it.start }
+                // first 0-length items, then the longest items
+                // this avoids unnecessary nesting
+                .thenComparingInt { it -> if (it.length == 0) Int.MIN_VALUE else it.length.inv() })
 
         // try to merge entries that affect the same text
         var i = 0
