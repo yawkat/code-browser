@@ -89,3 +89,20 @@ a:link, a:visited {
 .local-hover {
     background: #ddd;
 }
+
+.show-refs {
+    display: inline-block;
+    width: 1em;
+    opacity: .5;
+    text-decoration: none !important;
+}
+.show-refs:before {
+    content: '⭤';
+}
+#tooltip {
+    position: absolute;
+    max-width: 60em;
+    right: 0;
+    background: white;
+    padding: .2em;
+}

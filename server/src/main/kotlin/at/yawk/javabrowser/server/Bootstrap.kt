@@ -35,6 +35,7 @@ class Bootstrap : Application<Config>() {
 
     override fun initialize(bootstrap: io.dropwizard.setup.Bootstrap<Config>) {
         bootstrap.addBundle(ViewBundle<Config>())
+        bootstrap.addBundle(AssetsBundle("/META-INF/resources/webjars", "/webjars", "", "webjars"))
         bootstrap.addBundle(AssetsBundle())
     }
 
@@ -134,5 +135,6 @@ class Bootstrap : Application<Config>() {
 
         environment.jersey().register(RootResource(artifactIds))
         environment.jersey().register(searchResource)
+        environment.jersey().register(ReferenceResource(dbi))
     }
 }

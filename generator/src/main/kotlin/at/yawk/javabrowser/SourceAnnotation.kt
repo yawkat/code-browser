@@ -1,7 +1,9 @@
 package at.yawk.javabrowser
 
+import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonValue
 
 /**
  * @author yawkat
@@ -15,7 +17,32 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 ])
 sealed class SourceAnnotation
 
-data class BindingRef(val binding: String) : SourceAnnotation()
+data class BindingRef(
+        val type: BindingRefType,
+        val binding: String,
+        /**
+         * ID of this ref in this source file.
+         */
+        val id: Int
+) : SourceAnnotation()
+
+enum class BindingRefType(@get:JsonValue val id: Int) {
+    UNCLASSIFIED(0),
+    SUPER_CONSTRUCTOR_CALL(1),
+    SUPER_METHOD_CALL(2),
+    METHOD_CALL(3),
+    FIELD_ACCESS(4),
+    SUPER_TYPE(5),
+    SUPER_METHOD(6),
+    JAVADOC(7);
+
+    companion object {
+        @JsonCreator
+        @JvmStatic
+        fun byId(id: Int) = values().single { it.id == id }
+    }
+}
+
 data class BindingDecl(val binding: String) : SourceAnnotation()
 data class Style(val styleClass: Set<String>) : SourceAnnotation()
 data class LocalVariableRef(val id: String) : SourceAnnotation()

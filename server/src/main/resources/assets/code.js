@@ -31,3 +31,37 @@ window.onload = function () {
         }
     });
 };
+
+function showReferences(bindingName) {
+    $.ajax({
+        url: '/api/references/' + encodeURI(bindingName),
+        dataType: 'json',
+        success: function (data) {
+            const tooltip = $("#tooltip");
+
+            tooltip.empty();
+            let anyItems = false;
+            for (const key of Object.keys(data)) {
+                if (data[key].length > 0) {
+                    anyItems = true;
+                    tooltip.append(key);
+                    let list = $("<ul>");
+                    for (const item of data[key]) {
+                        list.append("<a href='" + item.uri + "'>" + item.artifactId + '/' + item.sourceFile + ":" + item.line + "</a>");
+                    }
+                    tooltip.append(list);
+                }
+            }
+            if (!anyItems) {
+                tooltip.html("<i>No references found</i>");
+            }
+
+            tooltip.show();
+            const pos = document.getElementById(bindingName).getBoundingClientRect();
+            tooltip.css({
+                top: pos.bottom + pageYOffset,
+                left: pos.left + pageXOffset
+            });
+        }
+    });
+}

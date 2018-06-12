@@ -23,7 +23,7 @@ data class AnnotatedSourceFile(
         entries.add(Entry(start, length, annotation))
     }
 
-    private fun bake() {
+    fun bake() {
         entries.sortWith(Comparator.comparingInt { it: Entry -> it.start }.thenComparingInt { it -> it.length.inv() })
 
         // try to merge entries that affect the same text
@@ -53,7 +53,6 @@ data class AnnotatedSourceFile(
     }
 
     fun toHtml(toNode: (SourceAnnotation, List<Node>) -> List<Node>): List<Node> {
-        bake()
         var line = 1
         var entryIndex = 0
         var textIndex = 0

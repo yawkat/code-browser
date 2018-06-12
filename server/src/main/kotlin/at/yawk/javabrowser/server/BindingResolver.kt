@@ -12,6 +12,13 @@ import java.net.URLEncoder
  * @author yawkat
  */
 class BindingResolver(private val dbi: DBI) {
+    companion object {
+        fun bindingHash(binding: String) = "#${URLEncoder.encode(binding, "UTF-8")}"
+
+        fun location(artifactId: String, sourceFilePath: String, hash: String) =
+                URI.create("/$artifactId/$sourceFilePath$hash")!!
+    }
+
     private val cache: LoadingCache<String, List<BindingLocation>> = CacheBuilder.newBuilder()
             .maximumSize(100000)
             .build(CacheLoader.from { binding ->
@@ -42,6 +49,6 @@ class BindingResolver(private val dbi: DBI) {
             val sourceFile: String,
             val binding: String
     ) {
-        val uri = URI.create("/$artifactId/$sourceFile#${URLEncoder.encode(binding, "UTF-8")}")!!
+        val uri = location(artifactId, sourceFile, bindingHash(binding))
     }
 }

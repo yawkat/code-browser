@@ -1,15 +1,11 @@
 package at.yawk.javabrowser
 
 import com.google.common.io.MoreFiles
-import org.hamcrest.Matcher
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.intellij.lang.annotations.Language
-import org.testng.Assert
 import org.testng.annotations.AfterMethod
-import org.testng.annotations.AfterTest
 import org.testng.annotations.BeforeMethod
-import org.testng.annotations.BeforeTest
 import org.testng.annotations.Test
 import java.nio.file.Files
 import java.nio.file.Path
@@ -68,7 +64,7 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef("java.lang.Object#hashCode()"), "hashCode", 1))
+                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.SUPER_METHOD_CALL, "java.lang.Object#hashCode()", 0), "hashCode", 1))
         )
     }
 
@@ -79,7 +75,7 @@ class SourceFileParserTest {
         write("B.java", "class B { public B() {} }")
         MatcherAssert.assertThat(
                 compile()["A.java"]!!.entries,
-                Matchers.hasItem(annotate(a, BindingRef("B()"), "super"))
+                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL, "B()", 1), "super"))
         )
     }
 
@@ -89,7 +85,11 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef("java.lang.Object()"), "super"))
+                Matchers.hasItem(annotate(
+                        a,
+                        BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL, "java.lang.Object()", 0),
+                        "super"
+                ))
         )
     }
 
@@ -99,7 +99,7 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef("A"), "A", 1))
+                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.UNCLASSIFIED, "A", 1), "A", 1))
         )
     }
 
@@ -125,7 +125,12 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef("A#x(java.lang.Object)"), "x", 1))
+                Matchers.hasItem(annotate(
+                        a,
+                        BindingRef(BindingRefType.METHOD_CALL, "A#x(java.lang.Object)", 0),
+                        "x",
+                        0
+                ))
         )
     }
 }

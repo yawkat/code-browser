@@ -3,6 +3,7 @@ package at.yawk.javabrowser.server.view
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
+import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableRef
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
@@ -41,15 +42,29 @@ class SourceFileView(
                 members
             } else {
                 listOf(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
-                    it.attr("href", uris[0].toASCIIString())
+                    if (annotation.type == BindingRefType.SUPER_TYPE || annotation.type == BindingRefType.SUPER_METHOD) {
+                        // no href for super references so that we don't hide our own declaration link
+                        it.attr("data-super-href", uris[0].toASCIIString())
+                    } else {
+                        it.attr("href", uris[0].toASCIIString())
+                    }
+                    it.attr("id", "ref-${annotation.id}")
                     it.appendChildren(members)
                 })
             }
         }
-        is BindingDecl -> listOf(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
-            it.attr("id", annotation.binding)
-            it.appendChildren(members)
-        })
+        is BindingDecl -> {
+            val link = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
+            link.attr("id", annotation.binding)
+            link.attr("href", BindingResolver.bindingHash(annotation.binding))
+            link.appendChild(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also { moreInfo ->
+                moreInfo.attr("class", "show-refs")
+                moreInfo.attr("href", "javascript:showReferences('${annotation.binding}')")
+            })
+            link.appendChildren(members)
+
+            listOf(link)
+        }
         is Style -> listOf(Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
             it.attr("class", annotation.styleClass.joinToString(" "))
             it.appendChildren(members)

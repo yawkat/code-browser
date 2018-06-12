@@ -1,9 +1,12 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.Printer
 import at.yawk.javabrowser.SourceFileParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.io.MoreFiles
+import org.eclipse.collections.impl.factory.primitive.IntLists
 import org.jboss.shrinkwrap.resolver.api.maven.Maven
 import org.jboss.shrinkwrap.resolver.api.maven.MavenResolvedArtifact
 import org.jboss.shrinkwrap.resolver.api.maven.PackagingType
@@ -40,10 +43,10 @@ private inline fun tempDir(f: (Path) -> Unit) {
 class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     companion object {
         private val log = LoggerFactory.getLogger(Compiler::class.java)
-        const val VERSION = 5
+        const val VERSION = 6
     }
 
-    fun needsRecompile(artifactId: String): Boolean {
+    private fun needsRecompile(artifactId: String): Boolean {
         return dbi.inTransaction { conn: Handle, _ ->
             val present = conn.select("select lastCompileVersion from artifacts where id = ?", artifactId)
             if (present.isEmpty()) {
@@ -94,15 +97,34 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                         artifactId,
                         path,
                         objectMapper.writeValueAsBytes(file))
-            }
-            for ((binding, sourceFile) in printer.bindings) {
-                conn.insert(
-                        "insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)",
-                        artifactId,
-                        binding,
-                        sourceFile,
-                        printer.types.contains(binding)
-                )
+
+                val lineNumberTable = LineNumberTable(file.text)
+
+                val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
+                val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)")
+                for (entry in file.entries) {
+                    val annotation = entry.annotation
+                    if (annotation is BindingRef) {
+                        refBatch.add(
+                                annotation.binding,
+                                annotation.type.id,
+                                artifactId,
+                                path,
+                                lineNumberTable.lineAt(entry.start),
+                                annotation.id
+                        )
+                    } else if (annotation is BindingDecl) {
+                        declBatch.add(
+                                "insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)",
+                                artifactId,
+                                annotation.binding,
+                                path,
+                                printer.types.contains(annotation.binding)
+                        )
+                    }
+                }
+                refBatch.execute()
+                declBatch.execute()
             }
         }
     }
