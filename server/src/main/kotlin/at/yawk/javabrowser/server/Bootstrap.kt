@@ -107,7 +107,7 @@ class Bootstrap : Application<Config>() {
                         if (annotatedSourceFile == null) {
                             Response.status(Response.Status.NOT_FOUND)
                         } else {
-                            SourceFileView(artifactId,
+                            SourceFileView(ArtifactId.split(artifactId),
                                     sourceFile,
                                     bindingResolver,
                                     annotatedSourceFile)
@@ -119,7 +119,7 @@ class Bootstrap : Application<Config>() {
                     .handledBy { ctx ->
                         // need trailing slash for search to work
                         if (ctx.uriInfo.absolutePath.toString().endsWith("/")) {
-                            TypeSearchView(artifactId)
+                            TypeSearchView(ArtifactId.split(artifactId))
                         } else {
                             throw RedirectionException(Response.Status.MOVED_PERMANENTLY, URI.create("/$artifactId/"))
                         }

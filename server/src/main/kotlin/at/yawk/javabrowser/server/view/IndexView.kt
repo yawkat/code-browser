@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server.view
 
+import at.yawk.javabrowser.server.ArtifactId
 import io.dropwizard.views.View
 
 /**
@@ -7,7 +8,7 @@ import io.dropwizard.views.View
  */
 @Suppress("unused")
 class IndexView(
-        val base: String?,
+        val artifactId: ArtifactId,
         val prefix: String,
         val versions: List<String>,
         val children: List<String>

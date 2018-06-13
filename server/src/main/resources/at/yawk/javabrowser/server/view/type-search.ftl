@@ -20,10 +20,10 @@
   </style>
 </head>
 <body id="app">
-  <h1>${artifactId}</h1>
+  <h1><#include "path.ftl"></h1>
 
   <div class="search-box">
-    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId}" data-load-immediately>
+    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.artifactId}" data-load-immediately>
     <ul id="result-list"></ul>
   </div>
 </body>

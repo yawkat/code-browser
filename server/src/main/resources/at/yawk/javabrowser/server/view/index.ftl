@@ -9,9 +9,7 @@
   <title>Java Browser</title>
 </head>
 <body>
-<#if base??>
-  <h1>${base}</h1>
-</#if>
+<h1><#include "path.ftl"></h1>
 <#if children?has_content>
   <h2>Artifacts</h2>
   <ul>

@@ -11,18 +11,17 @@ import javax.ws.rs.core.MediaType
  */
 class Overview(private val artifactIds: List<String>) {
     fun registerOverviewResources(config: ResourceConfig) {
-        val groups = LinkedHashSet<String>()
-        groups.add("")
+        val groups = LinkedHashSet<ArtifactId.Component>()
         for (artifactId in artifactIds) {
-            for ((index, c) in artifactId.withIndex()) {
-                if (c == '/') {
-                    groups.add(artifactId.substring(0, index))
+            for (component in ArtifactId.split(artifactId).components) {
+                if (component.fullPath != artifactId) {
+                    groups.add(component)
                 }
             }
         }
 
         for (group in groups) {
-            val prefix = if (group.isEmpty()) "" else group + "/"
+            val prefix = if (group.fullPath.isEmpty()) "" else group.fullPath
             val versions = ArrayList<String>()
             val children = ArrayList<String>()
             for (artifactId in artifactIds) {
@@ -41,12 +40,13 @@ class Overview(private val artifactIds: List<String>) {
             }
             versions.sortWith(VersionComparator)
             children.sortWith(String.CASE_INSENSITIVE_ORDER)
+            val parents = groups.filter { group.fullPath.startsWith(it.fullPath) }
 
-            val builder = Resource.builder(group)
+            val builder = Resource.builder(group.fullPath)
 
             builder.addMethod(HttpMethod.GET)
                     .produces(MediaType.TEXT_HTML)
-                    .handledBy { _ -> IndexView(group, prefix, versions, children) }
+                    .handledBy { _ -> IndexView(ArtifactId(prefix, parents), prefix, versions, children) }
 
             config.registerResources(builder.build())
         }
