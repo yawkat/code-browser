@@ -39,7 +39,7 @@ private inline fun tempDir(f: (Path) -> Unit) {
 class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     companion object {
         private val log = LoggerFactory.getLogger(Compiler::class.java)
-        const val VERSION = 6
+        const val VERSION = 7
     }
 
     private fun needsRecompile(artifactId: String): Boolean {
@@ -74,10 +74,15 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
             artifactId: String,
             sourceRoot: Path,
             dependencies: List<Path>,
+            dependencyArtifactIds: List<String>,
             includeRunningVmBootclasspath: Boolean = true
     ) {
-        DbPrinter.withPrinter(objectMapper, dbi, artifactId) {
-            compile(artifactId, sourceRoot, dependencies, includeRunningVmBootclasspath, it)
+        DbPrinter.withPrinter(objectMapper, dbi, artifactId) { printer ->
+            compile(artifactId, sourceRoot, dependencies, includeRunningVmBootclasspath, printer)
+            dependencyArtifactIds.forEach { printer.addDependency(it) }
+            if (includeRunningVmBootclasspath) {
+                printer.addDependency("java/10")
+            }
         }
     }
 
@@ -90,7 +95,11 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                 copyDirectory(root, src)
             }
 
-            compileAndCommit(artifactId, src, dependencies = emptyList(), includeRunningVmBootclasspath = false)
+            compileAndCommit(artifactId,
+                    src,
+                    dependencies = emptyList(),
+                    dependencyArtifactIds = emptyList(),
+                    includeRunningVmBootclasspath = false)
         }
     }
 
@@ -158,12 +167,15 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     fun compileMaven(artifactId: String, artifact: Artifact.Maven, version: String) {
         if (!needsRecompile(artifactId)) return
 
-        val dependencies = getMavenDependencies(artifact.groupId, artifact.artifactId, version)
+        val depObjects = getMavenDependencies(artifact.groupId, artifact.artifactId, version)
                 .filter {
                     it.coordinate.groupId != artifact.groupId &&
                             it.coordinate.artifactId != artifact.artifactId
                 }
-                .map { (it as MavenResolvedArtifact).asFile().toPath() }
+        val depPaths = depObjects.map { (it as MavenResolvedArtifact).asFile().toPath() }
+        val depNames = depObjects.map {
+            it.coordinate.groupId + "/" + it.coordinate.artifactId + "/" + it.coordinate.version
+        }
         val sourceJar = Maven.resolver()
                 .addDependency(MavenDependencies.createDependency(
                         MavenCoordinates.createCoordinate(
@@ -179,7 +191,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                 val root = it.rootDirectories.single()
                 copyDirectory(root, src)
             }
-            compileAndCommit(artifactId, src, dependencies)
+            compileAndCommit(artifactId, src, depPaths, depNames)
         }
     }
 }

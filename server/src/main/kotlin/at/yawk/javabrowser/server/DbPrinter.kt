@@ -7,17 +7,20 @@ import at.yawk.javabrowser.Printer
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
+import org.slf4j.LoggerFactory
 
 /**
  * @author yawkat
  */
+private val log = LoggerFactory.getLogger(DbPrinter::class.java)
+
 class DbPrinter private constructor(
         private val objectMapper: ObjectMapper,
         private val artifactId: String,
         private val conn: Handle
 ) : Printer {
     companion object {
-        fun withPrinter(objectMapper: ObjectMapper, dbi: DBI, artifactId: String, closure: (Printer) -> Unit) {
+        fun withPrinter(objectMapper: ObjectMapper, dbi: DBI, artifactId: String, closure: (DbPrinter) -> Unit) {
             dbi.inTransaction { conn: Handle, _ ->
                 val dbPrinter = DbPrinter(objectMapper, artifactId, conn)
                 dbPrinter.clearOld()
@@ -27,8 +30,11 @@ class DbPrinter private constructor(
     }
 
     fun clearOld() {
+        log.info("Cleaning up in preparation for {}", artifactId)
         conn.update("delete from bindings where artifactId = ?", artifactId)
+        conn.update("delete from binding_references where sourceArtifactId = ?", artifactId)
         conn.update("delete from sourceFiles where artifactId = ?", artifactId)
+        conn.update("delete from dependencies where fromArtifactId = ?", artifactId)
         conn.update("delete from artifacts where id = ?", artifactId)
         conn.insert("insert into artifacts (id, lastCompileVersion) values (?, ?)", artifactId, Compiler.VERSION)
     }
@@ -67,5 +73,9 @@ class DbPrinter private constructor(
         }
         refBatch.execute()
         declBatch.execute()
+    }
+
+    fun addDependency(dependency: String) {
+        conn.insert("insert into dependencies (fromArtifactId, toArtifactId) values (?, ?)", artifactId, dependency)
     }
 }

@@ -1,3 +1,4 @@
+<#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.TypeSearchView" -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -10,13 +11,28 @@
   <link rel="stylesheet" href="/assets/search.css"/>
 </head>
 <body id="app">
-  <div id="wrapper">
-    <h1><#include "path.ftl"></h1>
+<div id="wrapper">
+  <h1><#include "path.ftl"></h1>
 
-    <div class="search-box">
-      <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.artifactId}" data-load-immediately>
-      <ul id="result-list"></ul>
-    </div>
+    <#if dependencies?has_content>
+      <h2>Dependencies</h2>
+      <ul>
+        <#list dependencies as dependency>
+          <li>
+            <#if existingDependencies?seq_contains(dependency)>
+              <a href="/${dependency}">${dependency}</a>
+            <#else >
+              ${dependency}
+            </#if>
+          </li>
+        </#list>
+      </ul>
+    </#if>
+
+  <div class="search-box">
+    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.artifactId}" data-load-immediately>
+    <ul id="result-list"></ul>
   </div>
+</div>
 </body>
 </html>

@@ -1,8 +1,5 @@
 package at.yawk.javabrowser.server
 
-import at.yawk.javabrowser.AnnotatedSourceFile
-import at.yawk.javabrowser.server.view.SourceFileView
-import at.yawk.javabrowser.server.view.TypeSearchView
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.dropwizard.Application
 import io.dropwizard.assets.AssetsBundle
@@ -10,15 +7,8 @@ import io.dropwizard.jdbi.DBIFactory
 import io.dropwizard.setup.Environment
 import io.dropwizard.views.ViewBundle
 import org.flywaydb.core.Flyway
-import org.glassfish.jersey.server.model.Resource
-import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
-import java.net.URI
 import java.util.concurrent.Executors
-import javax.ws.rs.HttpMethod
-import javax.ws.rs.RedirectionException
-import javax.ws.rs.core.MediaType
-import javax.ws.rs.core.Response
 
 /**
  * @author yawkat
@@ -88,44 +78,8 @@ class Bootstrap : Application<Config>() {
                 }
             }
 
-            val builder = Resource.builder(artifactId)
-            builder.addChildResource("{sourceFile:.+\\.java}")
-                    .addMethod(HttpMethod.GET)
-                    .produces(MediaType.TEXT_HTML_TYPE)
-                    .handledBy { ctx ->
-                        val sourceFile = ctx.uriInfo.pathParameters["sourceFile"]!!.single()
-
-                        val annotatedSourceFile = dbi.inTransaction { conn: Handle, _ ->
-                            val result = conn.select("select json from sourceFiles where artifactId = ? and path = ?",
-                                    artifactId,
-                                    sourceFile)
-                            if (result.isEmpty()) null
-                            else objectMapper.readValue(
-                                    result.single()["json"] as ByteArray,
-                                    AnnotatedSourceFile::class.java)
-                        }
-                        if (annotatedSourceFile == null) {
-                            Response.status(Response.Status.NOT_FOUND)
-                        } else {
-                            SourceFileView(ArtifactId.split(artifactId),
-                                    sourceFile,
-                                    bindingResolver,
-                                    annotatedSourceFile)
-                        }
-                    }
-            builder
-                    .addMethod(HttpMethod.GET)
-                    .produces(MediaType.TEXT_HTML)
-                    .handledBy { ctx ->
-                        // need trailing slash for search to work
-                        if (ctx.uriInfo.absolutePath.toString().endsWith("/")) {
-                            TypeSearchView(ArtifactId.split(artifactId))
-                        } else {
-                            throw RedirectionException(Response.Status.MOVED_PERMANENTLY, URI.create("/$artifactId/"))
-                        }
-                    }
-            val resource = builder.build()
-            environment.jersey().resourceConfig.registerResources(resource)
+            ArtifactResourceBuilder(dbi, objectMapper, bindingResolver, artifactId)
+                    .registerOn(environment.jersey().resourceConfig)
         }
         compileExecutor.shutdown()
 

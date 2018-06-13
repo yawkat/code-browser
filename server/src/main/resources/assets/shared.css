@@ -28,3 +28,7 @@ h2 {
 a:visited, a:link {
     color: blue;
 }
+
+li {
+    list-style-type: none;
+}

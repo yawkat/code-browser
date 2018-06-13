@@ -7,4 +7,6 @@ import io.dropwizard.views.View
  * @author yawkat
  */
 @Suppress("unused")
-class TypeSearchView(val artifactId: ArtifactId) : View("type-search.ftl")
+class TypeSearchView(val artifactId: ArtifactId,
+                     val dependencies: List<String>,
+                     val existingDependencies: List<String>) : View("type-search.ftl")
