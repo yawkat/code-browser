@@ -20,7 +20,7 @@
 
 <div class="search-dialog-wrapper">
   <div class="search-dialog search-box">
-    <input type="text" class="search" data-artifact-id="${artifactId}" data-target="#search-dialog-list" autocomplete="off">
+    <input type="text" class="search" data-artifact-id="${artifactId.artifactId}" data-target="#search-dialog-list" autocomplete="off">
     <ul id="search-dialog-list"></ul>
   </div>
 </div>
