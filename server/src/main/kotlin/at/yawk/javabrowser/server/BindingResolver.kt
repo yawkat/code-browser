@@ -37,6 +37,7 @@ class BindingResolver(private val dbi: DBI) {
     fun resolveBinding(fromArtifact: String, binding: String): List<URI> {
         val candidates = cache[binding]
         for (candidate in candidates) {
+            // todo: prefer dependencies
             if (candidate.artifactId == fromArtifact) {
                 return listOf(candidate.uri)
             }
