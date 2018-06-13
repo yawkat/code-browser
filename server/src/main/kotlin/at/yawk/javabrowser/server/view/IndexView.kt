@@ -6,4 +6,9 @@ import io.dropwizard.views.View
  * @author yawkat
  */
 @Suppress("unused")
-class IndexView(val artifacts: List<String>) : View("index.ftl")
+class IndexView(
+        val base: String?,
+        val prefix: String,
+        val versions: List<String>,
+        val children: List<String>
+) : View("index.ftl")

@@ -2,4 +2,4 @@ database:
   driverClass: org.postgresql.Driver
   user: java-browser
   password: password
-  url: jdbc:postgresql:java-browser
+  url: jdbc:postgresql://[::1]/java-browser

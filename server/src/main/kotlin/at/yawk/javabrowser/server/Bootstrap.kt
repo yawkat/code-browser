@@ -113,10 +113,6 @@ class Bootstrap : Application<Config>() {
                                     annotatedSourceFile)
                         }
                     }
-            builder.addChildResource("package.json")
-                    .addMethod(HttpMethod.GET)
-                    .produces(MediaType.APPLICATION_JSON_TYPE)
-                    .handledBy { _ -> TypeListResponse(dbi, artifactId) }
             builder
                     .addMethod(HttpMethod.GET)
                     .produces(MediaType.TEXT_HTML)
@@ -133,7 +129,7 @@ class Bootstrap : Application<Config>() {
         }
         compileExecutor.shutdown()
 
-        environment.jersey().register(RootResource(artifactIds))
+        Overview(artifactIds).registerOverviewResources(environment.jersey().resourceConfig)
         environment.jersey().register(searchResource)
         environment.jersey().register(ReferenceResource(dbi))
     }
