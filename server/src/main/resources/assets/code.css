@@ -1,78 +1,62 @@
-* {
-    margin: 0;
-    padding: 0;
-}
-
-html {
-    overflow-y: scroll;
-    font-family: "DejaVu Sans", sans-serif;
-}
-
-code {
-    max-width: 120em;
-    margin: 0 auto;
-    display: block;
-}
-
-a:link, a:visited {
+code a:link, code a:visited {
     color: inherit;
     text-decoration: underline #ccc;
 }
 
-.variable {
+code .variable {
     text-decoration: underline dotted #ccc;
 }
 
-.variable.effectively-final {
+code .variable.effectively-final {
     text-decoration: none;
 }
 
-.comment {
+code .comment {
     color: #808080;
     font-style: italic;
 }
 
-.comment.javadoc {
+code .comment.javadoc {
     color: #0033cc;
     font-style: inherit;
 }
 
-.javadoc-tag {
+code .javadoc-tag {
     font-weight: bold;
 }
 
-.field {
+code .field {
     color: #660E7A;
     font-weight: bold;
 }
 
-.field.static {
+code .field.static {
     font-weight: inherit;
     font-style: italic;
 }
 
-.keyword {
+code .keyword {
     color: #000080;
     font-weight: bold;
 }
 
-.type-variable {
+code .type-variable {
     color: #20999D;
 }
 
-.number-literal {
+code .number-literal {
     color: #00f;
 }
 
-.string-literal {
+code .string-literal {
     color: #008000;
 }
 
-.annotation {
+code .annotation {
     color: #808000;
 }
 
-.line {
+code .line {
     display: inline-block !important;
     width: 5em !important;
     padding-right: 1em !important;
@@ -83,22 +67,22 @@ a:link, a:visited {
     text-decoration: none !important;
 }
 
-.line:before {
+code .line:before {
     content: attr(data-line);
 }
 
-.local-hover {
+code .local-hover {
     background: #ddd;
 }
 
-.show-refs {
+code .show-refs {
     display: inline-block;
     width: 1em;
     opacity: .5;
     text-decoration: none !important;
     height: 0;
 }
-.show-refs:before {
+code .show-refs:before {
     content: '⭤';
 }
 #tooltip {

@@ -1,0 +1,30 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    overflow-y: scroll;
+    font-family: "DejaVu Sans", sans-serif;
+}
+
+#wrapper {
+    max-width: 80em;
+    margin: 0 auto;
+    display: block;
+    padding: 1em;
+}
+
+h1 {
+    font-size: 1.5em;
+    margin-bottom: .333em;
+}
+
+h2 {
+    font-size: 1.2em;
+    margin-bottom: .25em;
+}
+
+a:visited, a:link {
+    color: blue;
+}
