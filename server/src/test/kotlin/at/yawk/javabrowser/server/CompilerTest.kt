@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.skife.jdbi.v2.Handle
 import org.testng.Assert
 import org.testng.annotations.Test
-import java.sql.Blob
 
 /**
  * @author yawkat
@@ -15,8 +14,7 @@ class CompilerTest {
         val dbi = createDb()
         val compiler = Compiler(dbi, ObjectMapper().findAndRegisterModules())
         compiler.compileMaven("com.google.guava/guava/25.1-jre",
-                Artifact.Maven("com.google.guava", "guava", listOf("25.1-jre")),
-                "25.1-jre")
+                ArtifactConfig.Maven("com.google.guava", "guava", "25.1-jre"))
 
         dbi.inTransaction { conn: Handle, _ ->
             Assert.assertEquals(

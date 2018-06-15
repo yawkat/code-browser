@@ -9,6 +9,7 @@ import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.ArtifactId
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.appendChildren
+import at.yawk.javabrowser.server.artifact.Artifact
 import io.dropwizard.views.View
 import org.apache.commons.text.StringEscapeUtils
 import org.jsoup.nodes.Document
@@ -23,6 +24,7 @@ import org.jsoup.parser.Tag
 @Suppress("unused")
 class SourceFileView(
         val artifactId: ArtifactId,
+        private val classpath: Set<Artifact>,
         val sourceFilePath: String,
 
         private val bindingResolver: BindingResolver,
@@ -82,7 +84,7 @@ class SourceFileView(
     private fun linkToBinding(members: List<Node>,
                               binding: String,
                               refId: Int?): List<Node> {
-        val uris = bindingResolver.resolveBinding(artifactId.artifactId, binding)
+        val uris = bindingResolver.resolveBinding(classpath, binding)
         return if (uris.isEmpty()) {
             members
         } else {

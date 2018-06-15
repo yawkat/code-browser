@@ -86,7 +86,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         }
     }
 
-    fun compileOldJava(artifactId: String, artifact: Artifact.OldJava) {
+    fun compileOldJava(artifactId: String, artifact: ArtifactConfig.OldJava) {
         if (!needsRecompile(artifactId)) return
         tempDir { tmp ->
             val src = tmp.resolve("src")
@@ -103,7 +103,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         }
     }
 
-    fun compileJava(artifactId: String, artifact: Artifact.Java) {
+    fun compileJava(artifactId: String, artifact: ArtifactConfig.Java) {
         if (!needsRecompile(artifactId)) return
         DbPrinter.withPrinter(objectMapper, dbi, artifactId) { printer ->
             tempDir { tmp ->
@@ -164,10 +164,10 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         })
     }
 
-    fun compileMaven(artifactId: String, artifact: Artifact.Maven, version: String) {
+    fun compileMaven(artifactId: String, artifact: ArtifactConfig.Maven) {
         if (!needsRecompile(artifactId)) return
 
-        val depObjects = getMavenDependencies(artifact.groupId, artifact.artifactId, version)
+        val depObjects = getMavenDependencies(artifact.groupId, artifact.artifactId, artifact.version)
                 .filter {
                     it.coordinate.groupId != artifact.groupId &&
                             it.coordinate.artifactId != artifact.artifactId
@@ -179,7 +179,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         val sourceJar = Maven.resolver()
                 .addDependency(MavenDependencies.createDependency(
                         MavenCoordinates.createCoordinate(
-                                artifact.groupId, artifact.artifactId, version,
+                                artifact.groupId, artifact.artifactId, artifact.version,
                                 PackagingType.JAR, "sources"),
                         ScopeType.COMPILE,
                         false

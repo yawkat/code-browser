@@ -1,5 +1,7 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.server.artifact.Artifact
+import at.yawk.javabrowser.server.artifact.ArtifactManager
 import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
 import com.google.common.cache.LoadingCache
@@ -11,7 +13,8 @@ import java.net.URLEncoder
 /**
  * @author yawkat
  */
-class BindingResolver(private val dbi: DBI) {
+class BindingResolver(private val dbi: DBI,
+                      private val artifactManager: ArtifactManager) {
     companion object {
         fun bindingHash(binding: String) = "#${URLEncoder.encode(binding, "UTF-8")}"
 
@@ -26,7 +29,13 @@ class BindingResolver(private val dbi: DBI) {
                     val candidates = conn.select(
                             "select artifactId, sourceFile from bindings where binding = ?", binding)
 
-                    candidates.map { BindingLocation(it["artifactId"] as String, it["sourceFile"] as String, binding!!) }
+                    candidates.map {
+                        BindingLocation(
+                                artifactManager.getArtifact(it["artifactId"] as String),
+                                it["sourceFile"] as String,
+                                binding!!
+                        )
+                    }
                 }
             })
 
@@ -34,11 +43,10 @@ class BindingResolver(private val dbi: DBI) {
         cache.invalidateAll()
     }
 
-    fun resolveBinding(fromArtifact: String, binding: String): List<URI> {
+    fun resolveBinding(fromArtifacts: Set<Artifact>, binding: String): List<URI> {
         val candidates = cache[binding]
         for (candidate in candidates) {
-            // todo: prefer dependencies
-            if (candidate.artifactId == fromArtifact) {
+            if (candidate.artifact in fromArtifacts) {
                 return listOf(candidate.uri)
             }
         }
@@ -46,10 +54,10 @@ class BindingResolver(private val dbi: DBI) {
     }
 
     private data class BindingLocation(
-            val artifactId: String,
+            val artifact: Artifact,
             val sourceFile: String,
             val binding: String
     ) {
-        val uri = location(artifactId, sourceFile, bindingHash(binding))
+        val uri = location(artifact.id, sourceFile, bindingHash(binding))
     }
 }

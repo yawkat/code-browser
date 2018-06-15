@@ -19,18 +19,14 @@
       <ul>
         <#list dependencies as dependency>
           <li>
-            <#if existingDependencies?seq_contains(dependency)>
-              <a href="/${dependency}">${dependency}</a>
-            <#else >
-              ${dependency}
-            </#if>
+            <#if dependency.prefix??><a href="/${dependency.prefix}">${dependency.prefix}</a></#if>${dependency.suffix}
           </li>
         </#list>
       </ul>
     </#if>
 
   <div class="search-box">
-    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.artifactId}" data-load-immediately>
+    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.artifactId}" data-include-dependencies="false" data-load-immediately>
     <ul id="result-list"></ul>
   </div>
 </div>

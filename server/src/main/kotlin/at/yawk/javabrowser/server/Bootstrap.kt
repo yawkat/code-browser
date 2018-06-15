@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.server.artifact.ArtifactManager
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.dropwizard.Application
 import io.dropwizard.assets.AssetsBundle
@@ -39,37 +40,29 @@ class Bootstrap : Application<Config>() {
         flyway.migrate()
         val dbi = DBIFactory().build(environment, configuration.database, dataSource, "h2")
 
-        val bindingResolver = BindingResolver(dbi)
+        val artifactManager = ArtifactManager()
+        artifactManager.init(configuration.artifacts)
+        val bindingResolver = BindingResolver(dbi, artifactManager)
         val searchResource = SearchResource(dbi)
 
         val compiler = Compiler(dbi, objectMapper)
         val compileExecutor = Executors.newFixedThreadPool(configuration.compilerThreads)
-        // flatten maven artifacts to one artifact per version, so that multiple versions can be compiled in parallel
-        val artifacts = configuration.artifacts.flatMap {
-            @Suppress("IfThenToElvis")
-            if (it is Artifact.Maven) it.versions.map { v -> it.copy(versions = listOf(v)) } else listOf(it)
-        }
         val artifactIds = ArrayList<String>()
-        for (artifact in artifacts) {
-            val artifactId = when (artifact) {
-                is Artifact.OldJava -> "java/${artifact.version}"
-                is Artifact.Java -> "java/${artifact.version}"
-                is Artifact.Maven -> "${artifact.groupId}/${artifact.artifactId}/${artifact.versions.single()}"
-            }
-            artifactIds.add(artifactId)
+        for (artifact in artifactManager.artifacts) {
+            artifactIds.add(artifact.id)
             compileExecutor.execute {
                 try {
-                    when (artifact) {
-                        is Artifact.OldJava -> compiler.compileOldJava(artifactId, artifact)
-                        is Artifact.Java -> compiler.compileJava(artifactId, artifact)
-                        is Artifact.Maven -> compiler.compileMaven(artifactId, artifact, artifact.versions.single())
+                    when (artifact.config) {
+                        is ArtifactConfig.OldJava -> compiler.compileOldJava(artifact.id, artifact.config)
+                        is ArtifactConfig.Java -> compiler.compileJava(artifact.id, artifact.config)
+                        is ArtifactConfig.Maven -> compiler.compileMaven(artifact.id, artifact.config)
                     }
-                    log.info("Readying $artifactId...")
+                    log.info("Readying ${artifact.id}...")
 
                     bindingResolver.invalidate()
-                    searchResource.ready(artifactId)
+                    searchResource.ready(artifact.id)
 
-                    log.info("$artifactId is ready")
+                    log.info("${artifact.id} is ready")
 
                     // ask nicely for a gc to free up resources from compilation (MaxHeapFreeRatio)
                     System.gc()
@@ -78,7 +71,7 @@ class Bootstrap : Application<Config>() {
                 }
             }
 
-            ArtifactResourceBuilder(dbi, objectMapper, bindingResolver, artifactId)
+            ArtifactResourceBuilder(dbi, objectMapper, bindingResolver, artifactManager, artifact)
                     .registerOn(environment.jersey().resourceConfig)
         }
         compileExecutor.shutdown()

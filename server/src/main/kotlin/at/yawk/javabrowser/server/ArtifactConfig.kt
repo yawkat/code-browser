@@ -13,26 +13,26 @@ import java.nio.file.Path
         property = "type"
 )
 @JsonSubTypes(value = [
-    JsonSubTypes.Type(value = Artifact.OldJava::class, name = "old-java"),
-    JsonSubTypes.Type(value = Artifact.Java::class, name = "java"),
-    JsonSubTypes.Type(value = Artifact.Maven::class, name = "maven")
+    JsonSubTypes.Type(value = ArtifactConfig.OldJava::class, name = "old-java"),
+    JsonSubTypes.Type(value = ArtifactConfig.Java::class, name = "java"),
+    JsonSubTypes.Type(value = ArtifactConfig.Maven::class, name = "maven")
 ])
-sealed class Artifact {
+sealed class ArtifactConfig {
 
 
     data class OldJava(
             val version: String,
             val src: Path
-    ) : Artifact()
+    ) : ArtifactConfig()
 
     data class Java(
             val version: String,
             val baseDir: Path
-    ) : Artifact()
+    ) : ArtifactConfig()
 
     data class Maven(
             val groupId: String,
             val artifactId: String,
-            val versions: List<String>
-    ) : Artifact()
+            val version: String
+    ) : ArtifactConfig()
 }

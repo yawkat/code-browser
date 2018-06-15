@@ -20,7 +20,7 @@
         target.innerHTML = html;
     }
 
-    function loadQuery(query, artifactId, consumer) {
+    function loadQuery(query, artifactId, includeDependencies, consumer) {
         const req = new XMLHttpRequest();
         req.onreadystatechange = function () {
             if (req.readyState === XMLHttpRequest.DONE) {
@@ -28,7 +28,11 @@
                 consumer(resp);
             }
         };
-        req.open("GET", "/api/search/" + encodeURIComponent(query) + (artifactId ? "?artifactId=" + encodeURIComponent(artifactId) : ""), true);
+        let uri = "/api/search/" + encodeURIComponent(query) + "?includeDependencies=" + includeDependencies;
+        if (artifactId) {
+            uri += "&artifactId=" + encodeURIComponent(artifactId);
+        }
+        req.open("GET", uri, true);
         req.send();
     }
 
@@ -40,10 +44,11 @@
         for (const searchField of document.querySelectorAll(".search")) {
             const target = document.querySelector(searchField.getAttribute("data-target"));
             const artifactId = searchField.getAttribute("data-artifact-id");
+            const includeDependencies = searchField.getAttribute("data-include-dependencies") !== "false";
             let firstUpdate = true;
             const update = function () {
                 firstUpdate = false;
-                loadQuery(searchField.value, artifactId, function (data) {
+                loadQuery(searchField.value, artifactId, includeDependencies, function (data) {
                     updateSearch(data.items, target);
                 });
             };
