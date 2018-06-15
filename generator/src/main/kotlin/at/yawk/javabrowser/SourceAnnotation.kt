@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
+import org.eclipse.collections.impl.factory.primitive.IntObjectMaps
 
 /**
  * @author yawkat
@@ -38,7 +39,15 @@ enum class BindingRefType(@get:JsonValue val id: Int) {
     RETURN_TYPE(8),
     LOCAL_VARIABLE_TYPE(9),
     PARAMETER_TYPE(10),
-    FIELD_TYPE(11);
+    FIELD_TYPE(11),
+    TYPE_CONSTRAINT(12),
+    INSTANCE_OF(13),
+    CAST(14),
+    IMPORT(15),
+    ANNOTATION_TYPE(16),
+    CONSTRUCTOR_CALL(17),
+    THROWS_DECLARATION(18),
+    STATIC_METHOD_CALL_TYPE(19);
 
     companion object {
         @JsonCreator

@@ -53,6 +53,12 @@ data class AnnotatedSourceFile(
         if (a is Style && b is Style) {
             return Style(a.styleClass + b.styleClass)
         }
+        if (a is BindingRef && b is BindingRef) {
+            // one method can override multiple supers
+            if (a.type != BindingRefType.SUPER_METHOD && b.type != BindingRefType.SUPER_METHOD) return null
+            if (a.type != BindingRefType.SUPER_TYPE && b.type != BindingRefType.SUPER_TYPE) return null
+            throw RuntimeException("Duplicate ref: $a / $b")
+        }
         return null
     }
 

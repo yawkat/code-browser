@@ -86,6 +86,33 @@ function showReferences(bindingName, superHtml) {
                         case "FIELD_TYPE":
                             name = "Field type";
                             break;
+                        case "TYPE_CONSTRAINT":
+                            name = "Type constraint";
+                            break;
+                        case "INSTANCE_OF":
+                            name = "instanceof";
+                            break;
+                        case "CAST":
+                            name = "Cast";
+                            break;
+                        case "IMPORT":
+                            name = "Import";
+                            break;
+                        case "ANNOTATION_TYPE":
+                            name = "Annotation type";
+                            break;
+                        case "CONSTRUCTOR_CALL":
+                            name = "Constructor call";
+                            break;
+                        case "THROWS_DECLARATION":
+                            name = "Throws declaration";
+                            break;
+                        case "STATIC_METHOD_CALL_TYPE":
+                            name = "Static method call receiver type";
+                            break;
+                        default:
+                            name = key;
+                            break
                     }
                     tooltip.append("<span class='reference-type'>" + name + "</span>");
                     let list = $("<ul>");

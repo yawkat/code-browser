@@ -1,6 +1,9 @@
 package at.yawk.javabrowser
 
 import com.google.common.io.MoreFiles
+import org.hamcrest.BaseMatcher
+import org.hamcrest.Description
+import org.hamcrest.Matcher
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.intellij.lang.annotations.Language
@@ -14,6 +17,7 @@ import java.nio.file.Paths
 /**
  * @author yawkat
  */
+@Suppress("RemoveRedundantBackticks")
 class SourceFileParserTest {
     private var tmp = Paths.get("/null")
 
@@ -133,5 +137,204 @@ class SourceFileParserTest {
                         0
                 ))
         )
+    }
+
+    @Test
+    fun `ref - type constraint`() {
+        write("A.java", "class A<T extends A> {}")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.TYPE_CONSTRAINT
+                })
+        )
+    }
+
+    @Test
+    fun `ref - type constraint on method`() {
+        write("A.java", "class A { <T extends A> void x() {} }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.TYPE_CONSTRAINT
+                })
+        )
+    }
+
+    @Test
+    fun `ref - instanceof type`() {
+        write("A.java", "class A { { if (A.class instanceof A) {} } }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.INSTANCE_OF
+                })
+        )
+    }
+
+    @Test
+    fun `ref - cast type`() {
+        write("A.java", "class A { { System.out.println((A) A.class); } }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.CAST
+                })
+        )
+    }
+
+    @Test
+    fun `ref - import`() {
+        write("A.java", "import java.lang.String; class A {}")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.IMPORT &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - import static`() {
+        write("A.java", "import static java.lang.String.valueOf; class A {}")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.IMPORT &&
+                            annotation.binding == "java.lang.String#valueOf(char[],int,int)"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - import static wildcard`() {
+        write("A.java", "import static java.lang.String.*; class A {}")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.IMPORT &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - annotation type`() {
+        write("A.java", "class A { @Override public int hashCode() { return 5; } }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.ANNOTATION_TYPE &&
+                            annotation.binding == "java.lang.Override"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - field type`() {
+        write("A.java", "class A { A a; }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.FIELD_TYPE &&
+                            annotation.binding == "A"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - this constructor call`() {
+        write("A.java", "class A { A() {}  A(String s) { this(); } }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
+                            annotation.binding == "A()"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - this constructor call with param and comment`() {
+        write("A.java", "class A { <T> A() {}  A(String s) { <String> /* this */ this(); } }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
+                            annotation.binding == "A()"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - new instance`() {
+        write("A.java", "class A { { new A(); } }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
+                            annotation.binding == "A()"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - throws`() {
+        write("A.java", "class A { void x() throws Exception {} }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.THROWS_DECLARATION &&
+                            annotation.binding == "java.lang.Exception"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - static receiver`() {
+        write("A.java", "class A { { String.valueOf(5); } }")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.STATIC_METHOD_CALL_TYPE &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - javadoc`() {
+        write("A.java", "/** {@link java.util.concurrent.atomic.AtomicIntegerArray#compareAndSet(int, int, int)}  */ class A {}")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.JAVADOC &&
+                            annotation.binding == "java.util.concurrent.atomic.AtomicIntegerArray#compareAndSet(int,int,int)"
+                })
+        )
+    }
+
+    private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
+        override fun describeTo(description: Description) {
+            description.appendText("Matches lambda")
+        }
+
+        override fun matches(item: Any?) = item is T && pred(item)
     }
 }
