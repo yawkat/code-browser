@@ -25,6 +25,9 @@ class DbPrinter private constructor(
                 val dbPrinter = DbPrinter(objectMapper, artifactId, conn)
                 dbPrinter.clearOld()
                 closure(dbPrinter)
+                if (!dbPrinter.hasFiles) {
+                    throw RuntimeException("No source files on $artifactId")
+                }
             }
         }
     }
@@ -42,7 +45,10 @@ class DbPrinter private constructor(
     private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
     private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)")
 
+    private var hasFiles = false
+
     override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
+        hasFiles = true
         conn.insert(
                 "insert into sourceFiles (artifactId, path, json) VALUES (?, ?, ?)",
                 artifactId,
