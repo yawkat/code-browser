@@ -77,14 +77,16 @@ code .local-hover {
 
 code .show-refs {
     display: inline-block;
-    width: 1em;
+    width: .8em;
     opacity: .5;
     text-decoration: none !important;
     height: 0;
 }
+
 code .show-refs:before {
-    content: '⭤';
+    content: '\f337';
 }
+
 #tooltip {
     position: absolute;
     max-width: 50em;

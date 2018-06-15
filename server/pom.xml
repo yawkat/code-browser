@@ -72,6 +72,11 @@
             <artifactId>zeptojs</artifactId>
             <version>1.2.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>font-awesome</artifactId>
+            <version>5.0.13</version>
+        </dependency>
 
         <dependency>
             <groupId>at.yawk.java-browser</groupId>
