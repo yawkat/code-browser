@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/assets/shared.css">
   <link rel="stylesheet" href="/assets/code.css">
   <link rel="stylesheet" href="/assets/search.css">
-  <link rel="stylesheet" href="/webjars/font-awesome/5.0.13/web-fonts-with-css/css/fontawesome.min.css">
+  <link rel="stylesheet" href="/webjars/font-awesome/5.0.13/web-fonts-with-css/css/fontawesome-all.min.css">
   <script src="/webjars/zeptojs/1.2.0/zepto.js"></script>
   <script src="/webjars/zeptojs/1.2.0/ajax.js"></script>
   <script src="/webjars/zeptojs/1.2.0/event.js"></script>
