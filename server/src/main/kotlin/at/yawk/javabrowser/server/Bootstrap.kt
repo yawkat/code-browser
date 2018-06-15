@@ -28,6 +28,7 @@ class Bootstrap : Application<Config>() {
         bootstrap.addBundle(ViewBundle<Config>())
         bootstrap.addBundle(AssetsBundle("/META-INF/resources/webjars", "/webjars", "", "webjars"))
         bootstrap.addBundle(AssetsBundle())
+        bootstrap.objectMapper.findAndRegisterModules()
     }
 
     override fun run(configuration: Config, environment: Environment) {
