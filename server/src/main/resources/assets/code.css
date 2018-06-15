@@ -77,10 +77,16 @@ code .local-hover {
 
 code .show-refs {
     display: inline-block;
-    width: .8em;
+    width: 1.1em;
     opacity: .5;
     text-decoration: none !important;
     height: 0;
+    font-family: Font Awesome\ 5 Free;
+    font-variant: normal;
+    text-rendering: auto;
+    font-style: normal;
+    font-weight: 900;
+    font-size: .7em;
 }
 
 code .show-refs:before {
