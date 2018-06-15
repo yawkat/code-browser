@@ -1,4 +1,4 @@
-window.onload = function () {
+$(function () {
     const byId = {};
     let currentLocalSet = [];
     for (const element of document.querySelectorAll(".local-variable")) {
@@ -30,7 +30,7 @@ window.onload = function () {
             openSearch(document.querySelector(".search-dialog-wrapper"));
         }
     });
-};
+});
 
 function showReferences(bindingName, superHtml) {
     $.ajax({
@@ -112,7 +112,7 @@ function showReferences(bindingName, superHtml) {
                             break;
                         default:
                             name = key;
-                            break
+                            break;
                     }
                     tooltip.append("<span class='reference-type'>" + name + "</span>");
                     let list = $("<ul>");

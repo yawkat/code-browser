@@ -21,26 +21,18 @@
     }
 
     function loadQuery(query, artifactId, includeDependencies, consumer) {
-        const req = new XMLHttpRequest();
-        req.onreadystatechange = function () {
-            if (req.readyState === XMLHttpRequest.DONE) {
-                let resp = JSON.parse(req.responseText);
-                consumer(resp);
-            }
-        };
         let uri = "/api/search/" + encodeURIComponent(query) + "?includeDependencies=" + includeDependencies;
         if (artifactId) {
             uri += "&artifactId=" + encodeURIComponent(artifactId);
         }
-        req.open("GET", uri, true);
-        req.send();
+        $.ajax({
+            url: uri,
+            dataType: 'json',
+            success: consumer
+        });
     }
 
-    const oldLoad = window.onload;
-    window.onload = function () {
-        if (oldLoad) {
-            oldLoad();
-        }
+    $(function () {
         for (const searchField of document.querySelectorAll(".search")) {
             const target = document.querySelector(searchField.getAttribute("data-target"));
             const artifactId = searchField.getAttribute("data-artifact-id");
@@ -73,14 +65,20 @@
             input.addEventListener('focus', function () {
                 openSearch(searchDialog);
             });
-            input.addEventListener('blur', function () {
-                searchDialog.classList.remove("search-dialog-visible");
+            searchDialog.addEventListener('click', function (evt) {
+                if (evt.target === searchDialog) {
+                    searchDialog.classList.remove("search-dialog-visible");
+                }
             });
         }
-    };
+    });
 })();
 
 function openSearch(wrapperElement) {
     wrapperElement.classList.add("search-dialog-visible");
     wrapperElement.querySelector(".search").focus();
+}
+
+function closeSearch() {
+    $(".search-dialog-visible").removeClass("search-dialog-visible");
 }

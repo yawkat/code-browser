@@ -17,17 +17,13 @@
 </head>
 <body>
 <div id="wrapper">
+  <a class="search-button" href="javascript:openSearch(document.querySelector('.search-dialog-wrapper'))"><i class="fas fa-search"></i></a>
   <h1><#include "path.ftl"></h1>
   <h2>${sourceFilePath}</h2>
   <code><pre>${codeHtml?no_esc}</pre></code>
 </div>
 
-<div class="search-dialog-wrapper">
-  <div class="search-dialog search-box">
-    <input type="text" class="search" data-artifact-id="${artifactId.artifactId}" data-target="#search-dialog-list" autocomplete="off">
-    <ul id="search-dialog-list"></ul>
-  </div>
-</div>
+<#include "search-dialog.ftl">
 
 <div id="tooltip">
 </div>

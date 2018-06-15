@@ -12,7 +12,13 @@ html {
     max-width: 80em;
     margin: 0 auto;
     display: block;
-    padding: 1em;
+    padding: 1em 0;
+}
+
+@media (min-width: 600px) {
+    #wrapper {
+        padding: 1em;
+    }
 }
 
 h1 {

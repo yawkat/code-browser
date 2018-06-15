@@ -58,3 +58,8 @@
 .search-dialog > * {
     box-sizing: border-box;
 }
+
+.search-button {
+    float: right;
+    color: #31769d !important;
+}
