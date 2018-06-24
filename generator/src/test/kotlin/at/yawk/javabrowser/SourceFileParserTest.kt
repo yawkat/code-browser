@@ -104,7 +104,7 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.UNCLASSIFIED, "A", 3), "A", 1))
+                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.STATIC_METHOD_CALL_TYPE, "A", 3), "A", 1))
         )
     }
 
