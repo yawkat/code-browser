@@ -90,6 +90,29 @@ class BaseHandler(private val dbi: DBI,
         if (result.isEmpty()) {
             throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
         }
+
+        val alternatives = ArrayList<SourceFileView.Alternative>()
+        fun tryExactMatch(path: String) {
+            conn.createQuery("select artifactId, path from sourceFiles where path = ?")
+                    .bind(0, path)
+                    .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2)) }
+                    .forEach { alternatives.add(it) }
+        }
+
+        tryExactMatch(sourceFilePath)
+
+        if (artifactPath.nodes[0].value == "java") {
+            if (artifactPath.nodes[1].value!!.toInt() < 9) {
+                conn.createQuery("select artifactId, path from sourceFiles where artifactId like 'java/%' and path like ?")
+                        .bind(0, "%/$sourceFilePath")
+                        .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2)) }
+                        .forEach { alternatives.add(it) }
+            } else {
+                // try without module
+                tryExactMatch(sourceFilePath.substring(sourceFilePath.indexOf('/') + 1))
+            }
+        }
+
         val sourceFile = objectMapper.readValue(
                 result.single()["json"] as ByteArray,
                 AnnotatedSourceFile::class.java)
@@ -98,6 +121,7 @@ class BaseHandler(private val dbi: DBI,
                 artifactPath,
                 dependencies.toSet(),
                 sourceFilePath,
+                alternatives,
                 bindingResolver,
                 sourceFile
         )

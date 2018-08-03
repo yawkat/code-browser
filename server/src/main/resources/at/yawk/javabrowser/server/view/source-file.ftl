@@ -19,7 +19,12 @@
 <body>
 <div id="wrapper">
   <a class="search-button" href="javascript:openSearch(document.querySelector('.search-dialog-wrapper'))"><i class="fas fa-search"></i></a>
-  <h1><#include "path.ftl"></h1>
+  <h1>
+    <#include "path.ftl">
+    <a id="alt-versions" href="javascript:showAlternativeSourceFiles([
+    <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'},</#list>
+    ])"></a>
+  </h1>
   <h2>${sourceFilePath}</h2>
   <code><pre>${codeHtml?no_esc}</pre></code>
 </div>

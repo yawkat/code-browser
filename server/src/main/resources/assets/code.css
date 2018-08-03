@@ -93,6 +93,11 @@ code .show-refs:before {
     content: '\f337';
 }
 
+#alt-versions:before {
+    /* other versions dropdown */
+    content: '▼';
+}
+
 #tooltip {
     position: absolute;
     max-width: 50em;

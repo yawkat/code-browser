@@ -32,6 +32,33 @@ $(function () {
     });
 });
 
+function moveTooltipTo(element) {
+    const pos = element.getBoundingClientRect();
+    $("#tooltip").css({
+        top: pos.bottom + pageYOffset,
+        left: pos.left + pageXOffset
+    });
+}
+
+function showAlternativeSourceFiles(alternativeSourceFiles) {
+    const tooltip = $("#tooltip");
+    tooltip.empty();
+    if (alternativeSourceFiles) {
+        tooltip.append("<b>Other versions:</b>");
+        const list = $("<ul>");
+        for (const alternativeSourceFile of alternativeSourceFiles) {
+            const artifact = alternativeSourceFile.artifact;
+            const path = alternativeSourceFile.path;
+            list.append("<li><a href='/" + artifact + "/" + path + "'>" + artifact + "</a></li>");
+        }
+        tooltip.append(list);
+    } else {
+        tooltip.append("<i>No alternative versions</i>");
+    }
+    tooltip.show();
+    moveTooltipTo(document.getElementById("alt-versions").parentElement);
+}
+
 function showReferences(bindingName, superHtml) {
     $.ajax({
         url: '/api/references/' + encodeURIComponent(bindingName),
@@ -141,11 +168,7 @@ function showReferences(bindingName, superHtml) {
             }
 
             tooltip.show();
-            const pos = document.getElementById(bindingName).getBoundingClientRect();
-            tooltip.css({
-                top: pos.bottom + pageYOffset,
-                left: pos.left + pageXOffset
-            });
+            moveTooltipTo(document.getElementById(bindingName));
         }
     });
 

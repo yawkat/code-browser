@@ -24,6 +24,7 @@ class SourceFileView(
         val artifactId: ArtifactPath,
         private val classpath: Set<String>,
         val sourceFilePath: String,
+        val alternatives: List<Alternative>,
 
         private val bindingResolver: BindingResolver,
         private val sourceFile: AnnotatedSourceFile
@@ -93,4 +94,9 @@ class SourceFileView(
             })
         }
     }
+
+    data class Alternative(
+            val artifactId: String,
+            val sourceFilePath: String
+    )
 }
