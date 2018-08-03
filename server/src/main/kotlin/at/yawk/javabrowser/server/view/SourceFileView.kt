@@ -6,11 +6,9 @@ import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.LocalVariableRef
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
-import at.yawk.javabrowser.server.ArtifactId
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.appendChildren
-import at.yawk.javabrowser.server.artifact.Artifact
-import io.dropwizard.views.View
+import at.yawk.javabrowser.server.artifact.ArtifactPath
 import org.apache.commons.text.StringEscapeUtils
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -23,8 +21,8 @@ import org.jsoup.parser.Tag
  */
 @Suppress("unused")
 class SourceFileView(
-        val artifactId: ArtifactId,
-        private val classpath: Set<Artifact>,
+        val artifactId: ArtifactPath,
+        private val classpath: Set<String>,
         val sourceFilePath: String,
 
         private val bindingResolver: BindingResolver,

@@ -56,7 +56,8 @@ class SourceFileParser(
         override fun acceptAST(sourceFilePath: String, ast: CompilationUnit) {
             val relativePath = pathPrefix + root.relativize(Paths.get(sourceFilePath))
 
-            val annotatedSourceFile = AnnotatedSourceFile(Files.readAllBytes(Paths.get(sourceFilePath))
+            val annotatedSourceFile = AnnotatedSourceFile(Files.readAllBytes(Paths.get(
+                    sourceFilePath))
                     .toString(Charsets.UTF_8))
             val styleVisitor = StyleVisitor(annotatedSourceFile)
             for (comment in ast.commentList) {

@@ -1,7 +1,7 @@
 <div class="search-dialog-wrapper">
   <div class="search-dialog search-box">
     <input type="text" class="search"
-           <#if artifactId??>data-artifact-id="${artifactId.artifactId}"</#if>
+           <#if artifactId??>data-artifact-id="${artifactId.id}"</#if>
            data-target="#search-dialog-list"
            autocomplete="off"
            placeholder="Search for type…">

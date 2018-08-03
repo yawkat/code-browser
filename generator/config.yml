@@ -2,5 +2,4 @@ database:
   user: java-browser
   password: password
   url: jdbc:postgresql://[::1]/java-browser
-bindAddress: 127.0.0.1
-bindPort: 8080
+compilerThreads: 2

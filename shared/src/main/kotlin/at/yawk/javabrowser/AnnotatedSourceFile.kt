@@ -1,6 +1,5 @@
 package at.yawk.javabrowser
 
-import org.eclipse.jdt.core.dom.ASTNode
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
@@ -16,8 +15,6 @@ data class AnnotatedSourceFile(
     companion object {
         const val URI = ""
     }
-
-    fun annotate(node: ASTNode, annotation: SourceAnnotation) = annotate(node.startPosition, node.length, annotation)
 
     fun annotate(start: Int, length: Int, annotation: SourceAnnotation) {
         entries.add(Entry(start, length, annotation))
@@ -68,7 +65,7 @@ data class AnnotatedSourceFile(
         var textIndex = 0
 
         fun lineMarker(out: MutableList<Node>) {
-            val link = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
+            val link = Element(Tag.valueOf("a"), URI)
             val lineStr = line.toString()
             link.attr("href", "#$lineStr")
             link.attr("id", lineStr)
@@ -83,11 +80,13 @@ data class AnnotatedSourceFile(
             while (textIndex < until) {
                 val nextLine = text.indexOf('\n', textIndex)
                 if (nextLine != -1 && nextLine < until) {
-                    out.add(TextNode(text.substring(textIndex, nextLine + 1), URI))
+                    out.add(TextNode(text.substring(textIndex, nextLine + 1),
+                            URI))
                     textIndex = nextLine + 1
                     lineMarker(out)
                 } else {
-                    out.add(TextNode(text.substring(textIndex, until), URI))
+                    out.add(TextNode(text.substring(textIndex, until),
+                            URI))
                     textIndex = until
                 }
             }

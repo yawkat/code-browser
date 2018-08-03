@@ -69,7 +69,10 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.SUPER_METHOD_CALL, "java.lang.Object#hashCode()", 3), "hashCode", 1))
+                Matchers.hasItem(annotate(a,
+                        BindingRef(BindingRefType.SUPER_METHOD_CALL,
+                                "java.lang.Object#hashCode()",
+                                3), "hashCode", 1))
         )
     }
 
@@ -80,7 +83,10 @@ class SourceFileParserTest {
         write("B.java", "class B { public B() {} }")
         MatcherAssert.assertThat(
                 compile()["A.java"]!!.entries,
-                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL, "B()", 1), "super"))
+                Matchers.hasItem(annotate(a,
+                        BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL,
+                                "B()",
+                                1), "super"))
         )
     }
 
@@ -92,7 +98,9 @@ class SourceFileParserTest {
                 compileOne().entries,
                 Matchers.hasItem(annotate(
                         a,
-                        BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL, "java.lang.Object()", 1),
+                        BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL,
+                                "java.lang.Object()",
+                                1),
                         "super"
                 ))
         )
@@ -104,7 +112,10 @@ class SourceFileParserTest {
         write("A.java", a)
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(annotate(a, BindingRef(BindingRefType.STATIC_METHOD_CALL_TYPE, "A", 3), "A", 1))
+                Matchers.hasItem(annotate(a,
+                        BindingRef(BindingRefType.STATIC_METHOD_CALL_TYPE,
+                                "A",
+                                3), "A", 1))
         )
     }
 
@@ -132,7 +143,9 @@ class SourceFileParserTest {
                 compileOne().entries,
                 Matchers.hasItem(annotate(
                         a,
-                        BindingRef(BindingRefType.METHOD_CALL, "A#x(java.lang.Object)", 1),
+                        BindingRef(BindingRefType.METHOD_CALL,
+                                "A#x(java.lang.Object)",
+                                1),
                         "x",
                         0
                 ))

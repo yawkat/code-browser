@@ -12,7 +12,7 @@
   <script src="/webjars/zeptojs/1.2.0/zepto.js"></script>
   <script src="/webjars/zeptojs/1.2.0/ajax.js"></script>
   <script src="/webjars/zeptojs/1.2.0/event.js"></script>
-  <#if !prefix?has_content>
+  <#if artifactId.id == "">
     <link rel="stylesheet" href="/webjars/font-awesome/5.0.13/web-fonts-with-css/css/fontawesome-all.min.css">
     <link rel="stylesheet" href="/assets/search.css">
     <script src="/assets/search.js"></script>
@@ -20,28 +20,18 @@
 </head>
 <body>
 <div id="wrapper">
-  <#if !prefix?has_content>
+  <#if artifactId.id == "">
     <a class="search-button" href="javascript:openSearch(document.querySelector('.search-dialog-wrapper'))"><i class="fas fa-search"></i></a>
   </#if>
   <h1><#include "path.ftl"></h1>
-<#if children?has_content>
   <h2>Artifacts</h2>
   <ul>
-    <#list children as child>
-      <li><a href="/${prefix}${child}">${child}</a></li>
+    <#list artifactId.nodes[artifactId.nodes?size - 1].alternatives as child>
+      <li><a href="<#if artifactId.id?has_content>/${artifactId.id}</#if>/${child}">${child}</a></li>
     </#list>
   </ul>
-</#if>
-<#if versions?has_content>
-  <h2>Versions</h2>
-  <ul>
-    <#list versions as version>
-      <li><a href="/${prefix}${version}">${version}</a></li>
-    </#list>
-  </ul>
-</#if>
 </div>
-<#if !prefix?has_content>
+<#if artifactId.id == "">
     <#include "search-dialog.ftl">
 </#if>
 </body>

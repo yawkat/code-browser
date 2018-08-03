@@ -29,7 +29,7 @@
     </#if>
 
   <div class="search-box">
-    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.artifactId}" data-include-dependencies="false" data-load-immediately>
+    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.id}" data-include-dependencies="false" data-load-immediately>
     <ul id="result-list"></ul>
   </div>
 </div>

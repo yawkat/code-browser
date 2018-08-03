@@ -4,6 +4,9 @@ import com.google.common.collect.Range
 import com.google.common.collect.TreeRangeSet
 import org.eclipse.jdt.core.dom.*
 
+fun AnnotatedSourceFile.annotate(node: ASTNode, annotation: SourceAnnotation) =
+        annotate(node.startPosition, node.length, annotation)
+
 /**
  * @author yawkat
  */
@@ -69,7 +72,8 @@ class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVi
 
     override fun visit(node: NormalAnnotation): Boolean {
         // we just want the name and the @
-        annotatedSourceFile.annotate(node.typeName.startPosition - 1, node.typeName.length + 1, Style("annotation"))
+        annotatedSourceFile.annotate(node.typeName.startPosition - 1, node.typeName.length + 1,
+                Style("annotation"))
         return true
     }
 
@@ -81,7 +85,8 @@ class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVi
     override fun visit(node: TagElement): Boolean {
         if (node.tagName != null) {
             // we just want the name and the @
-            annotatedSourceFile.annotate(node.startPosition, node.tagName.length + 1, Style("javadoc-tag"))
+            annotatedSourceFile.annotate(node.startPosition, node.tagName.length + 1,
+                    Style("javadoc-tag"))
         }
         return true
     }

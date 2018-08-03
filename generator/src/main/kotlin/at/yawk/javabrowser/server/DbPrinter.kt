@@ -39,7 +39,8 @@ class DbPrinter private constructor(
         conn.update("delete from sourceFiles where artifactId = ?", artifactId)
         conn.update("delete from dependencies where fromArtifactId = ?", artifactId)
         conn.update("delete from artifacts where id = ?", artifactId)
-        conn.insert("insert into artifacts (id, lastCompileVersion) values (?, ?)", artifactId, Compiler.VERSION)
+        conn.insert("insert into artifacts (id, lastCompileVersion) values (?, ?)", artifactId,
+                Compiler.VERSION)
     }
 
     private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")

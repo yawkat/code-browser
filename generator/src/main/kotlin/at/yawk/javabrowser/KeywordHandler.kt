@@ -14,7 +14,8 @@ object KeywordHandler {
         val matcher = regex.matcher(annotatedSourceFile.text)
         while (matcher.find()) {
             if (!disable.contains(matcher.start())) {
-                annotatedSourceFile.annotate(matcher.start(), matcher.end() - matcher.start(), Style("keyword"))
+                annotatedSourceFile.annotate(matcher.start(), matcher.end() - matcher.start(),
+                        Style("keyword"))
             }
         }
     }
