@@ -16,8 +16,8 @@ class ReferenceResource(private val dbi: DBI, private val objectMapper: ObjectMa
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
-        val targetBinding = exchange.pathParameters["targetBinding"]?.peekFirst()
-                ?: HttpException(404, "Need to pass target binding")
+        val targetBinding = exchange.queryParameters["targetBinding"]?.peekFirst()
+                ?: throw HttpException(404, "Need to pass target binding")
         val limit = exchange.queryParameters["limit"]?.peekFirst()?.toInt() ?: 100
         val data = dbi.inTransaction { conn: Handle, _ ->
             BindingRefType.values().associate { type ->
