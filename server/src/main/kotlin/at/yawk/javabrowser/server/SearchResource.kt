@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
+import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
@@ -59,7 +60,8 @@ class SearchResource(private val dbi: DBI, private val objectMapper: ObjectMappe
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
-        val query = exchange.pathParameters["query"]?.peekFirst() ?: ""
+        val query = exchange.queryParameters["query"]?.peekFirst()
+                ?: throw HttpException(StatusCodes.NOT_FOUND, "Query not given")
 
         val artifactId = exchange.queryParameters["artifactId"]?.peekFirst()
         val limit = exchange.queryParameters["limit"]?.peekFirst()?.toInt() ?: 100
