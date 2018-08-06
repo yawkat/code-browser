@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentMap
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.experimental.buildSequence
 
 /**
  * @author yawkat
@@ -70,7 +71,29 @@ class SearchResource(private val dbi: DBI, private val objectMapper: ObjectMappe
         checkRefresh()
 
         val f = if (artifactId == null) {
-            searchIndex.find(query)
+            val seq = searchIndex.find(query)
+            // avoid duplicating search results - prefer newer artifacts.
+            buildSequence<SearchIndex.SearchResult<String, String>> {
+                var prev: SearchIndex.SearchResult<String, String>? = null
+                for (item in seq) {
+                    if (prev != null) {
+                        if (item.entry.string == prev.entry.string) {
+                            val keyHere = item.key
+                            val keyPrev = prev.key
+                            val versionHere = keyHere.substring(keyHere.lastIndexOf('/') + 1)
+                            val versionPrev = keyPrev.substring(keyHere.lastIndexOf('/') + 1)
+                            if (VersionComparator.compare(versionPrev, versionHere) > 0) {
+                                // 'prev' will be preferred over 'here' because it has a newer version.
+                                continue
+                            }
+                        } else {
+                            yield(prev)
+                        }
+                    }
+                    prev = item
+                }
+                if (prev != null) yield(prev)
+            }
         } else {
             val dependencies =
                     if (includeDependencies)
