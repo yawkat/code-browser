@@ -8,7 +8,7 @@ import org.intellij.lang.annotations.Language
  */
 object KeywordHandler {
     @Language("RegExp")
-    private val regex = "\\b(abstract|continue|for|new|switch|assert|default|if|package|synchronized|boolean|do|goto|private|this|break|double|implements|protected|throw|byte|else|import|public|throws|case|enum|instanceof|return|transient|catch|extends|int|short|try|char|final|interface|static|void|class|finally|long|strictfp|volatile|const|float|native|super|while|true|false)\\b".toPattern()
+    private val regex = "\\b(abstract|continue|for|new|switch|assert|default|if|package|synchronized|boolean|do|goto|private|this|break|double|implements|protected|throw|byte|else|import|public|throws|case|enum|instanceof|return|transient|catch|extends|int|short|try|char|final|interface|static|void|class|finally|long|strictfp|volatile|const|float|native|super|while|true|false|null)\\b".toPattern()
 
     fun annotateKeywords(annotatedSourceFile: AnnotatedSourceFile, disable: RangeSet<Int>) {
         val matcher = regex.matcher(annotatedSourceFile.text)
