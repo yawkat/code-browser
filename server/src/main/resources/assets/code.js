@@ -68,7 +68,7 @@ function showReferences(bindingName, superHtml) {
 
             tooltip.empty();
             if (superHtml) {
-                tooltip.append("<b>Super</b>");
+                tooltip.append("<b>Extends</b>");
                 tooltip.append(superHtml);
             }
             let anyItems = false;
@@ -81,37 +81,37 @@ function showReferences(bindingName, superHtml) {
                             name = "Unclassified";
                             break;
                         case "SUPER_CONSTRUCTOR_CALL":
-                            name = "Super constructor call";
+                            name = "Super constructor call from";
                             break;
                         case "SUPER_METHOD_CALL":
-                            name = "Super method call";
+                            name = "Super method call from";
                             break;
                         case "METHOD_CALL":
-                            name = "Method call";
+                            name = "Method call from";
                             break;
                         case "FIELD_ACCESS":
                             name = "Field access";
                             break;
                         case "SUPER_TYPE":
-                            name = "Super type";
+                            name = "Super type of";
                             break;
                         case "SUPER_METHOD":
-                            name = "Super method";
+                            name = "Super method of";
                             break;
                         case "JAVADOC":
                             name = "Javadoc";
                             break;
                         case "RETURN_TYPE":
-                            name = "Return type";
+                            name = "Return type of";
                             break;
                         case "LOCAL_VARIABLE_TYPE":
-                            name = "Local variable type";
+                            name = "Local variable type of";
                             break;
                         case "PARAMETER_TYPE":
-                            name = "Parameter type";
+                            name = "Parameter type of";
                             break;
                         case "FIELD_TYPE":
-                            name = "Field type";
+                            name = "Field type of";
                             break;
                         case "TYPE_CONSTRAINT":
                             name = "Type constraint";
@@ -123,19 +123,19 @@ function showReferences(bindingName, superHtml) {
                             name = "Cast";
                             break;
                         case "IMPORT":
-                            name = "Import";
+                            name = "Import from";
                             break;
                         case "ANNOTATION_TYPE":
-                            name = "Annotation type";
+                            name = "Annotation type at";
                             break;
                         case "CONSTRUCTOR_CALL":
-                            name = "Constructor call";
+                            name = "Constructor call from";
                             break;
                         case "THROWS_DECLARATION":
-                            name = "Throws declaration";
+                            name = "Throws declaration at";
                             break;
                         case "STATIC_METHOD_CALL_TYPE":
-                            name = "Static method call receiver type";
+                            name = "Static method call receiver type at";
                             break;
                         default:
                             name = key;
