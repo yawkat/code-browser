@@ -169,7 +169,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
 
         val depObjects = getMavenDependencies(artifact.groupId, artifact.artifactId, artifact.version)
                 .filter {
-                    it.coordinate.groupId != artifact.groupId &&
+                    it.coordinate.groupId != artifact.groupId ||
                             it.coordinate.artifactId != artifact.artifactId
                 }
         val depPaths = depObjects.map { (it as MavenResolvedArtifact).asFile().toPath() }
