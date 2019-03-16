@@ -11,6 +11,7 @@
   <script src="/webjars/zeptojs/1.2.0/zepto.js"></script>
   <script src="/webjars/zeptojs/1.2.0/ajax.js"></script>
   <script src="/webjars/zeptojs/1.2.0/event.js"></script>
+  <script src="/assets/app.js"></script>
   <script src="/assets/search.js"></script>
 </head>
 <body id="app">

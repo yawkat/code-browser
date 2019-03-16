@@ -1,3 +1,12 @@
+"use strict";
+
+class SearchDialog extends Dialog {
+    open() {
+        super.open();
+        this.wrapperElement.querySelector(".search").focus();
+    }
+}
+
 (function () {
     function updateSearch(items, target) {
         console.log("Updating search...");
@@ -33,16 +42,38 @@
     }
 
     $(function () {
+        let wrapper = document.getElementById("search-dialog-wrapper");
+        if (wrapper) {
+            SearchDialog.instance = new SearchDialog(wrapper);
+
+            document.addEventListener('keypress', function (e) {
+                if (e.key === "t") {
+                    SearchDialog.instance.open();
+                }
+            });
+        }
+
         for (const searchField of document.querySelectorAll(".search")) {
             const target = document.querySelector(searchField.getAttribute("data-target"));
             const artifactId = searchField.getAttribute("data-artifact-id");
             const includeDependencies = searchField.getAttribute("data-include-dependencies") !== "false";
             let firstUpdate = true;
+            let timer = null;
             const update = function () {
-                firstUpdate = false;
-                loadQuery(searchField.value, artifactId, includeDependencies, function (data) {
-                    updateSearch(data.items, target);
-                });
+                if (timer !== null) {
+                    clearTimeout(timer);
+                }
+                let f = function () {
+                    loadQuery(searchField.value, artifactId, includeDependencies, function (data) {
+                        updateSearch(data.items, target);
+                    });
+                };
+                if (firstUpdate) {
+                    firstUpdate = false;
+                    f();
+                } else {
+                    timer = setTimeout(f, 200);
+                }
             };
             searchField.addEventListener('input', update);
             searchField.addEventListener('focus', function () {
@@ -60,25 +91,5 @@
                 }
             });
         }
-        for (const searchDialog of document.querySelectorAll(".search-dialog-wrapper")) {
-            const input = searchDialog.querySelector(".search");
-            input.addEventListener('focus', function () {
-                openSearch(searchDialog);
-            });
-            searchDialog.addEventListener('click', function (evt) {
-                if (evt.target === searchDialog) {
-                    searchDialog.classList.remove("search-dialog-visible");
-                }
-            });
-        }
     });
 })();
-
-function openSearch(wrapperElement) {
-    wrapperElement.classList.add("search-dialog-visible");
-    wrapperElement.querySelector(".search").focus();
-}
-
-function closeSearch() {
-    $(".search-dialog-visible").removeClass("search-dialog-visible");
-}

@@ -15,13 +15,14 @@
   <#if artifactId.id == "">
     <link rel="stylesheet" href="/webjars/font-awesome/5.0.13/web-fonts-with-css/css/fontawesome-all.min.css">
     <link rel="stylesheet" href="/assets/search.css">
+    <script src="/assets/app.js"></script>
     <script src="/assets/search.js"></script>
   </#if>
 </head>
 <body>
 <div id="wrapper">
   <#if artifactId.id == "">
-    <a class="search-button" href="javascript:openSearch(document.querySelector('.search-dialog-wrapper'))"><i class="fas fa-search"></i></a>
+    <a class="search-button" href="javascript:SearchDialog.instance.open()"><i class="fas fa-search"></i></a>
   </#if>
   <h1><#include "path.ftl"></h1>
   <h2>Artifacts</h2>

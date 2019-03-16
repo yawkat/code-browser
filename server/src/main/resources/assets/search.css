@@ -31,22 +31,6 @@
     background: #eee;
 }
 
-.search-dialog-wrapper {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.2);
-    left: 0;
-    right: 0;
-    top: 0;
-    overflow-y: scroll;
-    display: none;
-}
-
-.search-dialog-wrapper.search-dialog-visible {
-    display: block;
-}
-
 .search-dialog {
     margin-top: 2em;
     background: white;
