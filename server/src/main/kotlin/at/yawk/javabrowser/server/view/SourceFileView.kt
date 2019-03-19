@@ -23,7 +23,8 @@ import org.jsoup.parser.Tag
 class SourceFileView(
         val artifactId: ArtifactPath,
         private val classpath: Set<String>,
-        val sourceFilePath: String,
+        val sourceFilePathDir: String,
+        val sourceFilePathFile: String,
         val alternatives: List<Alternative>,
 
         private val bindingResolver: BindingResolver,

@@ -21,16 +21,24 @@
 </head>
 <body>
 <div id="wrapper">
-  <#if artifactId.id == "">
-    <a class="search-button" href="javascript:SearchDialog.instance.open()"><i class="fas fa-search"></i></a>
-  </#if>
-  <h1><#include "path.ftl"></h1>
-  <h2>Artifacts</h2>
-  <ul>
-    <#list artifactId.nodes[artifactId.nodes?size - 1].alternatives as child>
-      <li><a href="<#if artifactId.id?has_content>/${artifactId.id}</#if>/${child}">${child}</a></li>
-    </#list>
-  </ul>
+  <div id="header">
+    <div>
+      <#if artifactId.id == "">
+        <a class="search-button" href="javascript:SearchDialog.instance.open()"><i class="fas fa-search"></i></a>
+      </#if>
+      <h1><#include "path.ftl"></h1>
+    </div>
+  </div>
+  <div id="content">
+    <div>
+      <h2>Artifacts</h2>
+      <ul>
+        <#list artifactId.nodes[artifactId.nodes?size - 1].alternatives as child>
+          <li><a href="<#if artifactId.id?has_content>/${artifactId.id}</#if>/${child}">${child}</a></li>
+        </#list>
+      </ul>
+    </div>
+  </div>
 </div>
 <#if artifactId.id == "">
     <#include "search-dialog.ftl">

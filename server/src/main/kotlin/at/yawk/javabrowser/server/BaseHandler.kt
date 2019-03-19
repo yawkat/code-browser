@@ -117,10 +117,12 @@ class BaseHandler(private val dbi: DBI,
                 result.single()["json"] as ByteArray,
                 AnnotatedSourceFile::class.java)
 
+        val separator = sourceFilePath.lastIndexOf('/')
         return SourceFileView(
                 artifactPath,
                 dependencies.toSet(),
-                sourceFilePath,
+                sourceFilePath.substring(0, separator + 1),
+                sourceFilePath.substring(separator + 1),
                 alternatives,
                 bindingResolver,
                 sourceFile

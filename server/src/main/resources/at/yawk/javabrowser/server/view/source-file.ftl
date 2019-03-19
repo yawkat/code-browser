@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>${artifactId.id} : ${sourceFilePath}</title>
+  <title>${artifactId.id} : ${sourceFilePathDir}${sourceFilePathFile}</title>
   <link rel="stylesheet" href="/assets/shared.css">
   <link rel="stylesheet" href="/assets/code.css">
   <link rel="stylesheet" href="/assets/search.css">
@@ -19,15 +19,20 @@
 </head>
 <body>
 <div id="wrapper">
-  <a class="search-button" href="javascript:SearchDialog.instance.open()"><i class="fas fa-search"></i></a>
-  <h1>
-    <#include "path.ftl">
-    <a id="alt-versions" href="javascript:showAlternativeSourceFiles([
-    <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'},</#list>
-    ])"></a>
-  </h1>
-  <h2>${sourceFilePath}</h2>
-  <code><pre>${codeHtml?no_esc}</pre></code>
+  <div id="header">
+    <div>
+      <a class="search-button" href="javascript:SearchDialog.instance.open()"><i class="fas fa-search"></i></a>
+      <h1><#include "path.ftl"> <span class="source-file-dir">${sourceFilePathDir}</span>${sourceFilePathFile}</h1>
+      <a id="alt-versions" href="javascript:showAlternativeSourceFiles([
+      <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'},</#list>
+      ])"></a>
+    </div>
+  </div>
+  <div id="content">
+    <div>
+      <code><pre>${codeHtml?no_esc}</pre></code>
+    </div>
+  </div>
 </div>
 
 <#include "search-dialog.ftl">

@@ -45,5 +45,6 @@
 
 .search-button {
     float: right;
-    color: #31769d !important;
+    color: inherit;
+    font-size: 1.5em;
 }

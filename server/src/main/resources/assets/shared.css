@@ -4,19 +4,59 @@
 }
 
 html {
-    overflow-y: scroll;
     font-family: "DejaVu Sans", sans-serif;
 }
 
-#wrapper {
+#content > div {
     max-width: 80em;
     margin: 0 auto;
     display: block;
     padding: 1em 0.2em;
 }
 
+#header {
+    top: 0;
+    background-color: #222;
+    color: #aaa;
+    width: 100%;
+}
+
+#header div {
+    max-width: 80em;
+    margin: 0 auto;
+    padding: .5em 0;
+}
+
+#header h1 {
+    font-size: 1.5em;
+    display: inline;
+}
+
+#header a {
+    color: inherit;
+    text-decoration: none;
+}
+
+#header a:hover {
+    text-decoration: underline;
+}
+
+#wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* For desktops, scroll only the content */
 @media (min-width: 600px) {
     #wrapper {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+    }
+
+    #content {
+        overflow-y: scroll;
         padding: 1em;
     }
 }

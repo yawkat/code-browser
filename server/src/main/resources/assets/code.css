@@ -95,7 +95,15 @@ code .show-refs:before {
 
 #alt-versions:before {
     /* other versions dropdown */
-    content: '▼';
+    content: 'Other versions of this file';
+}
+
+#alt-versions {
+    padding-left: 2em;
+}
+
+.source-file-dir {
+    opacity: .5;
 }
 
 #tooltip {

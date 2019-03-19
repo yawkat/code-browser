@@ -16,22 +16,31 @@
 </head>
 <body id="app">
 <div id="wrapper">
-  <h1><#include "path.ftl"></h1>
+  <div id="header">
+    <div>
+      <h1><#include "path.ftl"></h1>
+    </div>
+  </div>
 
-    <#if dependencies?has_content>
-      <h2>Dependencies</h2>
-      <ul>
-        <#list dependencies as dependency>
-          <li>
-            <#if dependency.prefix??><a href="/${dependency.prefix}">${dependency.prefix}</a></#if>${dependency.suffix}
-          </li>
-        </#list>
-      </ul>
-    </#if>
+  <div id="content">
+    <div>
+      <#if dependencies?has_content>
+        <h2>Dependencies</h2>
+        <ul>
+          <#list dependencies as dependency>
+            <li>
+              <#if dependency.prefix??>
+                <a href="/${dependency.prefix}">${dependency.prefix}</a></#if>${dependency.suffix}
+            </li>
+          </#list>
+        </ul>
+      </#if>
 
-  <div class="search-box">
-    <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.id}" data-include-dependencies="false" data-load-immediately>
-    <ul id="result-list"></ul>
+      <div class="search-box">
+        <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list" data-artifact-id="${artifactId.id}" data-include-dependencies="false" data-load-immediately>
+        <ul id="result-list"></ul>
+      </div>
+    </div>
   </div>
 </div>
 </body>
