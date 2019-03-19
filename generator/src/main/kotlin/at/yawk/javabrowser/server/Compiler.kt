@@ -81,7 +81,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
             compile(artifactId, sourceRoot, dependencies, includeRunningVmBootclasspath, printer)
             dependencyArtifactIds.forEach { printer.addDependency(it) }
             if (includeRunningVmBootclasspath) {
-                printer.addDependency("java/10")
+                printer.addDependency("java/11")
             }
         }
     }
