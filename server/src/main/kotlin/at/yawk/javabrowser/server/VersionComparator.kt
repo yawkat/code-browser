@@ -7,8 +7,8 @@ import com.google.common.collect.Lists
  */
 object VersionComparator : Comparator<String> {
     override fun compare(o1: String, o2: String): Int {
-        val p1 = o1.split('.')
-        val p2 = o2.split('.')
+        val p1 = o1.split('.', '/')
+        val p2 = o2.split('.', '/')
         var i = 0
         while (true) {
             if (i >= p1.size) {
@@ -24,8 +24,10 @@ object VersionComparator : Comparator<String> {
             if (e1 != e2) {
                 try {
                     val k1 = e1.toLong()
-                    val k2 = e1.toLong()
+                    val k2 = e2.toLong()
                     return java.lang.Long.compare(k1, k2)
+                            // newer first
+                            .inv()
                 } catch (e: NumberFormatException) {
                     return e1.compareTo(e2)
                 }

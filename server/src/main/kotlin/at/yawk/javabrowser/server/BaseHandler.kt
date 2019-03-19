@@ -12,6 +12,7 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
+import java.util.function.Function
 
 /**
  * @author yawkat
@@ -35,6 +36,7 @@ class BaseHandler(private val dbi: DBI,
                         .bind(1, if (i == 0) "%" else "$exact/%")
                         .map(SingleColumnResultSetMapper.STRING)
                         .toList()
+                        .sortedWith(VersionComparator)
                 if (query.isEmpty()) {
                     // this might be a concrete artifact
 
