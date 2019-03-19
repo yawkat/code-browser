@@ -4,10 +4,12 @@ class Dialog {
     constructor(wrapperElement) {
         this.wrapperElement = wrapperElement;
 
+        let ref = this;
+
         // if we click on the wrapper itself (i.e. the greyed-out background), close this dialog
         wrapperElement.addEventListener('click', function (evt) {
             if (evt.target === wrapperElement) {
-                close();
+                ref.close();
             }
         });
     }
