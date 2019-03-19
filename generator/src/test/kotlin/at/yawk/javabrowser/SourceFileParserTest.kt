@@ -343,6 +343,121 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `ref - var`() {
+        write("A.java", "class A {{ var b = new B(); }}")
+        write("B.java", "class B {}")
+        MatcherAssert.assertThat(
+                compile()["A.java"]!!.entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.LOCAL_VARIABLE_TYPE &&
+                            annotation.binding == "B"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - lambda`() {
+        write("A.java", "class A {{ B b = () -> {}; }}")
+        write("B.java", "interface B extends Runnable {}")
+        val entries = compile()["A.java"]!!.entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.SUPER_METHOD &&
+                            annotation.binding == "java.lang.Runnable#run()" &&
+                            it.start == 20 && it.length == 2
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
+                            annotation.binding == "B"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - lambda parameter implicit`() {
+        write("A.java", "class A {{ java.util.function.Consumer<B> r = b -> {}; }}")
+        write("B.java", "class B {}")
+        val entries = compile()["A.java"]!!.entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.PARAMETER_TYPE &&
+                            annotation.binding == "B"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - lambda parameter explicit`() {
+        write("A.java", "class A {{ java.util.function.Consumer<B> r = (B b) -> {}; }}")
+        write("B.java", "class B {}")
+        val entries = compile()["A.java"]!!.entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.PARAMETER_TYPE &&
+                            annotation.binding == "B"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - method ref`() {
+        write("A.java", "class A {{ B b = B::test; }}")
+        write("B.java", "interface B extends Runnable { static void test() {} }")
+        val entries = compile()["A.java"]!!.entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.SUPER_METHOD &&
+                            annotation.binding == "java.lang.Runnable#run()" &&
+                            // should annotate the ::
+                            it.start == 18 && it.length == 2
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.METHOD_CALL &&
+                            annotation.binding == "B#test()" &&
+                            // should annotate the test
+                            it.start == 20 && it.length == 4
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
+                            annotation.binding == "B" &&
+                            // should annotate nothing
+                            it.length == 0
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.METHOD_REFERENCE_RECEIVER_TYPE &&
+                            annotation.binding == "B" &&
+                            // should annotate the receiver
+                            it.start == 17 && it.length == 1
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")

@@ -139,6 +139,9 @@ function showReferences(bindingName, superHtml) {
                         case "STATIC_METHOD_CALL_TYPE":
                             name = "Static method call receiver type at";
                             break;
+                        case "METHOD_REFERENCE_RECEIVER_TYPE":
+                            name = "Method reference receiver type at";
+                            break;
                         default:
                             name = key;
                             break;

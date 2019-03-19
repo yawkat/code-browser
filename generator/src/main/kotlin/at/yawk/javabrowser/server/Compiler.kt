@@ -39,7 +39,7 @@ private inline fun tempDir(f: (Path) -> Unit) {
 class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     companion object {
         private val log = LoggerFactory.getLogger(Compiler::class.java)
-        const val VERSION = 9
+        const val VERSION = 11
     }
 
     private fun needsRecompile(artifactId: String): Boolean {
@@ -174,7 +174,9 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                 }
         val depPaths = depObjects.map { (it as MavenResolvedArtifact).asFile().toPath() }
         val depNames = depObjects.map {
-            it.coordinate.groupId + "/" + it.coordinate.artifactId + "/" + it.coordinate.version
+            var name = it.coordinate.groupId + "/" + it.coordinate.artifactId + "/" + it.coordinate.version
+            if (it.coordinate.classifier != null) name += "/" + it.coordinate.classifier
+            name
         }
         val sourceJar = Maven.resolver()
                 .addDependency(MavenDependencies.createDependency(

@@ -46,7 +46,8 @@ enum class BindingRefType(@get:JsonValue val id: Int) {
     ANNOTATION_TYPE(16),
     CONSTRUCTOR_CALL(17),
     THROWS_DECLARATION(18),
-    STATIC_METHOD_CALL_TYPE(19);
+    STATIC_METHOD_CALL_TYPE(19),
+    METHOD_REFERENCE_RECEIVER_TYPE(20);
 
     companion object {
         @JsonCreator

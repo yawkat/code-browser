@@ -54,6 +54,9 @@ data class AnnotatedSourceFile(
             // one method can override multiple supers
             if (a.type != BindingRefType.SUPER_METHOD && b.type != BindingRefType.SUPER_METHOD) return null
             if (a.type != BindingRefType.SUPER_TYPE && b.type != BindingRefType.SUPER_TYPE) return null
+            // lambdas have a SUPER_TYPE and SUPER_METHOD ref on the same node
+            if ((a.type == BindingRefType.SUPER_TYPE && b.type == BindingRefType.SUPER_METHOD) ||
+                    b.type == BindingRefType.SUPER_TYPE && a.type == BindingRefType.SUPER_METHOD) return null
             throw RuntimeException("Duplicate ref: $a / $b")
         }
         return null
