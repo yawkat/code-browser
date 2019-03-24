@@ -24,13 +24,22 @@
   <div id="header">
     <div>
       <#if artifactId.id == "">
-        <a class="search-button" href="javascript:SearchDialog.instance.open()"><i class="fas fa-search"></i></a>
+        <a class="search-button" href="javascript:SearchDialog.instance.open()" title="Hotkey: [T]"><i class="fas fa-search"></i></a>
       </#if>
       <h1><#include "path.ftl"></h1>
     </div>
   </div>
   <div id="content">
     <div>
+      <#if artifactId.id == "">
+        <div class="message-box">
+          <p>This site allows you to explore the source code of the OpenJDK standard library and a selected number of popular maven libraries. Either select an artifact below, or <a href="javascript:SearchDialog.instance.open()">search for a class directly</a>. <br><br>
+
+            <a href="https://github.com/yawkat/java-browser">Contribute on GitHub</a>
+          </p>
+        </div>
+      </#if>
+
       <h2>Artifacts</h2>
       <ul>
         <#list artifactId.nodes[artifactId.nodes?size - 1].alternatives as child>

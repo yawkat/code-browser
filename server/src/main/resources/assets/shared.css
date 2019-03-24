@@ -94,3 +94,11 @@ li {
 .dialog-wrapper.dialog-visible {
     display: block;
 }
+
+.message-box {
+    display: block;
+    margin: 1em;
+    padding: 1em;
+    border: 1px solid #ccc;
+    font-size: 1.2em;
+}

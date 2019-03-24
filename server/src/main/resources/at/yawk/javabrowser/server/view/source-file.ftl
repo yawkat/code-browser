@@ -21,7 +21,7 @@
 <div id="wrapper">
   <div id="header">
     <div>
-      <a class="search-button" href="javascript:SearchDialog.instance.open()"><i class="fas fa-search"></i></a>
+      <a class="search-button" href="javascript:SearchDialog.instance.open()" title="Hotkey: [T]"><i class="fas fa-search"></i></a>
       <h1><#include "path.ftl"> <span class="source-file-dir">${sourceFilePathDir}</span>${sourceFilePathFile}</h1>
       <a id="alt-versions" href="javascript:showAlternativeSourceFiles([
       <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'},</#list>
