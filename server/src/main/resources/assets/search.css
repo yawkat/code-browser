@@ -36,7 +36,7 @@
     background: white;
     border: 1px solid #ccc;
     border-radius: 2px;
-    padding: 0 1em;
+    padding: 1em;
 }
 
 .search-dialog > * {

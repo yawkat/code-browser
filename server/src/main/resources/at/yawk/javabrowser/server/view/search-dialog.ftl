@@ -1,5 +1,8 @@
 <div id="search-dialog-wrapper" class="dialog-wrapper">
   <div class="search-dialog search-box">
+    <#if artifactId??>
+      <small>This search is limited to the artifact
+      <a href="/${artifactId.id}">${artifactId.id}</a> and its dependencies.</small></#if>
     <input type="text" class="search"
            <#if artifactId??>data-artifact-id="${artifactId.id}"</#if>
            data-target="#search-dialog-list"
