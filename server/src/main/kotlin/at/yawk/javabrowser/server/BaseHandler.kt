@@ -12,7 +12,6 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
-import java.util.function.Function
 
 /**
  * @author yawkat

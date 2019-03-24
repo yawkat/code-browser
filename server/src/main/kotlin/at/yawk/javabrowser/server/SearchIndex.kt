@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import com.google.common.annotations.VisibleForTesting
+import com.google.common.base.Ascii
 import java.util.BitSet
 import java.util.Comparator
 import java.util.Locale
@@ -41,14 +42,26 @@ class SearchIndex<K, V> {
             }
             return i
         }
+
+        private val ENTRY_COMPARATOR = Comparator.comparingInt<Entry<*>> { e ->
+            e.input.weight.inv()
+        }.thenComparingInt { e ->
+            // this is a heuristic for finding the first "class name" character. Package names are assumed to be lowercase.
+            // we can't simply use the last dot because there might be nested classes
+            e.input.string.length - e.input.string.indexOfFirst { Ascii.isUpperCase(it) }
+        }.thenComparingInt { e ->
+            e.input.string.length
+        }.thenComparing { e ->
+            e.input.string
+        }
     }
 
     private val categories = ConcurrentHashMap<K, List<Entry<V>>>()
 
-    fun replace(categoryKey: K, strings: Iterator<Pair<String, V>>) {
+    fun replace(categoryKey: K, strings: Iterator<Input<V>>) {
         val entries = ArrayList<Entry<V>>()
-        strings.forEach { entries.add(Entry(it.first, it.second, split(it.first).toTypedArray())) }
-        entries.sortWith(Comparator.comparingInt { e -> e.string.length })
+        strings.forEach { entries.add(Entry(it, split(it.string).toTypedArray())) }
+        entries.sortWith(ENTRY_COMPARATOR)
         categories[categoryKey] = entries
     }
 
@@ -56,6 +69,7 @@ class SearchIndex<K, V> {
         val queryLower = query.toLowerCase(Locale.US)
         val candidates = ArrayList<List<Entry<V>>>(includedCats.size)
         val includedCategoriesFinal = ArrayList<K>(includedCats.size)
+        // one loop to maintain order
         for (category in includedCats) {
             candidates.add(categories[category] ?: continue)
             includedCategoriesFinal.add(category)
@@ -79,7 +93,7 @@ class SearchIndex<K, V> {
                             continue
                         }
                         val entryHere = list[indices[j]]
-                        if (bestList == -1 || bestEntry!!.string.length > entryHere.string.length) {
+                        if (bestList == -1 || ENTRY_COMPARATOR.compare(bestEntry, entryHere) > 0) {
                             bestEntry = entryHere
                             bestList = j
                         }
@@ -162,15 +176,21 @@ class SearchIndex<K, V> {
                     other.query == query &&
                     other.key == key &&
                     other.key == key &&
-                    other.entry.string == entry.string &&
-                    other.entry.value == entry.value &&
+                    other.entry.input.string == entry.input.string &&
+                    other.entry.input.value == entry.input.value &&
                     other.match.contentEquals(match)
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(query, key, entry.string, match.contentHashCode())
+            return Objects.hash(query, key, entry.input.string, match.contentHashCode())
         }
     }
 
-    internal class Entry<V>(val string: String, val value: V, val componentsLower: Array<String>)
+    data class Input<V>(
+            val string: String,
+            val value: V,
+            val weight: Int
+    )
+
+    internal class Entry<V>(val input: Input<V>, val componentsLower: Array<String>)
 }

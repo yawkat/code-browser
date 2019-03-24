@@ -24,6 +24,14 @@ private val log = LoggerFactory.getLogger(SearchResource::class.java)
 class SearchResource(private val dbi: DBI, private val objectMapper: ObjectMapper) : HttpHandler {
     companion object {
         const val PATTERN = "/api/search/{query}"
+
+        /**
+         * Enable sorting classes for search by the number of references to them. There are two issues with this:
+         *
+         * - InputStream is used more often than Stream, so it is preferred when searching for Stream, which is not what we want
+         * - It's slow to count references, so the startup time is a lot worse.
+         */
+        private const val ENABLE_USAGE_COUNT_WEIGHT = false
     }
 
     private val worker = ThreadPoolExecutor(0, 1, 5, TimeUnit.MINUTES,
@@ -42,9 +50,17 @@ class SearchResource(private val dbi: DBI, private val objectMapper: ObjectMappe
                 lastKnownVersion.compute(artifactId) { _, oldVersion ->
                     if (newVersion != oldVersion) {
                         log.info("Triggering search index update for {}", artifactId)
-                        val itr = conn.createQuery("select binding, sourceFile from bindings where isType and artifactId = ?")
+                        val itr = conn.createQuery(
+                                """select binding, sourceFile
+                                    ${if (ENABLE_USAGE_COUNT_WEIGHT) ", (select count(*) from binding_references where targetBinding = binding)" else ""}
+                                    from bindings where isType and artifactId = ?""")
                                 .bind(0, artifactId)
-                                .map { _, r, _ -> r.getString(1) to r.getString(2) }
+                                .map { _, r, _ ->
+                                    SearchIndex.Input(
+                                            string = r.getString(1),
+                                            value = r.getString(2),
+                                            weight = if (ENABLE_USAGE_COUNT_WEIGHT) r.getInt(3) else 0)
+                                }
                                 .iterator()
                         searchIndex.replace(artifactId, itr)
                     }
@@ -77,12 +93,10 @@ class SearchResource(private val dbi: DBI, private val objectMapper: ObjectMappe
                 var prev: SearchIndex.SearchResult<String, String>? = null
                 for (item in seq) {
                     if (prev != null) {
-                        if (item.entry.string == prev.entry.string) {
+                        if (item.entry.input.string == prev.entry.input.string) {
                             val keyHere = item.key
                             val keyPrev = prev.key
-                            val versionHere = keyHere.substring(keyHere.lastIndexOf('/') + 1)
-                            val versionPrev = keyPrev.substring(keyHere.lastIndexOf('/') + 1)
-                            if (VersionComparator.compare(versionPrev, versionHere) > 0) {
+                            if (VersionComparator.compare(keyHere, keyPrev) > 0) {
                                 // 'prev' will be preferred over 'here' because it has a newer version.
                                 continue
                             }
@@ -106,7 +120,7 @@ class SearchResource(private val dbi: DBI, private val objectMapper: ObjectMappe
 
         val response = Response(f.take(limit).map {
             val componentLengths = IntArray(it.entry.componentsLower.size) { i -> it.entry.componentsLower[i].length }
-            Result(it.key, it.entry.string, it.entry.value, componentLengths, it.match)
+            Result(it.key, it.entry.input.string, it.entry.input.value, componentLengths, it.match)
         }.asIterable())
 
         objectMapper.writeValue(exchange.outputStream, response)
