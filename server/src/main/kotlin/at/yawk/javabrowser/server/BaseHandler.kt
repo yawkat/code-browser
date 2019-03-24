@@ -12,6 +12,9 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 
 /**
  * @author yawkat
@@ -91,6 +94,13 @@ class BaseHandler(private val dbi: DBI,
         if (result.isEmpty()) {
             throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
         }
+
+        // increment hit counter for this time bin
+        val timestamp = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS)
+        conn.update("insert into hits (timestamp, sourceFile, artifactId, hits) values (?, ?, ?, 1) on conflict (timestamp, sourceFile, artifactId) do update set hits = hits.hits + 1",
+                timestamp.toLocalDateTime(),
+                sourceFilePath,
+                artifactPath.id)
 
         val alternatives = ArrayList<SourceFileView.Alternative>()
         fun tryExactMatch(path: String) {
