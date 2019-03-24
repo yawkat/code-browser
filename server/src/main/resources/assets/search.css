@@ -20,9 +20,7 @@
 }
 
 .search-box li a {
-    text-decoration: none;
-    color: inherit;
-    padding: .5em;
+    padding: .2em;
     display: block;
     width: 100%;
 }
