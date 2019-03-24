@@ -49,49 +49,50 @@ class SearchIndexTest {
     @Test
     fun simple() {
         val searchIndex = SearchIndex<String, Unit>()
-        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit, 0)).iterator())
+        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit)).iterator())
         val results = searchIndex.find("CHM").toList()
         Assert.assertEquals(results.size, 1)
-        Assert.assertEquals(results[0].entry.input.string, "ConcurrentHashMap")
+        Assert.assertEquals(results[0].entry.name.string, "ConcurrentHashMap")
         Assert.assertEquals(results[0].match, intArrayOf(1, 1, 1))
     }
 
     @Test
     fun properOrder() {
         val searchIndex = SearchIndex<String, Unit>()
-        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit, 0),
-                SearchIndex.Input("ConcurrentHmap", Unit, 0)).iterator())
+        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit),
+                SearchIndex.Input("ConcurrentHmap", Unit)).iterator())
         val results = searchIndex.find("CHmap").toList()
         Assert.assertEquals(results.size, 2)
-        Assert.assertEquals(results[0].entry.input.string, "ConcurrentHmap")
+        Assert.assertEquals(results[0].entry.name.string, "ConcurrentHmap")
         Assert.assertEquals(results[0].match, intArrayOf(1, 4))
-        Assert.assertEquals(results[1].entry.input.string, "ConcurrentHashMap")
+        Assert.assertEquals(results[1].entry.name.string, "ConcurrentHashMap")
         Assert.assertEquals(results[1].match, intArrayOf(1, 1, 3))
     }
 
     @Test
     fun multiCategory() {
         val searchIndex = SearchIndex<String, Unit>()
-        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit, 0)).iterator())
-        searchIndex.replace("cat2", listOf(SearchIndex.Input("ConcurrentHmap", Unit, 0)).iterator())
+        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit)).iterator())
+        searchIndex.replace("cat2", listOf(SearchIndex.Input("ConcurrentHmap", Unit)).iterator())
         val results = searchIndex.find("CHmap").toList()
         Assert.assertEquals(results.size, 2)
-        Assert.assertEquals(results[0].entry.input.string, "ConcurrentHmap")
+        Assert.assertEquals(results[0].entry.name.string, "ConcurrentHmap")
         Assert.assertEquals(results[0].match, intArrayOf(1, 4))
-        Assert.assertEquals(results[1].entry.input.string, "ConcurrentHashMap")
+        Assert.assertEquals(results[1].entry.name.string, "ConcurrentHashMap")
         Assert.assertEquals(results[1].match, intArrayOf(1, 1, 3))
     }
 
     @Test
-    fun packageOrder() {
+    fun `class name first`() {
         val searchIndex = SearchIndex<String, Unit>()
-        searchIndex.replace("cat1", listOf(SearchIndex.Input("java.util.stream.Stream", Unit, 0)).iterator())
-        searchIndex.replace("cat2", listOf(SearchIndex.Input("java.util.stream.Stream", Unit, 0)).iterator())
-        val results = searchIndex.find("CHmap").toList()
-        Assert.assertEquals(results.size, 2)
-        Assert.assertEquals(results[0].entry.input.string, "ConcurrentHmap")
-        Assert.assertEquals(results[0].match, intArrayOf(1, 4))
-        Assert.assertEquals(results[1].entry.input.string, "ConcurrentHashMap")
-        Assert.assertEquals(results[1].match, intArrayOf(1, 1, 3))
+        searchIndex.replace("cat1", listOf(
+                SearchIndex.Input("xxxxx.LongerName", Unit),
+                SearchIndex.Input("long.ShortName", Unit)
+                ).iterator())
+        // `long` appears in both names, but LongerName should be listed first since it appears in the class name
+        val results = searchIndex.find("long").toList()
+        Assert.assertEquals(results[0].entry.name.string, "xxxxx.LongerName")
+        Assert.assertEquals(results[0].match, intArrayOf(0, 4, 0))
+        Assert.assertEquals(results[1].entry.name.string, "long.ShortName")
     }
 }

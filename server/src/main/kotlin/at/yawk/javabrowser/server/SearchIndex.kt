@@ -42,27 +42,14 @@ class SearchIndex<K, V> {
             }
             return i
         }
-
-        private val ENTRY_COMPARATOR = Comparator.comparingInt<Entry<*>> { e ->
-            e.input.weight.inv()
-        }.thenComparingInt { e ->
-            // this is a heuristic for finding the first "class name" character. Package names are assumed to be lowercase.
-            // we can't simply use the last dot because there might be nested classes
-            e.input.string.length - e.input.string.indexOfFirst { Ascii.isUpperCase(it) }
-        }.thenComparingInt { e ->
-            e.input.string.length
-        }.thenComparing { e ->
-            e.input.string
-        }
     }
 
     private val categories = ConcurrentHashMap<K, List<Entry<V>>>()
 
     fun replace(categoryKey: K, strings: Iterator<Input<V>>) {
-        val entries = ArrayList<Entry<V>>()
-        strings.forEach { entries.add(Entry(it, split(it.string).toTypedArray())) }
-        entries.sortWith(ENTRY_COMPARATOR)
-        categories[categoryKey] = entries
+        categories[categoryKey] = strings.asSequence().map {
+            Entry(it.value, SplitEntry(it.string), SplitEntry(it.string.substring(it.string.lastIndexOf('.') + 1)))
+        }.sortedBy { it.name }.toList()
     }
 
     fun find(query: String, includedCats: Set<K> = this.categories.keys) = buildSequence {
@@ -76,7 +63,12 @@ class SearchIndex<K, V> {
         }
 
         val visited = candidates.map { BitSet(it.size) }
+        // depth 0 is the same as 1, except we only search the class name.
         for (depth in 0 until MAX_DEPTH) {
+            val cmp: Comparator<Entry<*>> =
+                    if (depth == 0) compareBy { it.simpleName }
+                    else compareBy { it.name }
+
             // all the lists in candidates are sorted by entry length, so we can do a simple merge to keep order
             val indices = IntArray(candidates.size)
             while (true) {
@@ -93,7 +85,7 @@ class SearchIndex<K, V> {
                             continue
                         }
                         val entryHere = list[indices[j]]
-                        if (bestList == -1 || ENTRY_COMPARATOR.compare(bestEntry, entryHere) > 0) {
+                        if (bestList == -1 || cmp.compare(bestEntry, entryHere) > 0) {
                             bestEntry = entryHere
                             bestList = j
                         }
@@ -103,9 +95,19 @@ class SearchIndex<K, V> {
                 if (bestList == -1) {
                     break
                 }
-                val result = Searcher(bestEntry!!.componentsLower, queryLower).search(depth)
+                val result =
+                        if (depth == 0) Searcher(bestEntry!!.simpleName.componentsLower, queryLower).search(1)
+                        else Searcher(bestEntry!!.name.componentsLower, queryLower).search(depth)
                 if (result != null) {
-                    yield(SearchResult(query, includedCategoriesFinal[bestList], bestEntry, result))
+                    val paddedResult: IntArray
+                    if (depth == 0) {
+                        // prepend 0s
+                        paddedResult = IntArray(bestEntry.name.componentsLower.size)
+                        System.arraycopy(result, 0, paddedResult, paddedResult.size - result.size, result.size)
+                    } else {
+                        paddedResult = result
+                    }
+                    yield(SearchResult(query, includedCategoriesFinal[bestList], bestEntry, paddedResult))
                     visited[bestList][indices[bestList]] = true
                 }
                 indices[bestList]++
@@ -176,21 +178,44 @@ class SearchIndex<K, V> {
                     other.query == query &&
                     other.key == key &&
                     other.key == key &&
-                    other.entry.input.string == entry.input.string &&
-                    other.entry.input.value == entry.input.value &&
+                    other.entry == entry &&
                     other.match.contentEquals(match)
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(query, key, entry.input.string, match.contentHashCode())
+            return Objects.hash(query, key, entry, match.contentHashCode())
         }
     }
 
     data class Input<V>(
             val string: String,
-            val value: V,
-            val weight: Int
+            val value: V
     )
 
-    internal class Entry<V>(val input: Input<V>, val componentsLower: Array<String>)
+    internal data class SplitEntry(
+            val string: String
+    ) : Comparable<SplitEntry> {
+        val componentsLower: Array<String> = split(string).toTypedArray()
+
+        // this is a heuristic for finding the first "class name" character. Package names are assumed to be lowercase.
+        // we can't simply use the last dot because there might be nested classes
+        private val simpleNameLength =
+                string.length - string.indexOfFirst { Ascii.isUpperCase(it) }
+
+        override fun compareTo(other: SplitEntry): Int {
+            if (this.simpleNameLength < other.simpleNameLength) return -1
+            if (this.simpleNameLength > other.simpleNameLength) return 1
+
+            if (this.string.length < other.string.length) return -1
+            if (this.string.length > other.string.length) return 1
+
+            return this.string.compareTo(other.string)
+        }
+    }
+
+    internal data class Entry<V>(
+            val value: V,
+            val name: SplitEntry,
+            val simpleName: SplitEntry
+    )
 }
