@@ -1,6 +1,6 @@
 <div id="search-dialog-wrapper" class="dialog-wrapper">
   <div class="search-dialog search-box">
-    <#if artifactId??>
+    <#if artifactId?? && artifactId.id?has_content>
       <small>This search is limited to the artifact
       <a href="/${artifactId.id}">${artifactId.id}</a> and its dependencies.</small></#if>
     <input type="text" class="search"
