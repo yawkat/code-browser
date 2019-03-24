@@ -1,4 +1,4 @@
-<a href="/">/</a>
+<a href="/"><i class="fa fa-home"></i> /</a>
 <#assign fullPath></#assign>
 <#list artifactId.nodes as node>
   <#if node.value?has_content>
