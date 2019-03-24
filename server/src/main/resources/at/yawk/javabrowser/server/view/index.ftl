@@ -40,6 +40,14 @@
         </div>
       </#if>
 
+      <#if artifactId.id == "">
+        <div class="search-box">
+          <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list"
+                 placeholder="Search for type…" data-hide-empty>
+          <ul id="result-list"></ul>
+        </div>
+      </#if>
+
       <h2>Artifacts</h2>
       <ul>
         <#list artifactId.nodes[artifactId.nodes?size - 1].alternatives as child>

@@ -47,7 +47,7 @@ class SearchDialog extends Dialog {
             SearchDialog.instance = new SearchDialog(wrapper);
 
             document.addEventListener('keypress', function (e) {
-                if (e.key === "t") {
+                if (e.key === "t" && e.target.tagName !== 'INPUT') {
                     SearchDialog.instance.open();
                 }
             });
@@ -57,6 +57,7 @@ class SearchDialog extends Dialog {
             const target = document.querySelector(searchField.getAttribute("data-target"));
             const artifactId = searchField.getAttribute("data-artifact-id");
             const includeDependencies = searchField.getAttribute("data-include-dependencies") !== "false";
+            const hideEmpty = searchField.hasAttribute("data-hide-empty");
             let firstUpdate = true;
             let timer = null;
             const update = function () {
@@ -64,9 +65,13 @@ class SearchDialog extends Dialog {
                     clearTimeout(timer);
                 }
                 let f = function () {
-                    loadQuery(searchField.value, artifactId, includeDependencies, function (data) {
-                        updateSearch(data.items, target);
-                    });
+                    if (hideEmpty && searchField.value === "") {
+                        updateSearch([], target);
+                    } else {
+                        loadQuery(searchField.value, artifactId, includeDependencies, function (data) {
+                            updateSearch(data.items, target);
+                        });
+                    }
                 };
                 if (firstUpdate) {
                     firstUpdate = false;
