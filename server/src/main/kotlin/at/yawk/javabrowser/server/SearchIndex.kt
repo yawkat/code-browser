@@ -65,10 +65,6 @@ class SearchIndex<K, V> {
         val visited = candidates.map { BitSet(it.size) }
         // depth 0 is the same as 1, except we only search the class name.
         for (depth in 0 until MAX_DEPTH) {
-            val cmp: Comparator<Entry<*>> =
-                    if (depth == 0) compareBy { it.simpleName }
-                    else compareBy { it.name }
-
             // all the lists in candidates are sorted by entry length, so we can do a simple merge to keep order
             val indices = IntArray(candidates.size)
             while (true) {
@@ -85,7 +81,7 @@ class SearchIndex<K, V> {
                             continue
                         }
                         val entryHere = list[indices[j]]
-                        if (bestList == -1 || cmp.compare(bestEntry, entryHere) > 0) {
+                        if (bestList == -1 || bestEntry!!.name > entryHere.name) {
                             bestEntry = entryHere
                             bestList = j
                         }
