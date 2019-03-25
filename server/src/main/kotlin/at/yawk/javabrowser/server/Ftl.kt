@@ -2,8 +2,8 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.server.view.View
 import freemarker.core.HTMLOutputFormat
-import freemarker.core.OutputFormat
 import freemarker.template.Configuration
+import freemarker.template.TemplateDirectiveModel
 import freemarker.template.TemplateExceptionHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
@@ -30,5 +30,9 @@ class Ftl {
         OutputStreamWriter(exchange.outputStream).use {
             template.process(view, it)
         }
+    }
+
+    fun putDirective(name: String, directive: TemplateDirectiveModel) {
+        configuration.setSharedVariable(name, directive)
     }
 }

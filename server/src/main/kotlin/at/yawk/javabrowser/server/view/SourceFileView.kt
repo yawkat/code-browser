@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.LocalVariableRef
@@ -26,6 +27,7 @@ class SourceFileView(
         val sourceFilePathDir: String,
         val sourceFilePathFile: String,
         val alternatives: List<Alternative>,
+        val artifactMetadata: ArtifactMetadata,
 
         private val bindingResolver: BindingResolver,
         private val sourceFile: AnnotatedSourceFile

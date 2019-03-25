@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.server.artifact.ArtifactPath
 import at.yawk.javabrowser.server.view.IndexView
 import at.yawk.javabrowser.server.view.SourceFileView
@@ -53,6 +54,7 @@ class BaseHandler(private val dbi: DBI,
                         // top level
                         val artifactPath = ArtifactPath(pathNodes)
                         return@inTransaction TypeSearchView(artifactPath,
+                                getArtifactMetadata(conn, artifactPath),
                                 listDependencies(conn, artifactPath.id).map {
                                     buildDependencyInfo(conn, it)
                                 })
@@ -68,6 +70,12 @@ class BaseHandler(private val dbi: DBI,
             return@inTransaction IndexView(ArtifactPath(pathNodes))
         }
         ftl.render(exchange, view)
+    }
+
+    private fun getArtifactMetadata(conn: Handle, artifact: ArtifactPath): ArtifactMetadata {
+        val bytes = conn.select("select metadata from artifacts where id = ?", artifact.id)
+                .single()["metadata"] as ByteArray
+        return objectMapper.readValue(bytes, ArtifactMetadata::class.java)
     }
 
     private fun buildDependencyInfo(conn: Handle, it: String): TypeSearchView.Dependency {
@@ -135,6 +143,7 @@ class BaseHandler(private val dbi: DBI,
                 sourceFilePath.substring(0, separator + 1),
                 sourceFilePath.substring(separator + 1),
                 alternatives,
+                getArtifactMetadata(conn, artifactPath),
                 bindingResolver,
                 sourceFile
         )

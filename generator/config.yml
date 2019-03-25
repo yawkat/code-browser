@@ -2,4 +2,228 @@ database:
   user: java-browser
   password: password
   url: jdbc:postgresql://[::1]/java-browser
-compilerThreads: 2
+compilerThreads: 1
+artifacts:
+- type: old-java
+  src: "/usr/lib/jvm/java-8-openjdk/src.zip"
+  version: 8
+  metadata:
+    logoUrl: https://openjdk.java.net/images/openjdk.png
+    licenses:
+      - name: GPLv2 + Classpath Exception
+        url: https://openjdk.java.net/legal/gplv2+ce.html
+    url: https://openjdk.java.net/
+- type: java
+  baseDir: "/usr/lib/jvm/zulu-10"
+  version: 10
+  metadata:
+    logoUrl: https://openjdk.java.net/images/openjdk.png
+    licenses:
+      - name: GPLv2 + Classpath Exception
+        url: https://openjdk.java.net/legal/gplv2+ce.html
+    url: https://openjdk.java.net/
+- type: java
+  baseDir: "/usr/lib/jvm/zulu-11"
+  version: 11
+  metadata:
+    logoUrl: https://openjdk.java.net/images/openjdk.png
+    licenses:
+    - name: GPLv2 + Classpath Exception
+      url: https://openjdk.java.net/legal/gplv2+ce.html
+    url: https://openjdk.java.net/
+- type: maven
+  groupId: com.google.guava
+  artifactId: guava
+  version: 25.1-jre
+- type: maven
+  groupId: com.google.code.findbugs
+  artifactId: jsr305
+  version: 3.0.2
+- type: maven
+  groupId: junit
+  artifactId: junit
+  version: 4.12
+  metadata:
+    logoUrl: https://junit.org/junit4/images/junit-logo.png
+- type: maven
+  groupId: org.slf4j
+  artifactId: slf4j-api
+  version: 1.7.25
+  metadata:
+    logoUrl: https://www.slf4j.org/images/logos/slf4j-logo.jpg
+- type: maven
+  groupId: commons-io
+  artifactId: commons-io
+  version: 2.6
+- type: maven
+  groupId: org.apache.logging.log4j
+  artifactId: log4j-core
+  version: 2.11.0
+  metadata:
+    logoUrl: https://logging.apache.org/log4j/2.x/images/logo.png
+- type: maven
+  groupId: ch.qos.logback
+  artifactId: logback-classic
+  version: 1.2.3
+- type: maven
+  groupId: org.apache.commons
+  artifactId: commons-lang3
+  version: 3.7
+- type: maven
+  groupId: com.fasterxml.jackson.core
+  artifactId: jackson-databind
+  version: 2.9.5
+- type: maven
+  groupId: com.fasterxml.jackson.core
+  artifactId: jackson-core
+  version: 2.9.5
+- type: maven
+  groupId: com.fasterxml.jackson.datatype
+  artifactId: jackson-datatype-jdk8
+  version: 2.9.5
+- type: maven
+  groupId: com.fasterxml.jackson.datatype
+  artifactId: jackson-datatype-jsr310
+  version: 2.9.5
+- type: maven
+  groupId: io.netty
+  artifactId: netty-all
+  version: 4.1.25.Final
+  metadata:
+    logoUrl: https://netty.io/images/logo.png
+- type: maven
+  groupId: io.undertow
+  artifactId: undertow-core
+  version: 2.0.9.Final
+- type: maven
+  groupId: org.jboss.xnio
+  artifactId: xnio-api
+  version: 3.6.3.Final
+- type: maven
+  groupId: org.jboss.xnio
+  artifactId: xnio-nio
+  version: 3.6.3.Final
+- type: maven
+  groupId: org.jboss.logging
+  artifactId: jboss-logging
+  version: 3.3.2.Final
+- type: maven
+  groupId: io.undertow
+  artifactId: undertow-servlet
+  version: 2.0.9.Final
+- type: maven
+  groupId: org.jboss.spec.javax.servlet
+  artifactId: jboss-servlet-api_4.0_spec
+  version: 1.0.0.Final
+- type: maven
+  groupId: org.jboss.spec.javax.servlet
+  artifactId: jboss-servlet-api_3.1_spec
+  version: 1.0.2.Final
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi
+  version: 2.78
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi3-core
+  version: 3.3.0
+  metadata:
+    logoUrl: http://jdbi.org/images/logo.svg
+- type: maven
+  groupId: org.freemarker
+  artifactId: freemarker
+  version: 2.3.28
+  metadata:
+    logoUrl: https://freemarker.apache.org/logo.png
+- type: maven
+  groupId: org.testng
+  artifactId: testng
+  version: 6.14.3
+- type: maven
+  groupId: org.hibernate
+  artifactId: hibernate-core
+  version: 5.3.1.Final
+  metadata:
+    logoUrl: http://hibernate.org/images/hibernate-logo.svg
+- type: maven
+  groupId: javax.persistence
+  artifactId: javax.persistence-api
+  version: 2.2
+- type: maven
+  groupId: org.hibernate
+  artifactId: hibernate-entitymanager
+  version: 4.3.11.Final
+  metadata:
+    logoUrl: http://hibernate.org/images/hibernate-logo.svg
+- type: maven
+  groupId: org.hibernate
+  artifactId: hibernate-core
+  version: 4.3.11.Final
+  metadata:
+    logoUrl: http://hibernate.org/images/hibernate-logo.svg
+- type: maven
+  groupId: org.openjdk.jmh
+  artifactId: jmh-core
+  version: 1.21
+- type: maven
+  groupId: org.bouncycastle
+  artifactId: bcprov-jdk15
+  version: 1.46
+  metadata:
+    logoUrl: http://hibernate.org/images/hibernate-logo.svg
+- type: maven
+  groupId: org.ow2.asm
+  artifactId: asm
+  version: 6.2.1
+  metadata:
+    logoUrl: https://asm.ow2.io/asm-logo.svg
+- type: maven
+  groupId: org.ow2.asm
+  artifactId: asm-tree
+  version: 6.2.1
+  metadata:
+    logoUrl: https://asm.ow2.io/asm-logo.svg
+- type: maven
+  groupId: joda-time
+  artifactId: joda-time
+  version: 2.10
+- type: maven
+  groupId: org.jboss.resteasy
+  artifactId: resteasy-jaxrs
+  version: 3.6.1.Final
+  metadata:
+    logoUrl: http://design.jboss.org/resteasy/logo/images/resteasy_logo_600x.svg
+- type: maven
+  groupId: io.projectreactor
+  artifactId: reactor-core
+  version: 3.2.1.RELEASE
+- type: maven
+  groupId: org.reactivestreams
+  artifactId: reactive-streams
+  version: 1.0.2
+- type: maven
+  groupId: org.eclipse.collections
+  artifactId: eclipse-collections
+  version: 9.2.0
+  metadata:
+    logoUrl: https://www.eclipse.org/collections/img/eclipse-collections-logo.png
+- type: maven
+  groupId: com.squareup.okhttp3
+  artifactId: okhttp
+  version: 3.12.0
+#- type: maven
+#  groupId: com.squareup.okio
+#  artifactId: okio
+#  version: 2.1.0
+- type: maven
+  groupId: com.lmax
+  artifactId: disruptor
+  version: 3.4.2
+- type: maven
+  groupId: org.openjfx
+  artifactId: javafx-base
+  version: 11
+- type: maven
+  groupId: org.openjfx
+  artifactId: javafx-controls
+  version: 11

@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.Printer
@@ -20,10 +21,14 @@ class DbPrinter private constructor(
         private val conn: Handle
 ) : Printer {
     companion object {
-        fun withPrinter(objectMapper: ObjectMapper, dbi: DBI, artifactId: String, closure: (DbPrinter) -> Unit) {
+        fun withPrinter(objectMapper: ObjectMapper,
+                        dbi: DBI,
+                        artifactId: String,
+                        metadata: ArtifactMetadata,
+                        closure: (DbPrinter) -> Unit) {
             dbi.inTransaction { conn: Handle, _ ->
                 val dbPrinter = DbPrinter(objectMapper, artifactId, conn)
-                dbPrinter.clearOld()
+                dbPrinter.clearOld(metadata)
                 closure(dbPrinter)
                 if (!dbPrinter.hasFiles) {
                     throw RuntimeException("No source files on $artifactId")
@@ -32,15 +37,15 @@ class DbPrinter private constructor(
         }
     }
 
-    fun clearOld() {
+    private fun clearOld(metadata: ArtifactMetadata) {
         log.info("Cleaning up in preparation for {}", artifactId)
         conn.update("delete from bindings where artifactId = ?", artifactId)
         conn.update("delete from binding_references where sourceArtifactId = ?", artifactId)
         conn.update("delete from sourceFiles where artifactId = ?", artifactId)
         conn.update("delete from dependencies where fromArtifactId = ?", artifactId)
         conn.update("delete from artifacts where id = ?", artifactId)
-        conn.insert("insert into artifacts (id, lastCompileVersion) values (?, ?)", artifactId,
-                Compiler.VERSION)
+        conn.insert("insert into artifacts (id, lastCompileVersion, metadata) values (?, ?, ?)", artifactId,
+                Compiler.VERSION, objectMapper.writeValueAsBytes(metadata))
     }
 
     private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")

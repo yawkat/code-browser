@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.ArtifactMetadata
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.nio.file.Path
@@ -18,21 +19,24 @@ import java.nio.file.Path
     JsonSubTypes.Type(value = ArtifactConfig.Maven::class, name = "maven")
 ])
 sealed class ArtifactConfig {
-
+    abstract val metadata: ArtifactMetadata?
 
     data class OldJava(
             val version: String,
-            val src: Path
+            val src: Path,
+            override val metadata: ArtifactMetadata
     ) : ArtifactConfig()
 
     data class Java(
             val version: String,
-            val baseDir: Path
+            val baseDir: Path,
+            override val metadata: ArtifactMetadata
     ) : ArtifactConfig()
 
     data class Maven(
             val groupId: String,
             val artifactId: String,
-            val version: String
+            val version: String,
+            override val metadata: ArtifactMetadata? = null
     ) : ArtifactConfig()
 }

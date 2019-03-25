@@ -1,15 +1,24 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.Printer
 import at.yawk.javabrowser.SourceFileParser
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.io.MoreFiles
+import org.apache.maven.model.building.DefaultModelBuilderFactory
+import org.apache.maven.model.building.DefaultModelBuildingRequest
+import org.apache.maven.model.building.ModelBuildingRequest
+import org.eclipse.aether.repository.RemoteRepository
 import org.jboss.shrinkwrap.resolver.api.maven.Maven
 import org.jboss.shrinkwrap.resolver.api.maven.MavenResolvedArtifact
 import org.jboss.shrinkwrap.resolver.api.maven.PackagingType
 import org.jboss.shrinkwrap.resolver.api.maven.ScopeType
 import org.jboss.shrinkwrap.resolver.api.maven.coordinate.MavenCoordinates
 import org.jboss.shrinkwrap.resolver.api.maven.coordinate.MavenDependencies
+import org.jboss.shrinkwrap.resolver.impl.maven.bootstrap.MavenRepositorySystem
+import org.jboss.shrinkwrap.resolver.impl.maven.bootstrap.MavenSettingsBuilder
+import org.jboss.shrinkwrap.resolver.impl.maven.internal.MavenModelResolver
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
@@ -39,7 +48,7 @@ private inline fun tempDir(f: (Path) -> Unit) {
 class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     companion object {
         private val log = LoggerFactory.getLogger(Compiler::class.java)
-        const val VERSION = 11
+        const val VERSION = 12
     }
 
     private fun needsRecompile(artifactId: String): Boolean {
@@ -75,9 +84,10 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
             sourceRoot: Path,
             dependencies: List<Path>,
             dependencyArtifactIds: List<String>,
+            metadata: ArtifactMetadata,
             includeRunningVmBootclasspath: Boolean = true
     ) {
-        DbPrinter.withPrinter(objectMapper, dbi, artifactId) { printer ->
+        DbPrinter.withPrinter(objectMapper, dbi, artifactId, metadata) { printer ->
             compile(artifactId, sourceRoot, dependencies, includeRunningVmBootclasspath, printer)
             dependencyArtifactIds.forEach { printer.addDependency(it) }
             if (includeRunningVmBootclasspath) {
@@ -99,13 +109,14 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                     src,
                     dependencies = emptyList(),
                     dependencyArtifactIds = emptyList(),
+                    metadata = artifact.metadata,
                     includeRunningVmBootclasspath = false)
         }
     }
 
     fun compileJava(artifactId: String, artifact: ArtifactConfig.Java) {
         if (!needsRecompile(artifactId)) return
-        DbPrinter.withPrinter(objectMapper, dbi, artifactId) { printer ->
+        DbPrinter.withPrinter(objectMapper, dbi, artifactId, artifact.metadata) { printer ->
             tempDir { tmp ->
                 val jmodClassCache = tmp.resolve("jmodClassCache")
                 Files.list(artifact.baseDir.resolve("jmods")).iterator().forEach {
@@ -164,6 +175,61 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         })
     }
 
+    @VisibleForTesting
+    internal fun resolveMavenMetadata(artifact: ArtifactConfig.Maven): ArtifactMetadata {
+        fun <E> List<E>.orNull() = if (isEmpty()) null else this
+
+        // this code is so painful
+        val jarPath = Maven.resolver()
+                .addDependency(MavenDependencies.createDependency(
+                        MavenCoordinates.createCoordinate(
+                                artifact.groupId, artifact.artifactId, artifact.version,
+                                PackagingType.JAR, null),
+                        ScopeType.COMPILE,
+                        false
+                ))
+                .resolve().withoutTransitivity()
+                .asSingleFile().toPath()
+        val pomPath = jarPath.parent.resolve(jarPath.fileName.toString().removeSuffix(".jar") + ".pom")
+        val request = DefaultModelBuildingRequest()
+        request.pomFile = pomPath.toFile()
+        request.validationLevel = ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL
+        request.systemProperties = System.getProperties()
+        val mavenRepositorySystem = MavenRepositorySystem()
+        request.modelResolver = MavenModelResolver(
+                mavenRepositorySystem, mavenRepositorySystem.getSession(
+                MavenSettingsBuilder().buildDefaultSettings(), false),
+                listOf(RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2").build()))
+        val model = DefaultModelBuilderFactory().newInstance().build(request).effectiveModel
+
+        val start = artifact.metadata ?: ArtifactMetadata()
+        return start.copy(
+                licenses = model.licenses.map { ArtifactMetadata.License(it.name, it.url) }.orNull() ?: start.licenses,
+                url = model.url ?: start.url,
+                organization = model.organization?.let {
+                    ArtifactMetadata.Organization(name = it.name, url = it.url)
+                } ?: start.organization,
+                contributors = model.contributors.map {
+                    ArtifactMetadata.Developer(name = it.name,
+                            email = it.email,
+                            url = it.url,
+                            organization = ArtifactMetadata.Organization(name = it.organization,
+                                    url = it.organizationUrl))
+                }.orNull() ?: start.contributors,
+                description = model.description ?: start.description,
+                developers = model.developers.map {
+                    ArtifactMetadata.Developer(name = it.name,
+                            email = it.email,
+                            url = it.url,
+                            organization = ArtifactMetadata.Organization(name = it.organization,
+                                    url = it.organizationUrl))
+                }.orNull() ?: start.developers,
+                issueTracker = model.issueManagement?.let {
+                    ArtifactMetadata.IssueTracker(type = it.system, url = it.url)
+                } ?: start.issueTracker
+        )
+    }
+
     fun compileMaven(artifactId: String, artifact: ArtifactConfig.Maven) {
         if (!needsRecompile(artifactId)) return
 
@@ -178,6 +244,7 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
             if (it.coordinate.classifier != null) name += "/" + it.coordinate.classifier
             name
         }
+        val metadata = resolveMavenMetadata(artifact)
         val sourceJar = Maven.resolver()
                 .addDependency(MavenDependencies.createDependency(
                         MavenCoordinates.createCoordinate(
@@ -186,14 +253,15 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                         ScopeType.COMPILE,
                         false
                 ))
-                .resolve().withoutTransitivity().asSingleFile().toPath()
+                .resolve().withoutTransitivity()
+                .asSingleFile().toPath()
         tempDir { tmp ->
             val src = tmp.resolve("src")
             FileSystems.newFileSystem(sourceJar, null).use {
                 val root = it.rootDirectories.single()
                 copyDirectory(root, src)
             }
-            compileAndCommit(artifactId, src, depPaths, depNames)
+            compileAndCommit(artifactId, src, depPaths, depNames, metadata)
         }
     }
 }

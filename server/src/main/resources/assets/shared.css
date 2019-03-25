@@ -11,7 +11,7 @@ html {
     max-width: 80em;
     margin: 0 auto;
     display: block;
-    padding: 1em 0.2em;
+    padding: 0 0.2em 1em;
 }
 
 #header {
@@ -101,4 +101,31 @@ li {
     padding: 1em;
     border: 1px solid #ccc;
     font-size: 1.2em;
+}
+
+.metadata {
+    margin: .5em;
+    padding: .5em;
+    /* Some logos have a white background, so fade out before they appear. */
+    background: linear-gradient(to right, #eee 0%, #eee 60%, #fff 75%);
+    min-height: 40px;
+}
+
+.metadata img {
+    display: block;
+    float: right;
+}
+
+.metadata .itemize {
+    display: block;
+}
+/* icon */
+.metadata .itemize > .fa {
+    display: inline-block;
+    width: 1.5em;
+    text-align: center;
+    vertical-align: top;
+}
+.metadata .itemize > ul {
+    display: inline-block;
 }

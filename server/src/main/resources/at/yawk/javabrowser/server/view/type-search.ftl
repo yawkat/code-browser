@@ -8,6 +8,8 @@
   <title>Package index</title>
   <link rel="stylesheet" href="/assets/shared.css">
   <link rel="stylesheet" href="/assets/search.css">
+  <link rel="stylesheet" href="/webjars/font-awesome/5.0.13/web-fonts-with-css/css/fontawesome-all.min.css">
+  <link rel="stylesheet" href="/assets/search.css">
   <script src="/webjars/zeptojs/1.2.0/zepto.js"></script>
   <script src="/webjars/zeptojs/1.2.0/ajax.js"></script>
   <script src="/webjars/zeptojs/1.2.0/event.js"></script>
@@ -24,6 +26,8 @@
 
   <div id="content">
     <div>
+      <#include "metadata.ftl">
+
       <#if dependencies?has_content>
         <h2>Dependencies</h2>
         <ul>

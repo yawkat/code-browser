@@ -55,9 +55,13 @@ fun main(args: Array<String>) {
     }
 
     val bindingResolver = BindingResolver(dbi)
-    var handler: HttpHandler = PathTemplateHandler(BaseHandler(dbi, Ftl(), bindingResolver, objectMapper)).also {
+    val imageCache = ImageCache()
+    val ftl = Ftl()
+    ftl.putDirective("imageCache", imageCache.directive)
+    var handler: HttpHandler = PathTemplateHandler(BaseHandler(dbi, ftl, bindingResolver, objectMapper)).also {
         it.add(SearchResource.PATTERN, SearchResource(dbi, objectMapper).also { it.checkRefresh() })
         it.add(ReferenceResource.PATTERN, ReferenceResource(dbi, objectMapper))
+        it.add(ImageCache.PATTERN, imageCache.handler)
     }
 
     handler = ExceptionHandler(handler).also(exceptions)

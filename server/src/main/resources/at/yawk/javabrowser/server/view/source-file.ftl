@@ -30,6 +30,8 @@
   </div>
   <div id="content">
     <div>
+      <#include "metadata.ftl">
+
       <code><pre>${codeHtml?no_esc}</pre></code>
     </div>
   </div>
