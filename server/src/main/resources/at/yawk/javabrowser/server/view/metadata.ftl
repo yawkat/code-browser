@@ -9,8 +9,8 @@
   <#elseif artifactMetadata.description??>
     <span>${artifactMetadata.description}</span>
   </#if>
-  <#if artifactMetadata.organization??>
-    (<#if artifactMetadata.organization.url??><a rel="nofollow" href="${artifactMetadata.organization.url}"></#if>${artifactMetadata.organization.name}<#if artifactMetadata.organization.url??></a></#if>)
+  <#if artifactMetadata.organization?? && (artifactMetadata.organization.url?? || artifactMetadata.organization.name??)>
+    (<#if artifactMetadata.organization.url??><a rel="nofollow" href="${artifactMetadata.organization.url}"></#if>${(artifactMetadata.organization.name)!artifactMetadata.organization.url}<#if artifactMetadata.organization.url??></a></#if>)
   </#if>
 
   <#if artifactMetadata.licenses??>
@@ -36,8 +36,8 @@
             <#if dev.url??><a rel="nofollow" href="${dev.url}"></#if>
               ${dev.name}
               <#if dev.url??></a></#if>
-            <#if dev.organization??>
-              (<#if dev.organization.url??><a rel="nofollow" href="${dev.organization.url}"></#if>${dev.organization.name}<#if dev.organization.url??></a></#if>)
+            <#if dev.organization?? && (dev.organization.url?? || dev.organization.name??)>
+              (<#if dev.organization.url??><a rel="nofollow" href="${dev.organization.url}"></#if>${(dev.organization.name)!dev.organization.url}<#if dev.organization.url??></a></#if>)
             </#if>
           </li>
         </#list>
@@ -53,8 +53,8 @@
             <#if dev.url??><a rel="nofollow" href="${dev.url}"></#if>
               ${dev.name}
               <#if dev.url??></a></#if>
-            <#if dev.organization?? && dev.organization.name??>
-              (<#if dev.organization.url??><a rel="nofollow" href="${dev.organization.url}"></#if>${dev.organization.name}<#if dev.organization.url??></a></#if>)
+            <#if dev.organization?? && (dev.organization.url?? || dev.organization.name??)>
+              (<#if dev.organization.url??><a rel="nofollow" href="${dev.organization.url}"></#if>${(dev.organization.name)!dev.organization.url}<#if dev.organization.url??></a></#if>)
             </#if>
           </li>
         </#list>
