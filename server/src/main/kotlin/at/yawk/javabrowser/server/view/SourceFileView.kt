@@ -9,7 +9,7 @@ import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.appendChildren
-import at.yawk.javabrowser.server.artifact.ArtifactPath
+import at.yawk.javabrowser.server.artifact.ArtifactNode
 import org.apache.commons.text.StringEscapeUtils
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -22,7 +22,7 @@ import org.jsoup.parser.Tag
  */
 @Suppress("unused")
 class SourceFileView(
-        val artifactId: ArtifactPath,
+        val artifactId: ArtifactNode,
         private val classpath: Set<String>,
         val sourceFilePathDir: String,
         val sourceFilePathFile: String,

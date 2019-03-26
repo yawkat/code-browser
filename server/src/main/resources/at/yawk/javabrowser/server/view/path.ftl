@@ -1,8 +1,10 @@
-<a href="/"><i class="fa fa-home"></i> /</a>
-<#assign fullPath></#assign>
-<#list artifactId.nodes as node>
-  <#if node.value?has_content>
-  <#assign fullPath>${fullPath}/${node.value}</#assign>
-  <a href="${fullPath}">${node.value}/</a>
+<#macro showNode node>
+  <#if node.parent??><@showNode node=node.parent/></#if>
+
+  <#if node.id?has_content>
+    <a href="/${node.id}">${node.idInParent}/</a>
+  <#else>
+    <a href="/"><i class="fa fa-home"></i> /</a>
   </#if>
-</#list>
+</#macro>
+<@showNode node=artifactId/>

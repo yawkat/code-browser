@@ -1,13 +1,13 @@
 package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.ArtifactMetadata
-import at.yawk.javabrowser.server.artifact.ArtifactPath
+import at.yawk.javabrowser.server.artifact.ArtifactNode
 
 /**
  * @author yawkat
  */
 @Suppress("unused")
-data class TypeSearchView(val artifactId: ArtifactPath,
+data class TypeSearchView(val artifactId: ArtifactNode,
                           val artifactMetadata: ArtifactMetadata,
                           val dependencies: List<Dependency>) : View("type-search.ftl") {
     data class Dependency(

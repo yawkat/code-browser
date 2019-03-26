@@ -48,8 +48,8 @@
 
       <h2>Artifacts</h2>
       <ul>
-        <#list artifactId.nodes[artifactId.nodes?size - 1].alternatives as child>
-          <li><a href="<#if artifactId.id?has_content>/${artifactId.id}</#if>/${child}">${child}</a></li>
+        <#list artifactId.flattenedChildren as child>
+          <li><a href="/${child.id}">${child.id}</a></li>
         </#list>
       </ul>
     </div>

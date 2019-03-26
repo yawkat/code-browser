@@ -2,7 +2,7 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.ArtifactMetadata
-import at.yawk.javabrowser.server.artifact.ArtifactPath
+import at.yawk.javabrowser.server.artifact.ArtifactNode
 import at.yawk.javabrowser.server.view.IndexView
 import at.yawk.javabrowser.server.view.SourceFileView
 import at.yawk.javabrowser.server.view.TypeSearchView
@@ -13,6 +13,7 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
+import org.skife.jdbi.v2.TransactionStatus
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
@@ -24,55 +25,41 @@ class BaseHandler(private val dbi: DBI,
                   private val ftl: Ftl,
                   private val bindingResolver: BindingResolver,
                   private val objectMapper: ObjectMapper) : HttpHandler {
+    private val rootArtifact = dbi.inTransaction { conn: Handle, _: TransactionStatus ->
+        ArtifactNode.build(conn.select("select id from artifacts").map { it["id"] as String })
+    }
+
     override fun handleRequest(exchange: HttpServerExchange) {
         val path = exchange.relativePath.removePrefix("/").removeSuffix("/")
         val pathParts = if (path.isEmpty()) emptyList() else path.split('/')
 
         val view = dbi.inTransaction { conn: Handle, _ ->
-            val pathNodes = ArrayList<ArtifactPath.Node>()
-
-            for (i in 0..pathParts.size) {
-                val exact = pathParts.subList(0, i).joinToString("/")
-                val query = conn.createQuery("select distinct split_part(id, '/', ?) from artifacts where id like ?")
-                        .bind(0, i + 1)
-                        // too lazy to escape LIKE characters... what could go wrong?
-                        .bind(1, if (i == 0) "%" else "$exact/%")
-                        .map(SingleColumnResultSetMapper.STRING)
-                        .toList()
-                        .sortedWith(VersionComparator)
-                if (query.isEmpty()) {
-                    // this might be a concrete artifact
-
-                    val count = conn.createQuery("select 1 from artifacts where id = ?")
-                            .bind(0, exact)
-                            .count()
-                    if (count == 0) {
-                        throw HttpException(StatusCodes.NOT_FOUND, "No such artifact")
-                    }
-
-                    if (i == pathParts.size) {
-                        // top level
-                        val artifactPath = ArtifactPath(pathNodes)
-                        return@inTransaction TypeSearchView(artifactPath,
-                                getArtifactMetadata(conn, artifactPath),
-                                listDependencies(conn, artifactPath.id).map {
-                                    buildDependencyInfo(conn, it)
-                                })
-                    } else {
-                        val sourceFilePath = pathParts.subList(i, pathParts.size).joinToString("/")
-
-                        return@inTransaction sourceFile(conn, ArtifactPath(pathNodes), sourceFilePath)
-                    }
+            var node = rootArtifact
+            for ((i, pathPart) in pathParts.withIndex()) {
+                val child = node.children[pathPart]
+                if (child != null) {
+                    node = child
                 } else {
-                    pathNodes.add(ArtifactPath.Node(pathParts.getOrNull(i), query))
+                    val sourceFileParts = pathParts.subList(i, pathParts.size)
+                    val sourceFilePath = sourceFileParts.joinToString("/")
+                    return@inTransaction sourceFile(conn, node, sourceFilePath)
                 }
             }
-            return@inTransaction IndexView(ArtifactPath(pathNodes))
+            if (node.children.isEmpty()) {
+                // artifact overview
+                return@inTransaction TypeSearchView(node,
+                        getArtifactMetadata(conn, node),
+                        listDependencies(conn, node.id).map {
+                            buildDependencyInfo(conn, it)
+                        })
+            } else {
+                return@inTransaction IndexView(node)
+            }
         }
         ftl.render(exchange, view)
     }
 
-    private fun getArtifactMetadata(conn: Handle, artifact: ArtifactPath): ArtifactMetadata {
+    private fun getArtifactMetadata(conn: Handle, artifact: ArtifactNode): ArtifactMetadata {
         val bytes = conn.select("select metadata from artifacts where id = ?", artifact.id)
                 .single()["metadata"] as ByteArray
         return objectMapper.readValue(bytes, ArtifactMetadata::class.java)
@@ -94,7 +81,7 @@ class BaseHandler(private val dbi: DBI,
         return TypeSearchView.Dependency(null, it)
     }
 
-    private fun sourceFile(conn: Handle, artifactPath: ArtifactPath, sourceFilePath: String): View {
+    private fun sourceFile(conn: Handle, artifactPath: ArtifactNode, sourceFilePath: String): View {
         val dependencies = listDependencies(conn, artifactPath.id)
 
         val result = conn.select("select json from sourceFiles where artifactId = ? and path = ?",
@@ -120,8 +107,8 @@ class BaseHandler(private val dbi: DBI,
 
         tryExactMatch(sourceFilePath)
 
-        if (artifactPath.nodes[0].value == "java") {
-            if (artifactPath.nodes[1].value!!.toInt() < 9) {
+        if (artifactPath.idList[0] == "java") {
+            if (artifactPath.idList[1].toInt() < 9) {
                 conn.createQuery("select artifactId, path from sourceFiles where artifactId like 'java/%' and path like ?")
                         .bind(0, "%/$sourceFilePath")
                         .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2)) }
