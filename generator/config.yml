@@ -169,8 +169,6 @@ artifacts:
   groupId: org.bouncycastle
   artifactId: bcprov-jdk15
   version: 1.46
-  metadata:
-    logoUrl: http://hibernate.org/images/hibernate-logo.svg
 - type: maven
   groupId: org.ow2.asm
   artifactId: asm
