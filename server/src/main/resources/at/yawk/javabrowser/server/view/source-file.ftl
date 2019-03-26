@@ -33,13 +33,13 @@
       <#include "metadata.ftl">
 
       <code><pre>${codeHtml?no_esc}</pre></code>
+      <div id="tooltip">
+      </div>
     </div>
   </div>
 </div>
 
 <#include "search-dialog.ftl">
 
-<div id="tooltip">
-</div>
 </body>
 </html>

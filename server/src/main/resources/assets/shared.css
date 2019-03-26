@@ -12,6 +12,7 @@ html {
     margin: 0 auto;
     display: block;
     padding: 0 0.2em 1em;
+    position: relative;
 }
 
 #header {

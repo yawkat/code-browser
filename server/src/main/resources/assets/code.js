@@ -31,9 +31,10 @@ $(function () {
 
 function moveTooltipTo(element) {
     const pos = element.getBoundingClientRect();
+    const wrapperPos = $("#content > div")[0].getBoundingClientRect();
     $("#tooltip").css({
-        top: pos.bottom + pageYOffset,
-        left: pos.left + pageXOffset
+        top: pos.bottom - wrapperPos.top,
+        left: pos.left - wrapperPos.left
     });
 }
 
@@ -171,10 +172,10 @@ function showReferences(bindingName, superHtml) {
             moveTooltipTo(document.getElementById(bindingName));
         }
     });
-
-    $(document).click(function (evt) {
-        if (!$(evt.target).closest("#tooltip").length) {
-            $("#tooltip").hide();
-        }
-    });
 }
+
+$(document).click(function (evt) {
+    if (!$(evt.target).closest("#tooltip").length) {
+        $("#tooltip").hide();
+    }
+});
