@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
 import com.fasterxml.jackson.databind.ObjectMapper

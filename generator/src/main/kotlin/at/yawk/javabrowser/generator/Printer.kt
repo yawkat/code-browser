@@ -1,4 +1,6 @@
-package at.yawk.javabrowser
+package at.yawk.javabrowser.generator
+
+import at.yawk.javabrowser.AnnotatedSourceFile
 
 /**
  * @author yawkat

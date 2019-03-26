@@ -2,7 +2,6 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.DbConfig
-import at.yawk.javabrowser.server.ArtifactConfig
 import java.nio.file.Paths
 
 /**

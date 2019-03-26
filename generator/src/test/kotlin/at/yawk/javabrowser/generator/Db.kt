@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.generator
 
 import org.flywaydb.core.Flyway
 import org.skife.jdbi.v2.DBI
@@ -6,7 +6,6 @@ import java.io.PrintWriter
 import java.sql.Connection
 import java.sql.DriverManager
 import java.util.UUID
-import java.util.logging.Logger
 import javax.sql.DataSource
 
 /**

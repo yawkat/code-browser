@@ -1,5 +1,7 @@
-package at.yawk.javabrowser
+package at.yawk.javabrowser.generator
 
+import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.Style
 import com.google.common.collect.RangeSet
 import org.intellij.lang.annotations.Language
 

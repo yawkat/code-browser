@@ -1,5 +1,6 @@
-package at.yawk.javabrowser
+package at.yawk.javabrowser.generator
 
+import at.yawk.javabrowser.AnnotatedSourceFile
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTNode
@@ -47,7 +48,7 @@ class SourceFileParser(
                 files.map { it.toString() }.toTypedArray(),
                 files.map { "UTF-8" }.toTypedArray(),
                 emptyArray<String>(),
-                SourceFileParser.Requestor(sourceRoot, printer, pathPrefix),
+                Requestor(sourceRoot, printer, pathPrefix),
                 null
         )
     }
@@ -65,7 +66,8 @@ class SourceFileParser(
             }
             ast.accept(styleVisitor)
             ast.accept(BindingVisitor(ast, annotatedSourceFile))
-            KeywordHandler.annotateKeywords(annotatedSourceFile, styleVisitor.noKeywordRanges)
+            KeywordHandler.annotateKeywords(annotatedSourceFile,
+                    styleVisitor.noKeywordRanges)
 
             annotatedSourceFile.bake()
             printer.addSourceFile(relativePath, annotatedSourceFile)

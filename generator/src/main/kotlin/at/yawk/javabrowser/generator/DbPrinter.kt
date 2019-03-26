@@ -1,10 +1,9 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
-import at.yawk.javabrowser.Printer
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle

@@ -1,7 +1,5 @@
 package at.yawk.javabrowser.generator
 
-import at.yawk.javabrowser.server.ArtifactConfig
-import at.yawk.javabrowser.server.Compiler
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.slf4j.LoggerFactory

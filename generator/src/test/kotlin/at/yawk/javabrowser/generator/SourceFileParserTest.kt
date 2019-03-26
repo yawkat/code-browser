@@ -1,5 +1,10 @@
-package at.yawk.javabrowser
+package at.yawk.javabrowser.generator
 
+import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.BindingRef
+import at.yawk.javabrowser.BindingRefType
+import at.yawk.javabrowser.LocalVariableRef
+import at.yawk.javabrowser.SourceAnnotation
 import com.google.common.io.MoreFiles
 import org.hamcrest.BaseMatcher
 import org.hamcrest.Description

@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.generator
 
 import org.jboss.shrinkwrap.resolver.api.maven.Maven
 import org.jboss.shrinkwrap.resolver.api.maven.MavenArtifactInfo

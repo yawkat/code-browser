@@ -1,5 +1,10 @@
-package at.yawk.javabrowser
+package at.yawk.javabrowser.generator
 
+import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.BindingRef
+import at.yawk.javabrowser.BindingRefType
+import at.yawk.javabrowser.LocalVariableRef
 import com.google.common.hash.Hashing
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTNode

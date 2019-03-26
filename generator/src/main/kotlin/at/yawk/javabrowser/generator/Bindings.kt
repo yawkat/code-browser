@@ -1,4 +1,4 @@
-package at.yawk.javabrowser
+package at.yawk.javabrowser.generator
 
 import org.eclipse.jdt.core.dom.IMethodBinding
 import org.eclipse.jdt.core.dom.ITypeBinding

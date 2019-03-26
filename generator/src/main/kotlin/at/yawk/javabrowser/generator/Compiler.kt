@@ -1,8 +1,6 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
-import at.yawk.javabrowser.Printer
-import at.yawk.javabrowser.SourceFileParser
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.io.MoreFiles
@@ -87,7 +85,10 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
             metadata: ArtifactMetadata,
             includeRunningVmBootclasspath: Boolean = true
     ) {
-        DbPrinter.withPrinter(objectMapper, dbi, artifactId, metadata) { printer ->
+        DbPrinter.withPrinter(objectMapper,
+                dbi,
+                artifactId,
+                metadata) { printer ->
             compile(artifactId, sourceRoot, dependencies, includeRunningVmBootclasspath, printer)
             dependencyArtifactIds.forEach { printer.addDependency(it) }
             if (includeRunningVmBootclasspath) {
@@ -116,7 +117,10 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
 
     fun compileJava(artifactId: String, artifact: ArtifactConfig.Java) {
         if (!needsRecompile(artifactId)) return
-        DbPrinter.withPrinter(objectMapper, dbi, artifactId, artifact.metadata) { printer ->
+        DbPrinter.withPrinter(objectMapper,
+                dbi,
+                artifactId,
+                artifact.metadata) { printer ->
             tempDir { tmp ->
                 val jmodClassCache = tmp.resolve("jmodClassCache")
                 Files.list(artifact.baseDir.resolve("jmods")).iterator().forEach {
@@ -233,7 +237,9 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
     fun compileMaven(artifactId: String, artifact: ArtifactConfig.Maven) {
         if (!needsRecompile(artifactId)) return
 
-        val depObjects = getMavenDependencies(artifact.groupId, artifact.artifactId, artifact.version)
+        val depObjects = getMavenDependencies(artifact.groupId,
+                artifact.artifactId,
+                artifact.version)
                 .filter {
                     it.coordinate.groupId != artifact.groupId ||
                             it.coordinate.artifactId != artifact.artifactId
