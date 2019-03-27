@@ -110,6 +110,12 @@ li {
     /* Some logos have a white background, so fade out before they appear. */
     background: linear-gradient(to right, #eee 0%, #eee 60%, #fff 75%);
     min-height: 40px;
+    max-height: 9.5em;
+    overflow: hidden;
+}
+
+.metadata:hover {
+    max-height: none;
 }
 
 .metadata img {
