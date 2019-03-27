@@ -42,7 +42,7 @@ class BaseHandler(private val dbi: DBI,
                 } else {
                     val sourceFileParts = pathParts.subList(i, pathParts.size)
                     val sourceFilePath = sourceFileParts.joinToString("/")
-                    return@inTransaction sourceFile(conn, node, sourceFilePath)
+                    return@inTransaction sourceFile(exchange, conn, node, sourceFilePath)
                 }
             }
             if (node.children.isEmpty()) {
@@ -81,7 +81,10 @@ class BaseHandler(private val dbi: DBI,
         return TypeSearchView.Dependency(null, it)
     }
 
-    private fun sourceFile(conn: Handle, artifactPath: ArtifactNode, sourceFilePath: String): View {
+    private fun sourceFile(exchange: HttpServerExchange,
+                           conn: Handle,
+                           artifactPath: ArtifactNode,
+                           sourceFilePath: String): View {
         val dependencies = listDependencies(conn, artifactPath.id)
 
         val result = conn.select("select json from sourceFiles where artifactId = ? and path = ?",
@@ -90,12 +93,14 @@ class BaseHandler(private val dbi: DBI,
             throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
         }
 
-        // increment hit counter for this time bin
-        val timestamp = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS)
-        conn.update("insert into hits (timestamp, sourceFile, artifactId, hits) values (?, ?, ?, 1) on conflict (timestamp, sourceFile, artifactId) do update set hits = hits.hits + 1",
-                timestamp.toLocalDateTime(),
-                sourceFilePath,
-                artifactPath.id)
+        if (!exchange.isCrawler()) {
+            // increment hit counter for this time bin
+            val timestamp = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS)
+            conn.update("insert into hits (timestamp, sourceFile, artifactId, hits) values (?, ?, ?, 1) on conflict (timestamp, sourceFile, artifactId) do update set hits = hits.hits + 1",
+                    timestamp.toLocalDateTime(),
+                    sourceFilePath,
+                    artifactPath.id)
+        }
 
         val alternatives = ArrayList<SourceFileView.Alternative>()
         fun tryExactMatch(path: String) {
