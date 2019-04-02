@@ -20,6 +20,7 @@ html {
     background-color: #222;
     color: #aaa;
     width: 100%;
+    z-index: 100;
 }
 
 #header div {
@@ -50,15 +51,8 @@ html {
 
 /* For desktops, scroll only the content */
 @media (min-width: 600px) {
-    #wrapper {
-        height: 100%;
-        width: 100%;
-        position: absolute;
-    }
-
-    #content {
-        overflow-y: scroll;
-        padding: 1em;
+    #header {
+        position: sticky;
     }
 }
 
