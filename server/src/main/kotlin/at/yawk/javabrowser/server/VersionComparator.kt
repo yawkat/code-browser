@@ -25,9 +25,8 @@ object VersionComparator : Comparator<String> {
                 try {
                     val k1 = e1.toLong()
                     val k2 = e2.toLong()
-                    return java.lang.Long.compare(k1, k2)
-                            // newer first
-                            .inv()
+                    // newer first
+                    return -java.lang.Long.compare(k1, k2)
                 } catch (e: NumberFormatException) {
                     return e1.compareTo(e2)
                 }
