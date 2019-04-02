@@ -310,9 +310,33 @@ internal class BindingVisitor(
     override fun visit(node: ClassInstanceCreation): Boolean {
         val binding = node.resolveConstructorBinding()
         if (binding != null) {
-            val s = Bindings.toString(binding)
-            if (s != null) annotatedSourceFile.annotate(node.type,
-                    makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
+            val declaringClass = binding.declaringClass
+            if (binding.isDefaultConstructor) {
+                if (declaringClass.isAnonymous) {
+                    val constructor = declaringClass.superclass.declaredMethods.firstOrNull {
+                        binding.overrides(it) && !it.isDefaultConstructor
+                    }
+                    if (constructor != null) {
+                        // ref the constructor that is overridden
+                        val s = Bindings.toString(constructor)
+                        if (s != null) annotatedSourceFile.annotate(node.type,
+                                makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
+                    } else {
+                        // no constructor found (maybe default constructor), instead ref the superclass
+                        val s = Bindings.toString(declaringClass.superclass)
+                        if (s != null) annotatedSourceFile.annotate(node.type,
+                                makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
+                    }
+                } else {
+                    val s = Bindings.toString(declaringClass)
+                    if (s != null) annotatedSourceFile.annotate(node.type,
+                            makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
+                }
+            } else {
+                val s = Bindings.toString(binding)
+                if (s != null) annotatedSourceFile.annotate(node.type,
+                        makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
+            }
         }
         return true
     }

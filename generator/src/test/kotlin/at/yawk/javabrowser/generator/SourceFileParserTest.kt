@@ -304,7 +304,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
-                            annotation.binding == "A()"
+                            annotation.binding == "A"
                 })
         )
     }
@@ -459,6 +459,36 @@ class SourceFileParserTest {
                             annotation.binding == "B" &&
                             // should annotate the receiver
                             it.start == 17 && it.length == 1
+                })
+        )
+    }
+
+    @Test
+    fun `anonymous class constructor`() {
+        write("A.java", "class A {{ new B() {}; }}")
+        write("B.java", "class B {}") // no explicit constructor
+        val entries = compile()["A.java"]!!.entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
+                            annotation.binding == "B"
+                })
+        )
+    }
+
+    @Test
+    fun `anonymous class constructor - param`() {
+        write("A.java", "class A {{ new B(\"abc\") {}; }}")
+        write("B.java", "class B { B(String s) {} }")
+        val entries = compile()["A.java"]!!.entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
+                            annotation.binding == "B(java.lang.String)"
                 })
         )
     }
