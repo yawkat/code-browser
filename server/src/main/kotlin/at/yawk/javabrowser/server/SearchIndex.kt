@@ -113,15 +113,23 @@ class SearchIndex<K, V> {
 
     @VisibleForTesting
     internal class Searcher(private val groups: Array<String>, private val query: String) {
-        private val memo = arrayOfNulls<IntArray>(groups.size * query.length)
+        private val memo = arrayOfNulls<IntArray>(groups.size * query.length * 2)
 
-        fun search(maxDepth: Int) = memo(0, 0, maxDepth)
+        fun search(maxDepth: Int) = memo(0, 0, maxDepth, mustMatchStart = false)
 
-        private fun impl(groupsI: Int, queryI: Int, maxDepth: Int): IntArray? {
+        private fun impl(groupsI: Int, queryI: Int, maxDepth: Int, mustMatchStart: Boolean): IntArray? {
             val maxSubstringEnd = queryI + commonPrefixLength(groups[groupsI], query, 0, queryI)
             var i = queryI
+            if (mustMatchStart) {
+                // if mustMatchStart is true, we cannot match the empty string here.
+                i++
+            }
             while (i <= maxSubstringEnd) {
-                val next = memo(groupsI + 1, i, if (i == queryI) maxDepth else maxDepth - 1)
+                var next = memo(groupsI + 1, i, if (i == queryI) maxDepth else maxDepth - 1, false)
+                if (next == null && i == queryI + groups[groupsI].length) {
+                    // second chance: if this group was matched fully, attempt a mustMatchStart match on the next group
+                    next = memo(groupsI + 1, i, maxDepth, true)
+                }
                 if (next != null) {
                     next[groupsI] = i - queryI
                     return next
@@ -131,7 +139,7 @@ class SearchIndex<K, V> {
             return null
         }
 
-        private fun memo(groupsI: Int, queryI: Int, maxDepth: Int): IntArray? {
+        private fun memo(groupsI: Int, queryI: Int, maxDepth: Int, mustMatchStart: Boolean): IntArray? {
             // base case: empty query -> everything matches
             if (queryI >= query.length) {
                 return IntArray(groups.size)
@@ -144,10 +152,10 @@ class SearchIndex<K, V> {
                 return null
             }
 
-            val i = groupsI + queryI * groups.size
+            val i = groupsI + queryI * groups.size + (if (mustMatchStart) groups.size * query.length else 0)
             val present = memo[i]
             if (present == null) {
-                val computed = impl(groupsI, queryI, maxDepth)
+                val computed = impl(groupsI, queryI, maxDepth, mustMatchStart)
                 memo[i] = computed ?: NO_MATCH_SENTINEL
                 return computed
             } else {

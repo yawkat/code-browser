@@ -16,11 +16,13 @@ class SearchIndexTest {
         )
         Assert.assertEquals(
                 SearchIndex.Searcher(arrayOf("a", "ab", "b", "c"), "abc").search(2),
-                intArrayOf(0, 2, 0, 1)
+                // this used to be 0, 2, 0, 1 (a[ab]b[c]), but matching a[a]b[bc] is also valid
+                intArrayOf(0, 1, 1, 1)
         )
         Assert.assertEquals(
                 SearchIndex.Searcher(arrayOf("ab", "a", "b", "c"), "abc").search(2),
-                intArrayOf(2, 0, 0, 1)
+                // this used to be 2, 0, 0, 1 ([ab]ab[c]), but matching ab[abc] is better
+                intArrayOf(0, 1, 1, 1)
         )
     }
 
@@ -94,5 +96,23 @@ class SearchIndexTest {
         Assert.assertEquals(results[0].entry.name.string, "xxxxx.LongerName")
         Assert.assertEquals(results[0].match, intArrayOf(0, 4, 0))
         Assert.assertEquals(results[1].entry.name.string, "long.ShortName")
+    }
+
+    @Test
+    fun `searcher - at end, complete with full remaining text`() {
+        Assert.assertNotNull(
+                SearchIndex.Searcher(arrayOf("my", "name"), "myname").search(1)
+        )
+    }
+
+    @Test
+    fun `at end, complete with full remaining text`() {
+        val searchIndex = SearchIndex<String, Unit>()
+        searchIndex.replace("cat1", listOf(
+                SearchIndex.Input("myname.X", Unit),
+                SearchIndex.Input("MyName", Unit) // this entry should match first
+                ).iterator())
+        val results = searchIndex.find("myname").toList()
+        Assert.assertEquals(results[0].entry.name.string, "MyName")
     }
 }
