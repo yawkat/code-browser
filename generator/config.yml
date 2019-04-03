@@ -332,3 +332,7 @@ artifacts:
   version: 1.4.199
   metadata:
     logoUrl: http://h2database.com/html/images/h2-logo-2.png
+- type: maven
+  groupId: com.google.inject
+  artifactId: guice
+  version: 4.2.2
