@@ -45,6 +45,10 @@ artifacts:
   artifactId: guava
   version: 25.1-jre
 - type: maven
+  groupId: com.google.guava
+  artifactId: guava
+  version: 27.1-jre
+- type: maven
   groupId: com.google.code.findbugs
   artifactId: jsr305
   version: 3.0.2
@@ -220,6 +224,10 @@ artifacts:
   groupId: org.bouncycastle
   artifactId: bcprov-jdk15
   version: 1.46
+- type: maven
+  groupId: org.bouncycastle
+  artifactId: bcprov-jdk15on
+  version: 1.61
 - type: maven
   groupId: org.ow2.asm
   artifactId: asm
