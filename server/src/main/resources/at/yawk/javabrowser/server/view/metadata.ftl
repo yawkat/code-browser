@@ -44,7 +44,7 @@
       </ul>
     </div>
   </#if>
-  <#if artifactMetadata.developers??>
+  <#if artifactMetadata.developers?? && artifactMetadata.developers[0].name??>
     <div class="itemize" title="Developers">
       <i class="fa-user fa"></i>
       <ul>
