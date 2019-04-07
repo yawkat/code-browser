@@ -7,4 +7,3 @@
     <a href="/"><i class="fa fa-home"></i> /</a>
   </#if>
 </#macro>
-<@showNode node=artifactId/>
