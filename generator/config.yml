@@ -1,8 +1,9 @@
 database:
   user: java-browser
-  password: password
-  url: jdbc:postgresql://[::1]/java-browser
-compilerThreads: 1
+  password: m0hindsrv2fdqrtm
+  url: jdbc:postgresql://192.168.2.11/java-browser
+  #url: jdbc:postgresql://127.0.0.1/java-browser
+compilerThreads: 2
 artifacts:
 - type: old-java
   src: "/usr/lib/jvm/java-8-openjdk/src.zip"
@@ -261,6 +262,12 @@ artifacts:
 - type: maven
   groupId: org.eclipse.collections
   artifactId: eclipse-collections
+  version: 9.2.0
+  metadata:
+    logoUrl: https://www.eclipse.org/collections/img/eclipse-collections-logo.png
+- type: maven
+  groupId: org.eclipse.collections
+  artifactId: eclipse-collections-api
   version: 9.2.0
   metadata:
     logoUrl: https://www.eclipse.org/collections/img/eclipse-collections-logo.png
