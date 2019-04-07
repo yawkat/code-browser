@@ -130,3 +130,181 @@ li {
 .metadata .itemize > ul {
     display: inline-block;
 }
+
+/* search */
+.search-box {
+    max-width: 60em;
+    margin: 0 auto;
+    font-family: "DejaVu Sans", sans-serif;
+}
+
+.search-box input {
+    width: 100%;
+    height: 2em;
+    margin: 1em 0;
+}
+
+.search-box li {
+    list-style: none;
+    width: 100%;
+}
+
+.search-box ul {
+    width: 100%;
+}
+
+.search-box li a {
+    padding: .2em;
+    display: block;
+    width: 100%;
+}
+
+.search-box li a:hover {
+    background: #eee;
+}
+
+.search-dialog {
+    margin-top: 2em;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    padding: 1em;
+}
+
+.search-dialog > * {
+    box-sizing: border-box;
+}
+
+.search-button {
+    float: right;
+    color: inherit;
+    font-size: 1.5em;
+}
+
+code a:link, code a:visited {
+    color: inherit;
+    text-decoration: underline #ccc;
+}
+
+code .variable {
+    text-decoration: underline dotted #ccc;
+}
+
+code .variable.effectively-final {
+    text-decoration: none;
+}
+
+code .comment {
+    color: #808080;
+    font-style: italic;
+}
+
+code .comment.javadoc {
+    color: #0033cc;
+    font-style: inherit;
+}
+
+code .javadoc-tag {
+    font-weight: bold;
+}
+
+code .field {
+    color: #660E7A;
+    font-weight: bold;
+}
+
+code .field.static {
+    font-weight: inherit;
+    font-style: italic;
+}
+
+code .keyword {
+    color: #000080;
+    font-weight: bold;
+}
+
+code .type-variable {
+    color: #20999D;
+}
+
+code .number-literal {
+    color: #00f;
+}
+
+code .string-literal {
+    color: #008000;
+}
+
+code .annotation {
+    color: #808000;
+}
+
+code .line {
+    display: inline-block !important;
+    width: 3em !important;
+    padding-right: 1em !important;
+    text-align: right !important;
+    color: #888 !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    text-decoration: none !important;
+}
+
+code .line:before {
+    content: attr(data-line);
+}
+
+code .local-hover {
+    background: #ddd;
+}
+
+code .show-refs {
+    display: inline-block;
+    width: 1.1em;
+    opacity: .5;
+    text-decoration: none !important;
+    height: 0;
+    font-family: Font Awesome\ 5 Free;
+    font-variant: normal;
+    text-rendering: auto;
+    font-style: normal;
+    font-weight: 900;
+    font-size: .7em;
+}
+
+code .show-refs:before {
+    content: '\f337';
+}
+
+#alt-versions:before {
+    /* other versions dropdown */
+    content: 'Other versions of this file';
+}
+
+#alt-versions {
+    padding-left: 2em;
+}
+
+.source-file-dir {
+    opacity: .5;
+}
+
+#tooltip {
+    position: absolute;
+    max-width: 50em;
+    right: 0;
+    background: white;
+    padding: .2em;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    font-size: .8em;
+}
+
+#tooltip li {
+    list-style-type: none;
+    text-indent: .5em;
+}
+
+.reference-type {
+    font-weight: bold;
+}
