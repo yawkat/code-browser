@@ -62,6 +62,7 @@ fun main(args: Array<String>) {
         it.add(SearchResource.PATTERN, SearchResource(dbi, objectMapper).also { it.checkRefresh() })
         it.add(ReferenceResource.PATTERN, ReferenceResource(dbi, objectMapper))
         it.add(ImageCache.PATTERN, imageCache.handler)
+        it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl))
     }
 
     handler = ExceptionHandler(handler).also(exceptions)

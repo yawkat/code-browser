@@ -58,8 +58,10 @@ function showAlternativeSourceFiles(alternativeSourceFiles) {
 }
 
 function showReferences(bindingName, superHtml) {
+    const LIMIT = 100;
+
     $.ajax({
-        url: '/api/references/' + encodeURIComponent(bindingName),
+        url: '/api/references/' + encodeURIComponent(bindingName) + "?limit=" + LIMIT,
         dataType: 'json',
         success: function (data) {
             const tooltip = $("#tooltip");
@@ -72,6 +74,9 @@ function showReferences(bindingName, superHtml) {
             let anyItems = false;
             for (const key of Object.keys(data)) {
                 if (data[key].length > 0) {
+                    if (!anyItems) {
+                        tooltip.append("<b><a href='/references/" + encodeURIComponent(bindingName) + "'>Show all (new page)</a></b><br>");
+                    }
                     anyItems = true;
                     let name;
                     switch (key) {
@@ -152,6 +157,13 @@ function showReferences(bindingName, superHtml) {
                                 list.find(".hide-search-results").toggle();
                             });
                             list.append(expandButton);
+                        }
+                        if (i === LIMIT) {
+                            let showAll = $("<li><b><a href='/references/" + encodeURIComponent(bindingName) + "?type=" + key + "'>Show all (new page)</a></b></li>");
+                            showAll.hide();
+                            showAll.addClass("hide-search-results");
+                            list.append(showAll);
+                            break;
                         }
                         const element = $("<li><a href='" + item.uri + "'>" + item.artifactId + '&nbsp;&nbsp;' + item.sourceFile + ":" + item.line + "</a></li>");
                         if (i >= 10) {

@@ -26,33 +26,46 @@ data class BindingRef(
         val id: Int
 ) : SourceAnnotation()
 
-enum class BindingRefType(@get:JsonValue val id: Int) {
-    UNCLASSIFIED(0),
-    SUPER_CONSTRUCTOR_CALL(1),
-    SUPER_METHOD_CALL(2),
-    METHOD_CALL(3),
-    FIELD_ACCESS(4),
-    SUPER_TYPE(5),
-    SUPER_METHOD(6),
-    JAVADOC(7),
-    RETURN_TYPE(8),
-    LOCAL_VARIABLE_TYPE(9),
-    PARAMETER_TYPE(10),
-    FIELD_TYPE(11),
-    TYPE_CONSTRAINT(12),
-    INSTANCE_OF(13),
-    CAST(14),
-    IMPORT(15),
-    ANNOTATION_TYPE(16),
-    CONSTRUCTOR_CALL(17),
-    THROWS_DECLARATION(18),
-    STATIC_METHOD_CALL_TYPE(19),
-    METHOD_REFERENCE_RECEIVER_TYPE(20);
+enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
+    UNCLASSIFIED(0, "Unclassified"),
+    SUPER_CONSTRUCTOR_CALL(1, "Super constructor call"),
+    SUPER_METHOD_CALL(2, "Super method call"),
+    METHOD_CALL(3, "Method call"),
+    FIELD_ACCESS(4, "Field access"),
+    SUPER_TYPE(5, "Super type"),
+    SUPER_METHOD(6, "Super method"),
+    JAVADOC(7, "Javadoc"),
+    RETURN_TYPE(8, "Return type"),
+    LOCAL_VARIABLE_TYPE(9, "Local variable type"),
+    PARAMETER_TYPE(10, "Parameter type"),
+    FIELD_TYPE(11, "Field type"),
+    TYPE_CONSTRAINT(12, "Type constraint"),
+    INSTANCE_OF(13, "instanceof"),
+    CAST(14, "Cast type"),
+    IMPORT(15, "Import"),
+    ANNOTATION_TYPE(16, "Annotation type"),
+    CONSTRUCTOR_CALL(17, "Constructor call"),
+    THROWS_DECLARATION(18, "Throws declaration"),
+    STATIC_METHOD_CALL_TYPE(19, "Static call type"),
+    METHOD_REFERENCE_RECEIVER_TYPE(20, "Method ref receiver");
 
     companion object {
+        private val byId: List<BindingRefType?>
+
+        init {
+            val byId = ArrayList<BindingRefType?>()
+            for (value in values()) {
+                while (value.id >= byId.size) byId.add(null)
+                byId[value.id] = value
+            }
+            this.byId = byId
+        }
+
         @JsonCreator
         @JvmStatic
-        fun byId(id: Int) = values().single { it.id == id }
+        fun byId(id: Int) = byId[id]!!
+
+        fun byIdOrNull(id: Int) = byId[id]
     }
 }
 

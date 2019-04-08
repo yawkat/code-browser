@@ -21,6 +21,7 @@ data class DbConfig(
         val dataSource = HikariDataSource(hikariConfig)
 
         val flyway = Flyway()
+        flyway.isIgnoreFutureMigrations = true
         flyway.dataSource = dataSource
         flyway.migrate()
 

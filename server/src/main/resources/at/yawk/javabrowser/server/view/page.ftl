@@ -1,3 +1,4 @@
+<#ftl strip_text=true>
 <#import "path.ftl" as path>
 <#macro page artifactId title hasSearch=false additionalTitle="" additionalMenu="">
   <!doctype html>
@@ -15,6 +16,7 @@
     <script src="/webjars/zeptojs/1.2.0/event.js"></script>
     <script src="/assets/app.js"></script>
     <script src="/assets/search.js"></script>
+    <script src="/assets/code.js"></script>
   </head>
   <body>
   <div id="wrapper">
@@ -23,7 +25,9 @@
         <#if hasSearch>
           <a class="search-button" href="javascript:SearchDialog.instance.open()" title="Hotkey: [T]"><i class="fas fa-search"></i></a>
         </#if>
-        <h1><@path.showNode artifactId/> ${additionalTitle}</h1> ${additionalMenu}
+        <h1>
+          <#if artifactId?has_content><@path.showNode artifactId/></#if>
+          ${additionalTitle}</h1> ${additionalMenu}
       </div>
     </div>
     <div id="content">
