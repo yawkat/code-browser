@@ -5,6 +5,7 @@
 
 html {
     font-family: "DejaVu Sans", sans-serif;
+    overflow-y: scroll;
 }
 
 #content > div {
