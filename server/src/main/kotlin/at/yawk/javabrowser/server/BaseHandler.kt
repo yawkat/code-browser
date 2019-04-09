@@ -130,14 +130,14 @@ class BaseHandler(private val dbi: DBI,
 
         val separator = sourceFilePath.lastIndexOf('/')
         return SourceFileView(
-                artifactPath,
-                dependencies.toSet(),
-                sourceFilePath.substring(0, separator + 1),
-                sourceFilePath.substring(separator + 1),
-                alternatives,
-                getArtifactMetadata(conn, artifactPath),
-                bindingResolver,
-                sourceFile
+                artifactId = artifactPath,
+                classpath =  dependencies.toSet() + artifactPath.id,
+                sourceFilePathDir = sourceFilePath.substring(0, separator + 1),
+                sourceFilePathFile = sourceFilePath.substring(separator + 1),
+                alternatives = alternatives,
+                artifactMetadata = getArtifactMetadata(conn, artifactPath),
+                bindingResolver = bindingResolver,
+                sourceFile = sourceFile
         )
     }
 
