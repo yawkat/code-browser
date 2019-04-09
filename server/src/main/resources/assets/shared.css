@@ -51,7 +51,7 @@ html {
 }
 
 /* For desktops, scroll only the content */
-@media (min-width: 600px) {
+@media (min-height: 400px) {
     #header {
         position: sticky;
     }
@@ -352,7 +352,7 @@ ul.reference-detail-list .source-file h4 {
     font-weight: normal;
 }
 
-@media (min-width: 600px) {
+@media (min-height: 400px) {
     ul.reference-detail-list .source-file {
         padding-left: 4em;
     }
@@ -387,7 +387,7 @@ ul.reference-detail-list h3 {
 }
 
 /* Adjust for top bar on desktop */
-@media (min-width: 600px) {
+@media (min-height: 400px) {
     ul.reference-detail-list h2 {
         top: 45px;
     }
