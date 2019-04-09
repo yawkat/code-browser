@@ -24,4 +24,7 @@
       <li><a href="/${child.id}">${child.id}</a></li>
     </#list>
   </ul>
+
+  <p class="missing-lib">Missing a library or version you want to see?
+    <a href="https://github.com/yawkat/java-browser/issues/new?labels=library">Open an issue!</a></p>
 </@page.page>
