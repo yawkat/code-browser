@@ -27,6 +27,28 @@ $(function () {
             currentLocalSet = [];
         });
     }
+
+    function scrollIfAnchor(firstLoad) {
+        const target = document.getElementById(decodeURIComponent(window.location.hash.substring(1)));
+        if (target) {
+            /* This can lead to "false positives" when the bar is still on screen even though it's not sticky
+            (e.g. on mobile), but the worst that'll happen is that we scroll a bit too far up. */
+            const topBarOffset = document.getElementById("header").getBoundingClientRect().bottom;
+            if (topBarOffset > 0) {
+                let targetTop = target.getBoundingClientRect().top;
+                // if this is the first load of this page, check if the browser scrolled to the element on its own. This
+                // might not be the case, eg during reload. If it didn't scroll to the element, we don't either.
+                if (!firstLoad || targetTop === 0) {
+                    window.scrollTo(0, targetTop - topBarOffset + window.pageYOffset);
+                }
+            }
+        }
+    }
+
+    scrollIfAnchor(true);
+    window.addEventListener("hashchange", function () {
+        scrollIfAnchor(false);
+    }, false);
 });
 
 function moveTooltipTo(element) {
