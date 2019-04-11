@@ -20,7 +20,6 @@ class ReferenceDetailResource(
         private val ftl: Ftl) : HttpHandler {
     companion object {
         const val PATTERN = "/references/{targetBinding}"
-        private const val MAX_LOCAL_SORT = 10000
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
@@ -50,14 +49,13 @@ class ReferenceDetailResource(
         dbi.inTransaction { conn: Handle, _ ->
             val countTable = HashBasedTable.create<String, BindingRefType, Int>(16, BindingRefType.values().size)
             for (row in conn.select("""
-                select type, sourceArtifactId, count(binding_references.*) as c from binding_references
-                where binding_references.targetBinding = ?
-                group by (type, sourceArtifactId)
+                select type, sourceArtifactId, count from binding_references_count_view
+                where targetBinding = ?
             """, targetBinding)) {
                 val type = BindingRefType.byIdOrNull((row["type"] as Number).toInt())
                 // can happen if the generator is newer than the frontend. We could return UNCLASSIFIED here, but then the search for UNCLASSIFIED wouldn't match this number.
                         ?: continue
-                countTable.put(row["sourceArtifactId"] as String, type, (row["c"] as Number).toInt())
+                countTable.put(row["sourceArtifactId"] as String, type, (row["count"] as Number).toInt())
             }
             val countsByType = countTable.columnKeySet().associate { it to countTable.column(it).values.sum() }
             val countsByArtifact = countTable.rowKeySet().associate { it to countTable.row(it).values.sum() }
@@ -102,6 +100,7 @@ class ReferenceDetailResource(
             if (type != null) query.bind("type", type.id)
             if (sourceArtifactId != null) query.bind("sourceArtifactId", sourceArtifactId)
             if (hitResultLimit) query.bind("limit", limit)
+            query.setFetchSize(500)
             val view = ReferenceDetailView(
                     targetBinding = targetBinding,
                     baseUri = URI("/references/${URLEncoder.encode(targetBinding, "UTF-8")}"),

@@ -32,6 +32,7 @@ class DbPrinter private constructor(
                 if (!dbPrinter.hasFiles) {
                     throw RuntimeException("No source files on $artifactId")
                 }
+                dbPrinter.finish()
             }
         }
     }
@@ -45,6 +46,10 @@ class DbPrinter private constructor(
         conn.update("delete from artifacts where id = ?", artifactId)
         conn.insert("insert into artifacts (id, lastCompileVersion, metadata) values (?, ?, ?)", artifactId,
                 Compiler.VERSION, objectMapper.writeValueAsBytes(metadata))
+    }
+
+    private fun finish() {
+        conn.update("refresh materialized view binding_references_count_view")
     }
 
     private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
