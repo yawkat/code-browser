@@ -1,50 +1,14 @@
 package at.yawk.javabrowser.generator
 
-import org.flywaydb.core.Flyway
+import at.yawk.javabrowser.DbConfig
 import org.skife.jdbi.v2.DBI
-import java.io.PrintWriter
-import java.sql.Connection
-import java.sql.DriverManager
-import java.util.UUID
-import javax.sql.DataSource
+import ru.yandex.qatools.embed.postgresql.EmbeddedPostgres
 
 /**
  * @author yawkat
  */
 fun createDb(): DBI {
-    val uuid = UUID.randomUUID()
-    val ds = object : DataSource {
-        @Suppress("UsePropertyAccessSyntax", "unused")
-        val keepOpen = getConnection()
-
-        override fun getConnection(): Connection {
-            return DriverManager.getConnection("jdbc:h2:mem:$uuid")
-        }
-
-        override fun getConnection(username: String?, password: String?) = throw UnsupportedOperationException()
-
-        override fun setLogWriter(out: PrintWriter?) {
-        }
-
-        override fun getParentLogger() = throw UnsupportedOperationException()
-
-        override fun setLoginTimeout(seconds: Int) {
-        }
-
-        override fun isWrapperFor(iface: Class<*>?): Boolean {
-            return false
-        }
-
-        override fun getLogWriter() = throw UnsupportedOperationException()
-
-        override fun <T : Any?> unwrap(iface: Class<T>?) = throw UnsupportedOperationException()
-
-        override fun getLoginTimeout() = throw UnsupportedOperationException()
-    }
-
-    val flyway = Flyway()
-    flyway.dataSource = ds
-    flyway.migrate()
-
-    return DBI(ds)
+    val embeddedPostgres = EmbeddedPostgres()
+    val config = DbConfig(embeddedPostgres.start(), EmbeddedPostgres.DEFAULT_USER, EmbeddedPostgres.DEFAULT_PASSWORD)
+    return config.start()
 }

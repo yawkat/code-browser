@@ -19,7 +19,7 @@ class CompilerTest {
 
         dbi.inTransaction { conn: Handle, _ ->
             Assert.assertEquals(
-                    conn.select("select * from artifacts"),
+                    conn.select("select id, lastcompileversion from artifacts"),
                     listOf(mapOf(
                             "id" to "com.google.guava/guava/25.1-jre",
                             "lastcompileversion" to Compiler.VERSION
