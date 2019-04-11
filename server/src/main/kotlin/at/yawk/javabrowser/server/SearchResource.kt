@@ -8,12 +8,6 @@ import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentMap
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
 import kotlin.coroutines.experimental.buildSequence
 
 /**
@@ -21,47 +15,39 @@ import kotlin.coroutines.experimental.buildSequence
  */
 private val log = LoggerFactory.getLogger(SearchResource::class.java)
 
-class SearchResource(private val dbi: DBI, private val objectMapper: ObjectMapper) : HttpHandler {
+class SearchResource(private val dbi: DBI,
+                     private val objectMapper: ObjectMapper,
+                     artifactUpdater: ArtifactUpdater) : HttpHandler {
     companion object {
         const val PATTERN = "/api/search/{query}"
     }
 
-    private val worker = ThreadPoolExecutor(0, 1, 5, TimeUnit.MINUTES,
-            ArrayBlockingQueue(4),
-            ThreadFactory { Thread(it, "Search index update worker").also { it.isDaemon = true } },
-            ThreadPoolExecutor.DiscardPolicy())
-
     private val searchIndex = SearchIndex<String, String>()
 
-    private val lastKnownVersion: ConcurrentMap<String, Int> = ConcurrentHashMap()
-
-    private fun refresh() {
+    init {
+        artifactUpdater.addArtifactUpdateListener { artifactId ->
+            dbi.inTransaction { conn: Handle, _ ->
+                update(conn, artifactId)
+            }
+        }
         dbi.inTransaction { conn: Handle, _ ->
-            for ((artifactId, newVersion) in conn.createQuery("select id, lastCompileVersion from artifacts")
-                    .map { _, r, _ -> r.getString(1) to r.getInt(2) }) {
-                lastKnownVersion.compute(artifactId) { _, oldVersion ->
-                    if (newVersion != oldVersion) {
-                        log.info("Triggering search index update for {}", artifactId)
-                        val itr = conn.createQuery("select binding, sourceFile from bindings where isType and artifactId = ?")
-                                .bind(0, artifactId)
-                                .map { _, r, _ ->
-                                    SearchIndex.Input(
-                                            string = r.getString(1),
-                                            value = r.getString(2))
-                                }
-                                .iterator()
-                        searchIndex.replace(artifactId, itr)
-                    }
-                    newVersion
-                }
+            for (artifactId in conn.createQuery("select id from artifacts").map { _, r, _ -> r.getString(1) }) {
+                update(conn, artifactId)
             }
         }
     }
 
-    fun checkRefresh() {
-        worker.execute {
-            refresh()
-        }
+    private fun update(conn: Handle, artifactId: String) {
+        log.info("Triggering search index update for {}", artifactId)
+        val itr = conn.createQuery("select binding, sourceFile from bindings where isType and artifactId = ?")
+                .bind(0, artifactId)
+                .map { _, r, _ ->
+                    SearchIndex.Input(
+                            string = r.getString(1),
+                            value = r.getString(2))
+                }
+                .iterator()
+        searchIndex.replace(artifactId, itr)
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
@@ -71,8 +57,6 @@ class SearchResource(private val dbi: DBI, private val objectMapper: ObjectMappe
         val artifactId = exchange.queryParameters["artifactId"]?.peekFirst()
         val limit = exchange.queryParameters["limit"]?.peekFirst()?.toInt() ?: 100
         val includeDependencies = exchange.queryParameters["includeDependencies"]?.peekFirst()?.toBoolean() ?: true
-
-        checkRefresh()
 
         val f = if (artifactId == null) {
             val seq = searchIndex.find(query)

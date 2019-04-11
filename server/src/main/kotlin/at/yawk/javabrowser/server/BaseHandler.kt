@@ -13,7 +13,6 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
-import org.skife.jdbi.v2.TransactionStatus
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
@@ -24,17 +23,14 @@ import java.time.temporal.ChronoUnit
 class BaseHandler(private val dbi: DBI,
                   private val ftl: Ftl,
                   private val bindingResolver: BindingResolver,
-                  private val objectMapper: ObjectMapper) : HttpHandler {
-    private val rootArtifact = dbi.inTransaction { conn: Handle, _: TransactionStatus ->
-        ArtifactNode.build(conn.select("select id from artifacts").map { it["id"] as String })
-    }
-
+                  private val objectMapper: ObjectMapper,
+                  private val artifactIndex: ArtifactIndex) : HttpHandler {
     override fun handleRequest(exchange: HttpServerExchange) {
         val path = exchange.relativePath.removePrefix("/").removeSuffix("/")
         val pathParts = if (path.isEmpty()) emptyList() else path.split('/')
 
         val view = dbi.inTransaction { conn: Handle, _ ->
-            var node = rootArtifact
+            var node = artifactIndex.rootArtifact
             for ((i, pathPart) in pathParts.withIndex()) {
                 val child = node.children[pathPart]
                 if (child != null) {

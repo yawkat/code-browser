@@ -49,7 +49,9 @@ class DbPrinter private constructor(
     }
 
     private fun finish() {
+        log.info("Updating reference count table")
         conn.update("refresh materialized view binding_references_count_view")
+        conn.update("select pg_notify('artifacts', ?)", artifactId)
     }
 
     private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")

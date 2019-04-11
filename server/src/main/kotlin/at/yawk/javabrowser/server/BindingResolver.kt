@@ -7,17 +7,14 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import java.net.URI
 import java.net.URLEncoder
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.FutureTask
-import java.util.concurrent.RejectedExecutionHandler
-import java.util.concurrent.ThreadFactory
-import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
 
 /**
  * @author yawkat
  */
-class BindingResolver(private val dbi: DBI) {
+class BindingResolver(
+        artifactUpdater: ArtifactUpdater,
+        private val dbi: DBI
+) {
     companion object {
         fun bindingHash(binding: String) = "#${URLEncoder.encode(binding, "UTF-8")}"
 
@@ -27,17 +24,12 @@ class BindingResolver(private val dbi: DBI) {
 
     private val cache: LoadingCache<String, List<BindingLocation>> = CacheBuilder.newBuilder()
             .maximumSize(100000)
-            .refreshAfterWrite(5, TimeUnit.MINUTES)
-            .build(CacheLoader.asyncReloading(CacheLoader.from { binding ->
-                resolveBinding0(binding!!)
-            }, ThreadPoolExecutor(
-                    0, 4, 1, TimeUnit.MINUTES,
-                    ArrayBlockingQueue(10000),
-                    ThreadFactory { Thread(it, "Binding resolver update worker").also { it.isDaemon = true } },
-                    RejectedExecutionHandler { r, _ ->
-                        (r as FutureTask<*>).cancel(false)
-                    }
-            )))
+            .build(CacheLoader.from { binding -> resolveBinding0(binding!!) })
+
+    init {
+        // too hard to just invalidate relevant bindings
+        artifactUpdater.addArtifactUpdateListener { cache.invalidateAll() }
+    }
 
     private fun resolveBinding0(binding: String): List<BindingLocation> {
         return dbi.inTransaction { conn: Handle, _ ->

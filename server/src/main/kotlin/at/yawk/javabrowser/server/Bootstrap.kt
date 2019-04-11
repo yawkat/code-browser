@@ -54,12 +54,16 @@ fun main(args: Array<String>) {
         }
     }
 
-    val bindingResolver = BindingResolver(dbi)
+    val updater = ArtifactUpdater(dbi)
+
+    val bindingResolver = BindingResolver(updater, dbi)
     val imageCache = ImageCache()
     val ftl = Ftl()
     ftl.putDirective("imageCache", imageCache.directive)
-    var handler: HttpHandler = PathTemplateHandler(BaseHandler(dbi, ftl, bindingResolver, objectMapper)).also {
-        it.add(SearchResource.PATTERN, SearchResource(dbi, objectMapper).also { it.checkRefresh() })
+    val artifactIndex = ArtifactIndex(updater, dbi)
+    val baseHandler = BaseHandler(dbi, ftl, bindingResolver, objectMapper, artifactIndex)
+    var handler: HttpHandler = PathTemplateHandler(baseHandler).also {
+        it.add(SearchResource.PATTERN, SearchResource(dbi, objectMapper, updater))
         it.add(ReferenceResource.PATTERN, ReferenceResource(dbi, objectMapper))
         it.add(ImageCache.PATTERN, imageCache.handler)
         it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl))
