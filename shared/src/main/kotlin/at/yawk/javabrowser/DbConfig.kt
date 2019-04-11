@@ -17,7 +17,7 @@ data class DbConfig(
         val hikariConfig = HikariConfig()
         hikariConfig.jdbcUrl = url
         hikariConfig.username = user
-        hikariConfig.password = password
+        hikariConfig.password = System.getProperty("at.yawk.javabrowser.db-password", password)
         val dataSource = HikariDataSource(hikariConfig)
 
         val flyway = Flyway()

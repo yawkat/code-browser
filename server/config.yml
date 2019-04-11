@@ -1,6 +1,6 @@
 database:
   user: java-browser
   password: password
-  url: jdbc:postgresql://[::1]/java-browser
-bindAddress: 127.0.0.1
+  url: jdbc:postgresql://192.168.2.11/java-browser
+bindAddress: 0.0.0.0
 bindPort: 8080
