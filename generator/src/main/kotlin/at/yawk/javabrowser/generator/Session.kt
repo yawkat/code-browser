@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * @author yawkat
@@ -35,13 +37,21 @@ class Session(
         tasks.clear()
 
         dbi.inTransaction { conn: Handle, _ ->
-            SessionConnection(objectMapper, conn, ourTasks, majorUpdate).run()
+            val executor = Executors.newCachedThreadPool()
+            try {
+                SessionConnection(objectMapper, conn, ourTasks, majorUpdate, executor).run()
+            } finally {
+                executor.shutdownNow()
+            }
         }
     }
 
     private class SessionConnection(
-            val objectMapper: ObjectMapper, val conn: Handle, val tasks: List<Task>,
-            val majorUpdate: Boolean
+            val objectMapper: ObjectMapper,
+            val conn: Handle,
+            val tasks: List<Task>,
+            val majorUpdate: Boolean,
+            val executor: ExecutorService
     ) {
         private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
         private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)")
@@ -79,7 +89,14 @@ class Session(
                         task.artifactId, Compiler.VERSION, objectMapper.writeValueAsBytes(task.metadata))
 
                 val printerImpl = PrinterImpl(task.artifactId)
-                task.closure(printerImpl)
+                val concurrentPrinter = ConcurrentPrinter(printerImpl)
+                val future = executor.submit {
+                    task.closure(concurrentPrinter)
+                    concurrentPrinter.finish()
+                }
+                concurrentPrinter.work(printerImpl)
+                future.get() // check exception
+
                 if (!printerImpl.hasFiles) {
                     throw RuntimeException("No source files on ${task.artifactId}")
                 }
