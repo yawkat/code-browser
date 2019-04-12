@@ -1,7 +1,7 @@
 package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
-import com.fasterxml.jackson.databind.ObjectMapper
+import at.yawk.javabrowser.BindingRefType
 import org.skife.jdbi.v2.Handle
 import org.testng.Assert
 import org.testng.annotations.Test
@@ -83,5 +83,21 @@ class CompilerTest {
 
         compiler.resolveMavenMetadata(
                 ArtifactConfig.Maven("org.openjfx", "javafx-controls", "11"))
+    }
+
+    @Test
+    fun `super method ref`() {
+        val dbi = createDb()
+        val session = Session(dbi)
+        val compiler = Compiler(dbi, session)
+        compiler.compileMaven("x",
+                ArtifactConfig.Maven("io.ebean", "ebean", "11.36.4"))
+        session.execute()
+
+        val count = dbi.withHandle {
+            it.select("select count from binding_references_count_view where targetbinding = 'io.ebean.ExtendedServer#findList(io.ebean.SqlQuery,io.ebean.Transaction)' and type = ?",
+                    BindingRefType.SUPER_METHOD.id)[0]["count"] as Number
+        }.toInt()
+        Assert.assertEquals(count, 1)
     }
 }

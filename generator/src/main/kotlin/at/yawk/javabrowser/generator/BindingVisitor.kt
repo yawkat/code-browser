@@ -172,9 +172,9 @@ internal class BindingVisitor(
 
             for (candidate in typeBinding.declaredMethods) {
                 if (method.overrides(candidate)) {
-                    val alreadyPresent = found.any { it.overrides(method) }
+                    val alreadyPresent = found.any { it.overrides(candidate) }
                     if (!alreadyPresent) {
-                        found.add(method)
+                        found.add(candidate)
                         val ref = Bindings.toString(candidate)
                         if (ref != null) {
                             annotatedSourceFile.annotate(targetNode,
@@ -183,6 +183,9 @@ internal class BindingVisitor(
                     }
                 }
             }
+
+            visit(typeBinding.superclass)
+            typeBinding.interfaces.forEach { visit(it) }
         }
 
         fun visitSupers(typeBinding: ITypeBinding) {
