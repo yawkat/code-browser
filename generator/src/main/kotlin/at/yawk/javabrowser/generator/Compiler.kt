@@ -1,7 +1,6 @@
 package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.io.MoreFiles
 import org.apache.maven.model.building.DefaultModelBuilderFactory
@@ -43,10 +42,16 @@ private inline fun tempDir(f: (Path) -> Unit) {
     }
 }
 
-class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
+class Compiler(private val dbi: DBI, private val session: Session) {
     companion object {
         private val log = LoggerFactory.getLogger(Compiler::class.java)
-        const val VERSION = 13
+
+        /**
+         * Java version listed as a dependency for maven artifacts
+         */
+        private const val NOMINAL_JAVA_VERSION = "java/11"
+
+        const val VERSION = 14
     }
 
     private fun needsRecompile(artifactId: String): Boolean {
@@ -77,50 +82,28 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
         parser.compile()
     }
 
-    private fun compileAndCommit(
-            artifactId: String,
-            sourceRoot: Path,
-            dependencies: List<Path>,
-            dependencyArtifactIds: List<String>,
-            metadata: ArtifactMetadata,
-            includeRunningVmBootclasspath: Boolean = true
-    ) {
-        DbPrinter.withPrinter(objectMapper,
-                dbi,
-                artifactId,
-                metadata) { printer ->
-            compile(artifactId, sourceRoot, dependencies, includeRunningVmBootclasspath, printer)
-            dependencyArtifactIds.forEach { printer.addDependency(it) }
-            if (includeRunningVmBootclasspath) {
-                printer.addDependency("java/11")
-            }
-        }
-    }
-
     fun compileOldJava(artifactId: String, artifact: ArtifactConfig.OldJava) {
         if (!needsRecompile(artifactId)) return
-        tempDir { tmp ->
-            val src = tmp.resolve("src")
-            FileSystems.newFileSystem(artifact.src, null).use {
-                val root = it.rootDirectories.single()
-                copyDirectory(root, src)
-            }
+        session.withPrinter(artifactId, artifact.metadata) { printer ->
+            tempDir { tmp ->
+                val src = tmp.resolve("src")
+                FileSystems.newFileSystem(artifact.src, null).use {
+                    val root = it.rootDirectories.single()
+                    copyDirectory(root, src)
+                }
 
-            compileAndCommit(artifactId,
-                    src,
-                    dependencies = emptyList(),
-                    dependencyArtifactIds = emptyList(),
-                    metadata = artifact.metadata,
-                    includeRunningVmBootclasspath = false)
+                compile(artifactId,
+                        src,
+                        dependencies = emptyList(),
+                        includeRunningVmBootclasspath = false,
+                        printer = printer)
+            }
         }
     }
 
     fun compileJava(artifactId: String, artifact: ArtifactConfig.Java) {
         if (!needsRecompile(artifactId)) return
-        DbPrinter.withPrinter(objectMapper,
-                dbi,
-                artifactId,
-                artifact.metadata) { printer ->
+        session.withPrinter(artifactId, artifact.metadata) { printer ->
             tempDir { tmp ->
                 val jmodClassCache = tmp.resolve("jmodClassCache")
                 Files.list(artifact.baseDir.resolve("jmods")).iterator().forEach {
@@ -261,13 +244,17 @@ class Compiler(private val dbi: DBI, private val objectMapper: ObjectMapper) {
                 ))
                 .resolve().withoutTransitivity()
                 .asSingleFile().toPath()
-        tempDir { tmp ->
-            val src = tmp.resolve("src")
-            FileSystems.newFileSystem(sourceJar, null).use {
-                val root = it.rootDirectories.single()
-                copyDirectory(root, src)
+        session.withPrinter(artifactId, metadata) { printer ->
+            tempDir { tmp ->
+                val src = tmp.resolve("src")
+                FileSystems.newFileSystem(sourceJar, null).use {
+                    val root = it.rootDirectories.single()
+                    copyDirectory(root, src)
+                }
+                compile(artifactId, src, depPaths, true, printer)
+                depNames.forEach { printer.addDependency(it) }
+                printer.addDependency(NOMINAL_JAVA_VERSION)
             }
-            compileAndCommit(artifactId, src, depPaths, depNames, metadata)
         }
     }
 }

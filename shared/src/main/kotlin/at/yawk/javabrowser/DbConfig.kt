@@ -2,8 +2,8 @@ package at.yawk.javabrowser
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import org.flywaydb.core.Flyway
 import org.skife.jdbi.v2.DBI
+import org.skife.jdbi.v2.Handle
 
 /**
  * @author yawkat
@@ -20,11 +20,10 @@ data class DbConfig(
         hikariConfig.password = System.getProperty("at.yawk.javabrowser.db-password", password)
         val dataSource = HikariDataSource(hikariConfig)
 
-        val flyway = Flyway()
-        flyway.isIgnoreFutureMigrations = true
-        flyway.dataSource = dataSource
-        flyway.migrate()
+        val dbi = DBI(dataSource)
 
-        return DBI(dataSource)
+        dbi.inTransaction { conn: Handle, _ -> DbMigration.initDb(conn) }
+
+        return dbi
     }
 }

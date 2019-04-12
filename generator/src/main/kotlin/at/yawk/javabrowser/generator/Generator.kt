@@ -2,9 +2,9 @@ package at.yawk.javabrowser.generator
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.util.concurrent.Executors
 
 /**
  * @author yawkat
@@ -15,10 +15,10 @@ fun main(args: Array<String>) {
 
     val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
     val dbi = config.database.start()
-    val objectMapper = ObjectMapper()
 
-    val compiler = Compiler(dbi, objectMapper)
-    val compileExecutor = Executors.newFixedThreadPool(config.compilerThreads)
+    val session = Session(dbi)
+
+    val compiler = Compiler(dbi, session)
     val artifactIds = ArrayList<String>()
     for (artifact in config.artifacts) {
         val id = when (artifact) {
@@ -28,18 +28,24 @@ fun main(args: Array<String>) {
         }
 
         artifactIds.add(id)
-        compileExecutor.execute {
-            try {
-                when (artifact) {
-                    is ArtifactConfig.OldJava -> compiler.compileOldJava(id, artifact)
-                    is ArtifactConfig.Java -> compiler.compileJava(id, artifact)
-                    is ArtifactConfig.Maven -> compiler.compileMaven(id, artifact)
-                }
-                log.info("$id is ready")
-            } catch (e: Exception) {
-                log.error("Failed to compile artifact {}", artifact, e)
+        try {
+            when (artifact) {
+                is ArtifactConfig.OldJava -> compiler.compileOldJava(id, artifact)
+                is ArtifactConfig.Java -> compiler.compileJava(id, artifact)
+                is ArtifactConfig.Maven -> compiler.compileMaven(id, artifact)
             }
+        } catch (e: Exception) {
+            log.error("Failed to compile artifact {}", artifact, e)
         }
     }
-    compileExecutor.shutdown()
+
+    val totalArtifacts = dbi.inTransaction { conn: Handle, _ ->
+        (conn.select("select count(*) as c from artifacts")[0]["c"] as Number).toInt()
+    }
+    val majorUpdate = session.taskCount > 0.6 * totalArtifacts
+    log.info("Updating {} of {} artifacts, this seems to be a ${if (majorUpdate) "major" else "minor"} update",
+            session.taskCount,
+            totalArtifacts)
+
+    session.execute(majorUpdate = majorUpdate)
 }

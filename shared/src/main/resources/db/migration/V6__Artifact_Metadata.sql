@@ -1,1 +1,0 @@
-alter table artifacts add column metadata bytea not null default '{}';

@@ -13,6 +13,5 @@ data class Config(
                 ArtifactConfig.OldJava("8", Paths.get("/usr/lib/jvm/java-8-openjdk/src.zip"), ArtifactMetadata()),
                 ArtifactConfig.Java("10", Paths.get("/usr/lib/jvm/java-10-openjdk"), ArtifactMetadata()),
                 ArtifactConfig.Maven("com.google.guava", "guava", "25.1-jre")
-        ),
-        val compilerThreads: Int
+        )
 )

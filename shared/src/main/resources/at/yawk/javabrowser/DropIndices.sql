@@ -1,0 +1,4 @@
+drop index source_file_index;
+drop index binding_index;
+drop index binding_references_targetbinding_type_sourceartifactid_idx;
+drop index binding_references_targetbinding_type_sourceartifactid_sour_idx;

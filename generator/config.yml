@@ -3,7 +3,6 @@ database:
   password: password
   url: jdbc:postgresql://postgres.local.yawk.at/java-browser
   #url: jdbc:postgresql://127.0.0.1/java-browser
-compilerThreads: 1
 artifacts:
 - type: old-java
   src: "/usr/lib/jvm/java-8-openjdk/src.zip"

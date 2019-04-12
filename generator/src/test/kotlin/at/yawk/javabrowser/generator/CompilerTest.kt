@@ -13,9 +13,11 @@ class CompilerTest {
     @Test
     fun maven() {
         val dbi = createDb()
-        val compiler = Compiler(dbi, ObjectMapper().findAndRegisterModules())
+        val session = Session(dbi)
+        val compiler = Compiler(dbi, session)
         compiler.compileMaven("com.google.guava/guava/25.1-jre",
                 ArtifactConfig.Maven("com.google.guava", "guava", "25.1-jre"))
+        session.execute()
 
         dbi.inTransaction { conn: Handle, _ ->
             Assert.assertEquals(
@@ -38,7 +40,7 @@ class CompilerTest {
     @Test
     fun `maven metadata`() {
         val dbi = createDb()
-        val compiler = Compiler(dbi, ObjectMapper().findAndRegisterModules())
+        val compiler = Compiler(dbi, Session(dbi))
 
         Assert.assertEquals(
                 compiler.resolveMavenMetadata(
