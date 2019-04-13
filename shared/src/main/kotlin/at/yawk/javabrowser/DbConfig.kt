@@ -3,7 +3,6 @@ package at.yawk.javabrowser
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
 
 /**
  * @author yawkat
@@ -13,17 +12,23 @@ data class DbConfig(
         val user: String,
         val password: String
 ) {
-    fun start(): DBI {
+    enum class Mode {
+        FRONTEND,
+        GENERATOR,
+    }
+
+    fun start(mode: Mode): DBI {
         val hikariConfig = HikariConfig()
         hikariConfig.jdbcUrl = url
         hikariConfig.username = user
         hikariConfig.password = System.getProperty("at.yawk.javabrowser.db-password", password)
+        if (mode == Mode.FRONTEND) {
+            hikariConfig.connectionInitSql = "set search_path to interactive, data"
+        } else {
+            hikariConfig.connectionInitSql = "set search_path to data"
+        }
         val dataSource = HikariDataSource(hikariConfig)
 
-        val dbi = DBI(dataSource)
-
-        dbi.inTransaction { conn: Handle, _ -> DbMigration.initDb(conn) }
-
-        return dbi
+        return DBI(dataSource)
     }
 }

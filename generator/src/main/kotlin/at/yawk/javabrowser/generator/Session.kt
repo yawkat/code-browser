@@ -29,57 +29,102 @@ class Session(
         tasks.add(Task(artifactId, metadata, closure))
     }
 
-    val taskCount: Int
-        get() = tasks.size
-
-    fun execute(majorUpdate: Boolean = false) {
+    fun execute() {
         val ourTasks = ArrayList(tasks)
         tasks.clear()
-
         dbi.inTransaction { conn: Handle, _ ->
+            val present = conn.select("select id from artifacts").map { it["id"] as String }
+            val updating = ourTasks.map { it.artifactId }
+            val mode = when {
+                present.all { it in updating } -> UpdateMode.FULL
+                updating.size > present.size * 0.6 -> UpdateMode.MAJOR
+                else -> UpdateMode.MINOR
+            }
+
+            log.info("Updating {} artifacts in mode {}", updating.size, mode)
+
             val executor = Executors.newCachedThreadPool()
             try {
-                SessionConnection(objectMapper, conn, ourTasks, majorUpdate, executor).run()
+                SessionConnection(objectMapper, conn, ourTasks, mode, executor).run()
             } finally {
                 executor.shutdownNow()
             }
         }
     }
 
+    enum class UpdateMode {
+        /**
+         * Create a new schema and start from the ground up.
+         */
+        FULL,
+        /**
+         * Create a new schema and start from the ground up.
+         */
+        MAJOR,
+        MINOR,
+    }
+
     private class SessionConnection(
             val objectMapper: ObjectMapper,
             val conn: Handle,
             val tasks: List<Task>,
-            val majorUpdate: Boolean,
+            val mode: UpdateMode,
             val executor: ExecutorService
     ) {
-        private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
-        private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)")
+        private val refBatch = conn.prepareBatch("insert into ${mapTable("binding_references")} (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
+        private val declBatch = conn.prepareBatch("insert into ${mapTable("bindings")} (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)")
+
+        private fun mapTable(tableName: String): String {
+            /*if (mode == UpdateMode.FULL &&
+                    (tableName == "binding_references" || tableName == "bindings" || tableName == "sourceFiles")) {
+                return tableName + "_wip"
+            } else {
+             */
+            return tableName
+            //}
+        }
 
         fun run() {
-            if (majorUpdate) {
+            if (mode == UpdateMode.MAJOR) {
                 DbMigration.dropIndicesForUpdate(conn)
             }
 
             fun delete(inParam: String, args: Array<String>) {
+                //if (mode != UpdateMode.FULL) {
                 conn.update("delete from bindings where artifactId $inParam", *args)
                 conn.update("delete from binding_references where sourceArtifactId $inParam", *args)
                 conn.update("delete from sourceFiles where artifactId $inParam", *args)
+                //}
                 conn.update("delete from dependencies where fromArtifactId $inParam", *args)
                 conn.update("delete from artifacts where id $inParam", *args)
             }
 
             val artifactIds = tasks.map { it.artifactId }
-            log.info("Cleaning up in preparation for {}", artifactIds)
+            log.info("Cleaning up in preparation for {}", artifactIds)// recreate indices
 
-            if (majorUpdate) {
-                val inParam = List(artifactIds.size) { "?" }.joinToString(separator = ",",
-                        prefix = "in (",
-                        postfix = ")")
-                delete(inParam, artifactIds.toTypedArray())
-            } else {
-                for (artifactId in artifactIds) {
-                    delete("= ?", arrayOf(artifactId))
+            // check exception
+            when (mode) {
+                UpdateMode.MAJOR -> {
+                    val inParam = List(artifactIds.size) { "?" }.joinToString(separator = ",",
+                            prefix = "in (",
+                            postfix = ")")
+                    delete(inParam, artifactIds.toTypedArray())
+                }
+                UpdateMode.MINOR -> {
+                    if (mode == UpdateMode.FULL) {
+                        conn.update("create table ${mapTable("bindings")} (like bindings including all)")
+                        conn.update("create table ${mapTable("binding_references")} (like binding_references including all)")
+                        conn.update("create table ${mapTable("sourceFiles")} (like sourceFiles including all)")
+                    }
+                    for (artifactId in artifactIds) {
+                        delete("= ?", arrayOf(artifactId))
+                    }
+                }
+                UpdateMode.FULL -> {
+                    conn.update("create schema wip")
+                    conn.update("set search_path to wip")
+                    // create tables in new schema
+                    DbMigration.initDataSchema(conn)
                 }
             }
 
@@ -91,8 +136,11 @@ class Session(
                 val printerImpl = PrinterImpl(task.artifactId)
                 val concurrentPrinter = ConcurrentPrinter(printerImpl)
                 val future = executor.submit {
-                    task.closure(concurrentPrinter)
-                    concurrentPrinter.finish()
+                    try {
+                        task.closure(concurrentPrinter)
+                    } finally {
+                        concurrentPrinter.finish()
+                    }
                 }
                 concurrentPrinter.work(printerImpl)
                 future.get() // check exception
@@ -105,12 +153,16 @@ class Session(
                 log.info("${task.artifactId} is ready")
             }
 
-            if (majorUpdate) {
-                DbMigration.recreateIndices(conn)
-            }
+            if (mode != UpdateMode.MINOR) {
+                DbMigration.createIndices(conn)
+                log.info("Updating reference count table")
+                conn.update("refresh materialized view binding_references_count_view")
 
-            log.info("Updating reference count table")
-            conn.update("refresh materialized view binding_references_count_view")
+                if (mode == UpdateMode.FULL) {
+                    conn.update("drop schema data cascade")
+                    conn.update("alter schema wip rename to data")
+                }
+            }
         }
 
         private inner class PrinterImpl(val artifactId: String) : PrinterWithDependencies {
@@ -125,7 +177,7 @@ class Session(
             override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
                 hasFiles = true
                 conn.insert(
-                        "insert into sourceFiles (artifactId, path, json) VALUES (?, ?, ?)",
+                        "insert into ${mapTable("sourceFiles")} (artifactId, path, json) VALUES (?, ?, ?)",
                         artifactId,
                         path,
                         objectMapper.writeValueAsBytes(sourceFile))

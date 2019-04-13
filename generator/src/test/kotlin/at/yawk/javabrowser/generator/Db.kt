@@ -10,5 +10,5 @@ import ru.yandex.qatools.embed.postgresql.EmbeddedPostgres
 fun createDb(): DBI {
     val embeddedPostgres = EmbeddedPostgres()
     val config = DbConfig(embeddedPostgres.start(), EmbeddedPostgres.DEFAULT_USER, EmbeddedPostgres.DEFAULT_PASSWORD)
-    return config.start()
+    return config.start(mode = DbConfig.Mode.GENERATOR)
 }

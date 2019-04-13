@@ -1,5 +1,7 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.DbConfig
+import at.yawk.javabrowser.DbMigration
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.undertow.Undertow
@@ -26,7 +28,8 @@ private val log = LoggerFactory.getLogger("at.yawk.javabrowser.server.Bootstrap"
 fun main(args: Array<String>) {
     val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
 
-    val dbi = config.database.start()
+    val dbi = config.database.start(mode = DbConfig.Mode.FRONTEND)
+    dbi.inTransaction { conn, _ -> DbMigration.initInteractiveSchema(conn) }
     val objectMapper = ObjectMapper().findAndRegisterModules()
 
     val exceptions: (ExceptionHandler) -> Unit = {

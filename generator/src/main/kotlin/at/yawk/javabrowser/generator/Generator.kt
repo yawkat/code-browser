@@ -1,8 +1,9 @@
 package at.yawk.javabrowser.generator
 
+import at.yawk.javabrowser.DbConfig
+import at.yawk.javabrowser.DbMigration
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -14,7 +15,15 @@ private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.Generat
 fun main(args: Array<String>) {
 
     val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
-    val dbi = config.database.start()
+    val dbi = config.database.start(mode = DbConfig.Mode.GENERATOR)
+
+    dbi.inTransaction { conn, _ ->
+        // if the old schema is missing entirely, create it now so that version checks, etc. below can rely on the
+        // tables existing (albeit empty)
+        conn.update("create schema if not exists data")
+        DbMigration.initDataSchema(conn)
+        DbMigration.createIndices(conn)
+    }
 
     val session = Session(dbi)
 
@@ -39,13 +48,5 @@ fun main(args: Array<String>) {
         }
     }
 
-    val totalArtifacts = dbi.inTransaction { conn: Handle, _ ->
-        (conn.select("select count(*) as c from artifacts")[0]["c"] as Number).toInt()
-    }
-    val majorUpdate = session.taskCount > 0.6 * totalArtifacts
-    log.info("Updating {} of {} artifacts, this seems to be a ${if (majorUpdate) "major" else "minor"} update",
-            session.taskCount,
-            totalArtifacts)
-
-    session.execute(majorUpdate = majorUpdate)
+    session.execute()
 }

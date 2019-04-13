@@ -9,9 +9,14 @@ import org.slf4j.LoggerFactory
 private val log = LoggerFactory.getLogger(DbMigration::class.java)
 
 object DbMigration {
-    fun initDb(conn: Handle) {
+    fun initDataSchema(conn: Handle) {
         log.info("Initializing DB")
-        conn.createScript("at/yawk/javabrowser/InitDb.sql").execute()
+        conn.createScript("at/yawk/javabrowser/InitDataSchema.sql").execute()
+    }
+
+    fun initInteractiveSchema(conn: Handle) {
+        log.info("Initializing DB")
+        conn.createScript("at/yawk/javabrowser/InitInteractiveSchema.sql").execute()
     }
 
     fun dropIndicesForUpdate(conn: Handle) {
@@ -19,7 +24,8 @@ object DbMigration {
         conn.createScript("at/yawk/javabrowser/DropIndices.sql").execute()
     }
 
-    fun recreateIndices(conn: Handle) {
-        initDb(conn)
+    fun createIndices(conn: Handle) {
+        log.info("Creating indices")
+        conn.createScript("at/yawk/javabrowser/CreateIndices.sql").execute()
     }
 }
