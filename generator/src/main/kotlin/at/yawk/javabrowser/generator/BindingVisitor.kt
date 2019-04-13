@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.dom.ASTVisitor
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration
 import org.eclipse.jdt.core.dom.Annotation
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
+import org.eclipse.jdt.core.dom.ArrayType
 import org.eclipse.jdt.core.dom.CastExpression
 import org.eclipse.jdt.core.dom.ClassInstanceCreation
 import org.eclipse.jdt.core.dom.Comment
@@ -27,6 +28,7 @@ import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
 import org.eclipse.jdt.core.dom.ImportDeclaration
 import org.eclipse.jdt.core.dom.InstanceofExpression
+import org.eclipse.jdt.core.dom.IntersectionType
 import org.eclipse.jdt.core.dom.Javadoc
 import org.eclipse.jdt.core.dom.LambdaExpression
 import org.eclipse.jdt.core.dom.MarkerAnnotation
@@ -39,6 +41,7 @@ import org.eclipse.jdt.core.dom.Modifier
 import org.eclipse.jdt.core.dom.Name
 import org.eclipse.jdt.core.dom.NameQualifiedType
 import org.eclipse.jdt.core.dom.NormalAnnotation
+import org.eclipse.jdt.core.dom.ParameterizedType
 import org.eclipse.jdt.core.dom.SimpleName
 import org.eclipse.jdt.core.dom.SimpleType
 import org.eclipse.jdt.core.dom.SingleMemberAnnotation
@@ -51,10 +54,12 @@ import org.eclipse.jdt.core.dom.Type
 import org.eclipse.jdt.core.dom.TypeDeclaration
 import org.eclipse.jdt.core.dom.TypeMethodReference
 import org.eclipse.jdt.core.dom.TypeParameter
+import org.eclipse.jdt.core.dom.UnionType
 import org.eclipse.jdt.core.dom.VariableDeclaration
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement
+import org.eclipse.jdt.core.dom.WildcardType
 import org.eclipse.jdt.internal.compiler.ast.ReferenceExpression
 import org.eclipse.jdt.internal.compiler.lookup.MethodBinding
 import org.eclipse.jdt.internal.compiler.lookup.TypeBinding
@@ -259,6 +264,31 @@ internal class BindingVisitor(
         return false
     }
 
+    override fun visit(node: ArrayType): Boolean {
+        visitType(node)
+        return false
+    }
+
+    override fun visit(node: WildcardType): Boolean {
+        visitType(node)
+        return false
+    }
+
+    override fun visit(node: IntersectionType): Boolean {
+        visitType(node)
+        return false
+    }
+
+    override fun visit(node: UnionType): Boolean {
+        visitType(node)
+        return false
+    }
+
+    override fun visit(node: ParameterizedType): Boolean {
+        visitType(node)
+        return false
+    }
+
     private fun visitType(node: Type) {
         val parent = node.parent
         if (parent !is AbstractTypeDeclaration &&
@@ -279,6 +309,36 @@ internal class BindingVisitor(
     }
 
     private fun visitType0(node: Type, refType: BindingRefType) {
+        if (node is ParameterizedType) {
+            visitType0(node.type, refType)
+            for (typeArgument in node.typeArguments()) {
+                visitType0(typeArgument as Type, BindingRefType.TYPE_PARAMETER)
+            }
+            return
+        }
+        if (node is WildcardType) {
+            val bound = node.bound
+            if (bound != null) {
+                return visitType0(bound, BindingRefType.WILDCARD_BOUND)
+            }
+        }
+        if (node is IntersectionType) {
+            for (type in node.types()) {
+                visitType0(type as Type, refType)
+            }
+            return
+        }
+        if (node is UnionType) {
+            for (type in node.types()) {
+                visitType0(type as Type, refType)
+            }
+            return
+        }
+        if (node is ArrayType) {
+            visitType0(node.elementType, BindingRefType.TYPE_PARAMETER)
+            return
+        }
+
         val binding = node.resolveBinding()
         if (binding != null) {
             val s = Bindings.toString(binding)

@@ -493,6 +493,48 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `type parameter`() {
+        write("A.java", "import java.util.List; class A { List<String> list; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
+    @Test
+    fun `wildcard parameter`() {
+        write("A.java", "import java.util.List; class A { List<? extends String> list; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.WILDCARD_BOUND &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
+    @Test
+    fun `array type`() {
+        write("A.java", "import java.util.List; class A { String[] list; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")

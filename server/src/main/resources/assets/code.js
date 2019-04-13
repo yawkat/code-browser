@@ -165,6 +165,12 @@ function showReferences(bindingName, superHtml) {
                         case "METHOD_REFERENCE_RECEIVER_TYPE":
                             name = "Method reference receiver type at";
                             break;
+                        case "TYPE_PARAMETER":
+                            name = "Type parameter at";
+                            break;
+                        case "WILDCARD_BOUND":
+                            name = "Wildcard bound at";
+                            break;
                         default:
                             name = key;
                             break;
