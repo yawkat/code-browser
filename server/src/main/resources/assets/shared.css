@@ -418,3 +418,17 @@ ul.reference-detail-list h4 {
     font-size: .85em;
     margin-top: 1em;
 }
+
+:target {
+    background-color: #64ccc9;
+}
+
+/* This ensures the target overlay is at least 2em wide. */
+:target::before {
+    content: "";
+    padding-right: 2em;
+    margin-right: -2em;
+    display: inline-block;
+    z-index: -100;
+    background-color: #64ccc9;
+}
