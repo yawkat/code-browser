@@ -12,6 +12,7 @@ import org.eclipse.jdt.core.dom.ASTVisitor
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration
 import org.eclipse.jdt.core.dom.Annotation
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
+import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration
 import org.eclipse.jdt.core.dom.ArrayType
 import org.eclipse.jdt.core.dom.CastExpression
 import org.eclipse.jdt.core.dom.ClassInstanceCreation
@@ -23,6 +24,7 @@ import org.eclipse.jdt.core.dom.EnumDeclaration
 import org.eclipse.jdt.core.dom.ExpressionMethodReference
 import org.eclipse.jdt.core.dom.FieldAccess
 import org.eclipse.jdt.core.dom.FieldDeclaration
+import org.eclipse.jdt.core.dom.IBinding
 import org.eclipse.jdt.core.dom.IMethodBinding
 import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
@@ -145,26 +147,35 @@ internal class BindingVisitor(
         return false
     }
 
-    override fun visit(node: MethodDeclaration): Boolean {
-        val resolved = node.resolveBinding()
+    private fun visitMethodDecl(target: ASTNode, resolved: IMethodBinding?) {
         if (resolved != null) {
-            val overrides = annotateOverrides(node.name, resolved)
+            val overrides = annotateOverrides(target, resolved)
 
             val binding = Bindings.toString(resolved)
             if (binding != null) {
                 annotatedSourceFile.annotate(
-                        node.name,
+                        target,
                         BindingDecl(binding, overrides.mapNotNull {
                             val b = Bindings.toString(it) ?: return@mapNotNull null
                             BindingDecl.Super(it.declaringClass.name + "." + it.name, b)
                         }))
             }
         }
+    }
+
+    override fun visit(node: MethodDeclaration): Boolean {
+        visitMethodDecl(node.name, node.resolveBinding())
         val ret = node.returnType2
         if (ret != null) visitType0(ret, BindingRefType.RETURN_TYPE)
         for (thrownExceptionType in node.thrownExceptionTypes()) {
             visitType0(thrownExceptionType as Type, BindingRefType.THROWS_DECLARATION)
         }
+        return true
+    }
+
+    override fun visit(node: AnnotationTypeMemberDeclaration): Boolean {
+        visitMethodDecl(node.name, node.resolveBinding())
+        visitType0(node.type, BindingRefType.RETURN_TYPE)
         return true
     }
 
@@ -303,7 +314,8 @@ internal class BindingVisitor(
                 node.locationInParent != ClassInstanceCreation.TYPE_PROPERTY &&
                 node.locationInParent != MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY &&
                 node.locationInParent != CreationReference.TYPE_PROPERTY &&
-                node.locationInParent != TypeMethodReference.TYPE_PROPERTY) {
+                node.locationInParent != TypeMethodReference.TYPE_PROPERTY &&
+                node.locationInParent != AnnotationTypeMemberDeclaration.TYPE_PROPERTY) {
 
             visitType0(node, BindingRefType.UNCLASSIFIED)
         }
