@@ -576,6 +576,35 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `super field access`() {
+        write("A.java", "class A { Object object; }")
+        write("B.java", "class B extends A {{ object = super.object; }}")
+        val entries = compile().getValue("B.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.FIELD_ACCESS &&
+                            annotation.binding == "A#object"
+                })
+        )
+    }
+
+    @Test
+    fun `method ref to constructor`() {
+        write("A.java", "import java.util.function.Consumer; class A { Consumer<String> c = String::new; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.METHOD_REFERENCE_RECEIVER_TYPE &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")

@@ -302,8 +302,8 @@ internal class BindingVisitor(
                 node.locationInParent != CastExpression.TYPE_PROPERTY &&
                 node.locationInParent != ClassInstanceCreation.TYPE_PROPERTY &&
                 node.locationInParent != MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY &&
-                node.locationInParent != CreationReference::TYPE_PROPERTY &&
-                node.locationInParent != TypeMethodReference::TYPE_PROPERTY) {
+                node.locationInParent != CreationReference.TYPE_PROPERTY &&
+                node.locationInParent != TypeMethodReference.TYPE_PROPERTY) {
 
             visitType0(node, BindingRefType.UNCLASSIFIED)
         }
@@ -486,7 +486,8 @@ internal class BindingVisitor(
                 node.locationInParent != ExpressionMethodReference.EXPRESSION_PROPERTY &&
                 node.locationInParent != ExpressionMethodReference.NAME_PROPERTY &&
                 node.locationInParent != TypeMethodReference.NAME_PROPERTY &&
-                node.locationInParent != SuperMethodReference.NAME_PROPERTY) {
+                node.locationInParent != SuperMethodReference.NAME_PROPERTY &&
+                node.locationInParent != SuperFieldAccess.NAME_PROPERTY) {
             visitName0(node, null)
         }
     }

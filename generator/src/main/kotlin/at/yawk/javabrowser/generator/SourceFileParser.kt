@@ -55,6 +55,14 @@ class SourceFileParser(
 
     private class Requestor(val root: Path, val printer: Printer, val pathPrefix: String) : FileASTRequestor() {
         override fun acceptAST(sourceFilePath: String, ast: CompilationUnit) {
+            try {
+                accept0(sourceFilePath, ast)
+            } catch (e: Exception) {
+                throw RuntimeException("Failed to accept $sourceFilePath", e)
+            }
+        }
+
+        private fun accept0(sourceFilePath: String, ast: CompilationUnit) {
             val relativePath = pathPrefix + root.relativize(Paths.get(sourceFilePath))
 
             val annotatedSourceFile = AnnotatedSourceFile(Files.readAllBytes(Paths.get(
