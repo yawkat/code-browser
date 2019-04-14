@@ -2,17 +2,45 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingRefType
+import at.yawk.javabrowser.DbConfig
+import at.yawk.javabrowser.DbMigration
+import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.testng.Assert
+import org.testng.annotations.AfterMethod
+import org.testng.annotations.AfterTest
+import org.testng.annotations.BeforeMethod
+import org.testng.annotations.BeforeTest
 import org.testng.annotations.Test
+import ru.yandex.qatools.embed.postgresql.EmbeddedPostgres
 
 /**
  * @author yawkat
  */
 class CompilerTest {
+    private lateinit var dbi: DBI
+    private lateinit var embeddedPostgres: EmbeddedPostgres
+
+    @BeforeMethod
+    fun initDb() {
+        embeddedPostgres = EmbeddedPostgres()
+        val url = embeddedPostgres.start()
+        val config = DbConfig(url, EmbeddedPostgres.DEFAULT_USER, EmbeddedPostgres.DEFAULT_PASSWORD)
+        dbi = config.start(mode = DbConfig.Mode.GENERATOR)
+        dbi.inTransaction { conn, _ ->
+            conn.update("create schema data")
+            DbMigration.initDataSchema(conn)
+            DbMigration.createIndices(conn)
+        }
+    }
+
+    @AfterMethod(alwaysRun = true)
+    fun shutdownDb() {
+        embeddedPostgres.stop()
+    }
+
     @Test
     fun maven() {
-        val dbi = createDb()
         val session = Session(dbi)
         val compiler = Compiler(dbi, session)
         compiler.compileMaven("com.google.guava/guava/25.1-jre",
@@ -39,7 +67,6 @@ class CompilerTest {
 
     @Test
     fun `maven metadata`() {
-        val dbi = createDb()
         val compiler = Compiler(dbi, Session(dbi))
 
         Assert.assertEquals(
@@ -87,7 +114,6 @@ class CompilerTest {
 
     @Test
     fun `super method ref`() {
-        val dbi = createDb()
         val session = Session(dbi)
         val compiler = Compiler(dbi, session)
         compiler.compileMaven("x",

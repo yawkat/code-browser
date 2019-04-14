@@ -71,18 +71,8 @@ class Session(
             val mode: UpdateMode,
             val executor: ExecutorService
     ) {
-        private val refBatch = conn.prepareBatch("insert into ${mapTable("binding_references")} (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
-        private val declBatch = conn.prepareBatch("insert into ${mapTable("bindings")} (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)")
-
-        private fun mapTable(tableName: String): String {
-            /*if (mode == UpdateMode.FULL &&
-                    (tableName == "binding_references" || tableName == "bindings" || tableName == "sourceFiles")) {
-                return tableName + "_wip"
-            } else {
-             */
-            return tableName
-            //}
-        }
+        private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
+        private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)")
 
         fun run() {
             if (mode == UpdateMode.MAJOR) {
@@ -90,11 +80,9 @@ class Session(
             }
 
             fun delete(inParam: String, args: Array<String>) {
-                //if (mode != UpdateMode.FULL) {
                 conn.update("delete from bindings where artifactId $inParam", *args)
                 conn.update("delete from binding_references where sourceArtifactId $inParam", *args)
                 conn.update("delete from sourceFiles where artifactId $inParam", *args)
-                //}
                 conn.update("delete from dependencies where fromArtifactId $inParam", *args)
                 conn.update("delete from artifacts where id $inParam", *args)
             }
@@ -112,9 +100,9 @@ class Session(
                 }
                 UpdateMode.MINOR -> {
                     if (mode == UpdateMode.FULL) {
-                        conn.update("create table ${mapTable("bindings")} (like bindings including all)")
-                        conn.update("create table ${mapTable("binding_references")} (like binding_references including all)")
-                        conn.update("create table ${mapTable("sourceFiles")} (like sourceFiles including all)")
+                        conn.update("create table bindings (like bindings including all)")
+                        conn.update("create table binding_references (like binding_references including all)")
+                        conn.update("create table sourceFiles (like sourceFiles including all)")
                     }
                     for (artifactId in artifactIds) {
                         delete("= ?", arrayOf(artifactId))
@@ -159,8 +147,11 @@ class Session(
                 conn.update("refresh materialized view binding_references_count_view")
 
                 if (mode == UpdateMode.FULL) {
+                    log.info("Replacing schema")
                     conn.update("drop schema data cascade")
                     conn.update("alter schema wip rename to data")
+                    // reset connection search_path in case the connection is reused
+                    conn.update("set search_path to data")
                 }
             }
         }
@@ -177,7 +168,7 @@ class Session(
             override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
                 hasFiles = true
                 conn.insert(
-                        "insert into ${mapTable("sourceFiles")} (artifactId, path, json) VALUES (?, ?, ?)",
+                        "insert into sourceFiles (artifactId, path, json) VALUES (?, ?, ?)",
                         artifactId,
                         path,
                         objectMapper.writeValueAsBytes(sourceFile))
