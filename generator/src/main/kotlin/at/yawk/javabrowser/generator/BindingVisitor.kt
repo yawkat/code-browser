@@ -315,7 +315,8 @@ internal class BindingVisitor(
                 node.locationInParent != MethodDeclaration.THROWN_EXCEPTION_TYPES_PROPERTY &&
                 node.locationInParent != CreationReference.TYPE_PROPERTY &&
                 node.locationInParent != TypeMethodReference.TYPE_PROPERTY &&
-                node.locationInParent != AnnotationTypeMemberDeclaration.TYPE_PROPERTY) {
+                node.locationInParent != AnnotationTypeMemberDeclaration.TYPE_PROPERTY &&
+                node.locationInParent != MethodInvocation.TYPE_ARGUMENTS_PROPERTY) {
 
             visitType0(node, BindingRefType.UNCLASSIFIED)
         }
@@ -369,6 +370,9 @@ internal class BindingVisitor(
         val expr = node.expression
         if (expr is Name && expr.resolveBinding() is ITypeBinding) {
             visitName0(expr, BindingRefType.STATIC_MEMBER_QUALIFIER)
+        }
+        for (typeArgument in node.typeArguments()) {
+            visitType0(typeArgument as Type, BindingRefType.TYPE_PARAMETER)
         }
         return true
     }
