@@ -52,6 +52,7 @@ import org.eclipse.jdt.core.dom.SuperMethodInvocation
 import org.eclipse.jdt.core.dom.SuperMethodReference
 import org.eclipse.jdt.core.dom.Type
 import org.eclipse.jdt.core.dom.TypeDeclaration
+import org.eclipse.jdt.core.dom.TypeLiteral
 import org.eclipse.jdt.core.dom.TypeMethodReference
 import org.eclipse.jdt.core.dom.TypeParameter
 import org.eclipse.jdt.core.dom.UnionType
@@ -355,7 +356,7 @@ internal class BindingVisitor(
         }
         val expr = node.expression
         if (expr is Name && expr.resolveBinding() is ITypeBinding) {
-            visitName0(expr, BindingRefType.STATIC_METHOD_CALL_TYPE)
+            visitName0(expr, BindingRefType.STATIC_MEMBER_QUALIFIER)
         }
         return true
     }
@@ -652,6 +653,12 @@ internal class BindingVisitor(
         }
         visitMethodReference(node)
         return true
+    }
+
+    override fun visit(node: TypeLiteral): Boolean {
+        // X.class is technically not a static member, but who cares.
+        visitType0(node.type, BindingRefType.STATIC_MEMBER_QUALIFIER)
+        return false
     }
 
     override fun endVisit(node: Javadoc) {

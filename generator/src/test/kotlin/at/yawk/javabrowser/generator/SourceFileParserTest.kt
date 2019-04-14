@@ -118,7 +118,7 @@ class SourceFileParserTest {
         MatcherAssert.assertThat(
                 compileOne().entries,
                 Matchers.hasItem(annotate(a,
-                        BindingRef(BindingRefType.STATIC_METHOD_CALL_TYPE,
+                        BindingRef(BindingRefType.STATIC_MEMBER_QUALIFIER,
                                 "A",
                                 3), "A", 1))
         )
@@ -329,7 +329,7 @@ class SourceFileParserTest {
                 compileOne().entries,
                 Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
                     val annotation = it.annotation
-                    annotation is BindingRef && annotation.type == BindingRefType.STATIC_METHOD_CALL_TYPE &&
+                    annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
                             annotation.binding == "java.lang.String"
                 })
         )
@@ -530,6 +530,20 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
+    @Test
+    fun `class expression`() {
+        write("A.java", "class A { Class<?> c = String.class; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
                             annotation.binding == "java.lang.String"
                 })
         )

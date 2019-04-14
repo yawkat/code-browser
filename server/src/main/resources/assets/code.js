@@ -159,8 +159,8 @@ function showReferences(bindingName, superHtml) {
                         case "THROWS_DECLARATION":
                             name = "Throws declaration at";
                             break;
-                        case "STATIC_METHOD_CALL_TYPE":
-                            name = "Static method call receiver type at";
+                        case "STATIC_MEMBER_QUALIFIER":
+                            name = "Static member qualifier at";
                             break;
                         case "METHOD_REFERENCE_RECEIVER_TYPE":
                             name = "Method reference receiver type at";

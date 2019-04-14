@@ -46,7 +46,7 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     ANNOTATION_TYPE(16, "Annotation type"),
     CONSTRUCTOR_CALL(17, "Constructor call"),
     THROWS_DECLARATION(18, "Throws declaration"),
-    STATIC_METHOD_CALL_TYPE(19, "Static call type"),
+    STATIC_MEMBER_QUALIFIER(19, "Static member qualifier"),
     METHOD_REFERENCE_RECEIVER_TYPE(20, "Method ref receiver"),
     TYPE_PARAMETER(21, "Type parameter"),
     WILDCARD_BOUND(22, "Wildcard bound");
