@@ -467,7 +467,7 @@ internal class BindingVisitor(
                 (parent !is Annotation || node != parent.typeName) &&
                 parent !is Type &&
                 (node.locationInParent != MethodInvocation.EXPRESSION_PROPERTY ||
-                        node.resolveBinding() !is TypeBinding) &&
+                        node.resolveBinding() !is ITypeBinding) &&
                 node.locationInParent != FieldAccess.NAME_PROPERTY &&
                 node.locationInParent != ExpressionMethodReference.EXPRESSION_PROPERTY &&
                 node.locationInParent != ExpressionMethodReference.NAME_PROPERTY &&
