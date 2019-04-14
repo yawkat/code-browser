@@ -51,7 +51,7 @@ class Compiler(private val dbi: DBI, private val session: Session) {
          */
         private const val NOMINAL_JAVA_VERSION = "java/11"
 
-        const val VERSION = 17
+        const val VERSION = 18
     }
 
     private fun needsRecompile(artifactId: String): Boolean {
