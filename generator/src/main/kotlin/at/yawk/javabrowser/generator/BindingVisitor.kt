@@ -42,6 +42,7 @@ import org.eclipse.jdt.core.dom.Name
 import org.eclipse.jdt.core.dom.NameQualifiedType
 import org.eclipse.jdt.core.dom.NormalAnnotation
 import org.eclipse.jdt.core.dom.ParameterizedType
+import org.eclipse.jdt.core.dom.QualifiedName
 import org.eclipse.jdt.core.dom.SimpleName
 import org.eclipse.jdt.core.dom.SimpleType
 import org.eclipse.jdt.core.dom.SingleMemberAnnotation
@@ -63,7 +64,6 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement
 import org.eclipse.jdt.core.dom.WildcardType
 import org.eclipse.jdt.internal.compiler.ast.ReferenceExpression
 import org.eclipse.jdt.internal.compiler.lookup.MethodBinding
-import org.eclipse.jdt.internal.compiler.lookup.TypeBinding
 import java.lang.Long
 
 internal class BindingVisitor(
@@ -443,6 +443,10 @@ internal class BindingVisitor(
             if (s != null) annotatedSourceFile.annotate(node.name,
                     makeBindingRef(BindingRefType.FIELD_ACCESS, s))
         }
+        val expr = node.expression
+        if (expr is Name && expr.resolveBinding() is ITypeBinding) {
+            visitName0(expr, BindingRefType.STATIC_MEMBER_QUALIFIER)
+        }
         return true
     }
 
@@ -457,6 +461,16 @@ internal class BindingVisitor(
     }
 
     override fun visit(node: SimpleName): Boolean {
+        visitNameNode(node)
+        return false
+    }
+
+    override fun visit(node: QualifiedName): Boolean {
+        visitNameNode(node)
+        return false
+    }
+
+    private fun visitNameNode(node: Name) {
         val parent = node.parent
         if (node.locationInParent != MethodInvocation.NAME_PROPERTY &&
                 node.locationInParent != SuperMethodInvocation.NAME_PROPERTY &&
@@ -475,20 +489,27 @@ internal class BindingVisitor(
                 node.locationInParent != SuperMethodReference.NAME_PROPERTY) {
             visitName0(node, null)
         }
-        return false
     }
 
     private fun visitName0(node: Name, refType: BindingRefType?) {
         val binding = node.resolveBinding()
         if (binding is IVariableBinding) {
+            val target = if (node is QualifiedName) node.name else node
             if (binding.isField) {
                 val s = Bindings.toString(binding)
-                if (s != null) annotatedSourceFile.annotate(node,
+                if (s != null) annotatedSourceFile.annotate(target,
                         makeBindingRef(refType ?: BindingRefType.FIELD_ACCESS, s))
             } else { // local
                 val id = Long.toHexString(Hashing.goodFastHash(64)
                         .hashString(binding.key, Charsets.UTF_8).asLong())
-                annotatedSourceFile.annotate(node, LocalVariableRef(id))
+                annotatedSourceFile.annotate(target, LocalVariableRef(id))
+            }
+
+            if (node is QualifiedName) {
+                val qualifier = node.qualifier
+                if (qualifier.resolveBinding() is ITypeBinding) {
+                    visitName0(qualifier, BindingRefType.STATIC_MEMBER_QUALIFIER)
+                }
             }
         }
         if (binding is ITypeBinding) {

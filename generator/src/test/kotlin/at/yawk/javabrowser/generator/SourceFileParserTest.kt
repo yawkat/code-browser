@@ -550,7 +550,7 @@ class SourceFileParserTest {
     }
 
     @Test
-    fun `static method call`() {
+    fun `static method call isn't unclassified`() {
         write("A.java", "class A {{ String.format(\"x\"); }}")
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
@@ -559,6 +559,20 @@ class SourceFileParserTest {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.UNCLASSIFIED
                 }))
+        )
+    }
+
+    @Test
+    fun `static field access`() {
+        write("A.java", "class A {{ Object o = System.out; }}")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
+                            annotation.binding == "java.lang.System"
+                })
         )
     }
 
