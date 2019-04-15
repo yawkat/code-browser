@@ -640,6 +640,34 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `this reference`() {
+        write("A.java", "class A {{A.this.hashCode();}}")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.THIS_REFERENCE_QUALIFIER &&
+                            annotation.binding == "A"
+                })
+        )
+    }
+
+    @Test
+    fun `super reference`() {
+        write("A.java", "class A {{Object.super.hashCode();}}")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.SUPER_REFERENCE_QUALIFIER &&
+                            annotation.binding == "java.lang.Object"
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")

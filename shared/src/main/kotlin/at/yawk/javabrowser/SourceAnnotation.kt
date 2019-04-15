@@ -49,7 +49,9 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     STATIC_MEMBER_QUALIFIER(19, "Static member qualifier"),
     METHOD_REFERENCE_RECEIVER_TYPE(20, "Method ref receiver"),
     TYPE_PARAMETER(21, "Type parameter"),
-    WILDCARD_BOUND(22, "Wildcard bound");
+    WILDCARD_BOUND(22, "Wildcard bound"),
+    THIS_REFERENCE_QUALIFIER(23, "this reference qualifier"),
+    SUPER_REFERENCE_QUALIFIER(24, "super reference qualifier");
 
     companion object {
         private val byId: List<BindingRefType?>

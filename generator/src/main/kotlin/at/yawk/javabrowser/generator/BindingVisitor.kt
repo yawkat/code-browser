@@ -53,6 +53,7 @@ import org.eclipse.jdt.core.dom.SuperConstructorInvocation
 import org.eclipse.jdt.core.dom.SuperFieldAccess
 import org.eclipse.jdt.core.dom.SuperMethodInvocation
 import org.eclipse.jdt.core.dom.SuperMethodReference
+import org.eclipse.jdt.core.dom.ThisExpression
 import org.eclipse.jdt.core.dom.Type
 import org.eclipse.jdt.core.dom.TypeDeclaration
 import org.eclipse.jdt.core.dom.TypeLiteral
@@ -384,6 +385,9 @@ internal class BindingVisitor(
             if (s != null) annotatedSourceFile.annotate(node.name,
                     makeBindingRef(BindingRefType.SUPER_METHOD_CALL, s))
         }
+        if (node.qualifier != null) {
+            visitName0(node.qualifier, BindingRefType.SUPER_REFERENCE_QUALIFIER)
+        }
         return true
     }
 
@@ -473,6 +477,9 @@ internal class BindingVisitor(
             if (s != null) annotatedSourceFile.annotate(node.name,
                     makeBindingRef(BindingRefType.FIELD_ACCESS, s))
         }
+        if (node.qualifier != null) {
+            visitName0(node.qualifier, BindingRefType.SUPER_REFERENCE_QUALIFIER)
+        }
         return true
     }
 
@@ -504,7 +511,11 @@ internal class BindingVisitor(
                 node.locationInParent != TypeMethodReference.NAME_PROPERTY &&
                 node.locationInParent != SuperMethodReference.NAME_PROPERTY &&
                 node.locationInParent != SuperFieldAccess.NAME_PROPERTY &&
-                node.locationInParent != AnnotationTypeMemberDeclaration.NAME_PROPERTY) {
+                node.locationInParent != AnnotationTypeMemberDeclaration.NAME_PROPERTY &&
+                node.locationInParent != SuperFieldAccess.QUALIFIER_PROPERTY &&
+                node.locationInParent != SuperMethodInvocation.QUALIFIER_PROPERTY &&
+                node.locationInParent != SuperMethodReference.QUALIFIER_PROPERTY &&
+                node.locationInParent != ThisExpression.QUALIFIER_PROPERTY) {
             visitName0(node, null)
         }
     }
@@ -680,6 +691,9 @@ internal class BindingVisitor(
 
     override fun visit(node: SuperMethodReference): Boolean {
         visitMethodReference(node)
+        if (node.qualifier != null) {
+            visitName0(node.qualifier, BindingRefType.SUPER_REFERENCE_QUALIFIER)
+        }
         return true
     }
 
@@ -698,6 +712,13 @@ internal class BindingVisitor(
         // X.class is technically not a static member, but who cares.
         visitType0(node.type, BindingRefType.STATIC_MEMBER_QUALIFIER)
         return false
+    }
+
+    override fun visit(node: ThisExpression): Boolean {
+        if (node.qualifier != null) {
+            visitName0(node.qualifier, BindingRefType.THIS_REFERENCE_QUALIFIER)
+        }
+        return true
     }
 
     override fun endVisit(node: Javadoc) {
