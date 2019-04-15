@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.dom.Javadoc
 import org.eclipse.jdt.core.dom.LambdaExpression
 import org.eclipse.jdt.core.dom.MarkerAnnotation
 import org.eclipse.jdt.core.dom.MemberRef
+import org.eclipse.jdt.core.dom.MemberValuePair
 import org.eclipse.jdt.core.dom.MethodDeclaration
 import org.eclipse.jdt.core.dom.MethodInvocation
 import org.eclipse.jdt.core.dom.MethodRef
@@ -515,7 +516,8 @@ internal class BindingVisitor(
                 node.locationInParent != SuperFieldAccess.QUALIFIER_PROPERTY &&
                 node.locationInParent != SuperMethodInvocation.QUALIFIER_PROPERTY &&
                 node.locationInParent != SuperMethodReference.QUALIFIER_PROPERTY &&
-                node.locationInParent != ThisExpression.QUALIFIER_PROPERTY) {
+                node.locationInParent != ThisExpression.QUALIFIER_PROPERTY &&
+                node.locationInParent != MemberValuePair.NAME_PROPERTY) {
             visitName0(node, null)
         }
     }
@@ -597,6 +599,11 @@ internal class BindingVisitor(
 
     private fun visitAnnotation(annotation: Annotation): Boolean {
         visitName0(annotation.typeName, BindingRefType.ANNOTATION_TYPE)
+        return true
+    }
+
+    override fun visit(node: MemberValuePair): Boolean {
+        visitName0(node.name, BindingRefType.ANNOTATION_MEMBER_VALUE)
         return true
     }
 

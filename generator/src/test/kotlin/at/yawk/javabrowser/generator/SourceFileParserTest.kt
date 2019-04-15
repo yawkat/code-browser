@@ -668,6 +668,20 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `annotation value`() {
+        write("A.java", "@A(x = \"\") @interface A { String x(); }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.ANNOTATION_MEMBER_VALUE &&
+                            annotation.binding == "A#x()"
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")
