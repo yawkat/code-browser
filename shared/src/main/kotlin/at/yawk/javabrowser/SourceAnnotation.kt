@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
+import java.lang.AssertionError
 
 /**
  * @author yawkat
@@ -47,11 +48,13 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     CONSTRUCTOR_CALL(17, "Constructor call"),
     THROWS_DECLARATION(18, "Throws declaration"),
     STATIC_MEMBER_QUALIFIER(19, "Static member qualifier"),
+    NESTED_CLASS_QUALIFIER(26, "Nested class qualifier"),
     METHOD_REFERENCE_RECEIVER_TYPE(20, "Method ref receiver"),
     TYPE_PARAMETER(21, "Type parameter"),
     WILDCARD_BOUND(22, "Wildcard bound"),
     THIS_REFERENCE_QUALIFIER(23, "this reference qualifier"),
-    SUPER_REFERENCE_QUALIFIER(24, "super reference qualifier");
+    SUPER_REFERENCE_QUALIFIER(24, "super reference qualifier"),
+    ANNOTATION_MEMBER_VALUE(25, "Annotation member value");
 
     companion object {
         private val byId: List<BindingRefType?>
@@ -60,6 +63,7 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
             val byId = ArrayList<BindingRefType?>()
             for (value in values()) {
                 while (value.id >= byId.size) byId.add(null)
+                if (byId[value.id] != null) throw AssertionError("id conflict: $value, ${byId[value.id]}")
                 byId[value.id] = value
             }
             this.byId = byId

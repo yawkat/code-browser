@@ -46,6 +46,7 @@ import org.eclipse.jdt.core.dom.NameQualifiedType
 import org.eclipse.jdt.core.dom.NormalAnnotation
 import org.eclipse.jdt.core.dom.ParameterizedType
 import org.eclipse.jdt.core.dom.QualifiedName
+import org.eclipse.jdt.core.dom.QualifiedType
 import org.eclipse.jdt.core.dom.SimpleName
 import org.eclipse.jdt.core.dom.SimpleType
 import org.eclipse.jdt.core.dom.SingleMemberAnnotation
@@ -103,8 +104,8 @@ internal class BindingVisitor(
             val b = r?.let { Bindings.toString(it) }
             if (b != null) {
                 superBindings.add(BindingDecl.Super(r.name, b))
-                annotatedSourceFile.annotate(superclassType, makeBindingRef(BindingRefType.SUPER_TYPE, b))
             }
+            visitType0(superclassType, BindingRefType.SUPER_TYPE)
         } else {
             val r = resolved.superclass
             val b = r?.let { Bindings.toString(it) }
@@ -120,9 +121,8 @@ internal class BindingVisitor(
                 val b = r?.let { Bindings.toString(it) }
                 if (b != null) {
                     superBindings.add(BindingDecl.Super(r.name, b))
-                    annotatedSourceFile.annotate(interfaceType,
-                            makeBindingRef(BindingRefType.SUPER_TYPE, b))
                 }
+                visitType0(interfaceType, BindingRefType.SUPER_TYPE)
             }
         } else {
             for (interfaceType in resolved.interfaces) {
@@ -318,7 +318,8 @@ internal class BindingVisitor(
                 node.locationInParent != CreationReference.TYPE_PROPERTY &&
                 node.locationInParent != TypeMethodReference.TYPE_PROPERTY &&
                 node.locationInParent != AnnotationTypeMemberDeclaration.TYPE_PROPERTY &&
-                node.locationInParent != MethodInvocation.TYPE_ARGUMENTS_PROPERTY) {
+                node.locationInParent != MethodInvocation.TYPE_ARGUMENTS_PROPERTY &&
+                node.locationInParent != QualifiedType.QUALIFIER_PROPERTY) {
 
             visitType0(node, BindingRefType.UNCLASSIFIED)
         }
@@ -353,6 +354,14 @@ internal class BindingVisitor(
         if (node is ArrayType) {
             visitType0(node.elementType, BindingRefType.TYPE_PARAMETER)
             return
+        }
+        if (node is QualifiedType) {
+            val qualifier = node.qualifier.resolveBinding()
+            if (qualifier != null) {
+                visitType0(node.qualifier, BindingRefType.NESTED_CLASS_QUALIFIER)
+                visitName0(node.name, refType)
+                return
+            }
         }
 
         val binding = node.resolveBinding()

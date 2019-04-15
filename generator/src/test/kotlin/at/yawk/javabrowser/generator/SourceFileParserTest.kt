@@ -682,6 +682,29 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `nested class qualifier`() {
+        write("A.java", "class A<T> { static class C {} }")
+        write("B.java", "class B extends A<String>.C {}")
+        val entries = compile().getValue("B.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.NESTED_CLASS_QUALIFIER &&
+                            annotation.binding == "A"
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
+                            annotation.binding == "A.C" && it.length == 1
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")
