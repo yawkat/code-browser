@@ -162,6 +162,9 @@ function showReferences(bindingName, superHtml) {
                         case "STATIC_MEMBER_QUALIFIER":
                             name = "Static member qualifier at";
                             break;
+                        case "NESTED_CLASS_QUALIFIER":
+                            name = "Nested class qualifier at";
+                            break;
                         case "METHOD_REFERENCE_RECEIVER_TYPE":
                             name = "Method reference receiver type at";
                             break;
@@ -170,6 +173,15 @@ function showReferences(bindingName, superHtml) {
                             break;
                         case "WILDCARD_BOUND":
                             name = "Wildcard bound at";
+                            break;
+                        case "THIS_REFERENCE_QUALIFIER":
+                            name = "this reference qualifier at";
+                            break;
+                        case "SUPER_REFERENCE_QUALIFIER":
+                            name = "super reference qualifier at";
+                            break;
+                        case "ANNOTATION_MEMBER_VALUE":
+                            name = "Annotation value at";
                             break;
                         default:
                             name = key;
