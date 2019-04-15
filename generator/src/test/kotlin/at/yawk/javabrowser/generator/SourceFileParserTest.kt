@@ -617,6 +617,13 @@ class SourceFileParserTest {
                             annotation.binding == "java.lang.String"
                 })
         )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.not(Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.UNCLASSIFIED
+                }))
+        )
     }
 
     @Test

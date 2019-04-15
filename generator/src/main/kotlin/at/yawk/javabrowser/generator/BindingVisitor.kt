@@ -503,7 +503,8 @@ internal class BindingVisitor(
                 node.locationInParent != ExpressionMethodReference.NAME_PROPERTY &&
                 node.locationInParent != TypeMethodReference.NAME_PROPERTY &&
                 node.locationInParent != SuperMethodReference.NAME_PROPERTY &&
-                node.locationInParent != SuperFieldAccess.NAME_PROPERTY) {
+                node.locationInParent != SuperFieldAccess.NAME_PROPERTY &&
+                node.locationInParent != AnnotationTypeMemberDeclaration.NAME_PROPERTY) {
             visitName0(node, null)
         }
     }
