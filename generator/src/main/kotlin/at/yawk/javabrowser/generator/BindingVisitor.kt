@@ -422,19 +422,21 @@ internal class BindingVisitor(
             val declaringClass = binding.declaringClass
             if (binding.isDefaultConstructor) {
                 if (declaringClass.isAnonymous) {
-                    val constructor = declaringClass.superclass.declaredMethods.firstOrNull {
-                        binding.overrides(it) && !it.isDefaultConstructor
-                    }
-                    if (constructor != null) {
-                        // ref the constructor that is overridden
-                        val s = Bindings.toString(constructor)
-                        if (s != null) annotatedSourceFile.annotate(node.type,
-                                makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
-                    } else {
-                        // no constructor found (maybe default constructor), instead ref the superclass
-                        val s = Bindings.toString(declaringClass.superclass)
-                        if (s != null) annotatedSourceFile.annotate(node.type,
-                                makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
+                    if (declaringClass.superclass != null) {
+                        val constructor = declaringClass.superclass.declaredMethods.firstOrNull {
+                            binding.overrides(it) && !it.isDefaultConstructor
+                        }
+                        if (constructor != null) {
+                            // ref the constructor that is overridden
+                            val s = Bindings.toString(constructor)
+                            if (s != null) annotatedSourceFile.annotate(node.type,
+                                    makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
+                        } else {
+                            // no constructor found (maybe default constructor), instead ref the superclass
+                            val s = Bindings.toString(declaringClass.superclass)
+                            if (s != null) annotatedSourceFile.annotate(node.type,
+                                    makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
+                        }
                     }
                 } else {
                     val s = Bindings.toString(declaringClass)
@@ -691,10 +693,13 @@ internal class BindingVisitor(
 
         val superBinding = internal.descriptor
         if (superBinding != null) {
-            val s = Bindings.toString(unsafeGetMethodBinding(node.ast, superBinding))
-            // annotate the ::
-            if (s != null) annotatedSourceFile.annotate(internal.lhs.sourceEnd + 1, 2,
-                    makeBindingRef(BindingRefType.SUPER_METHOD, s))
+            val methodBinding = unsafeGetMethodBinding(node.ast, superBinding)
+            if (methodBinding != null) {
+                val s = Bindings.toString(methodBinding)
+                // annotate the ::
+                if (s != null) annotatedSourceFile.annotate(internal.lhs.sourceEnd + 1, 2,
+                        makeBindingRef(BindingRefType.SUPER_METHOD, s))
+            }
         }
 
         for (typeArgument in node.typeArguments()) {
@@ -781,11 +786,11 @@ internal class BindingVisitor(
                 as org.eclipse.jdt.internal.compiler.ast.ASTNode
     }
 
-    private fun unsafeGetMethodBinding(ast: AST, internalBinding: MethodBinding): IMethodBinding {
-        return unsafeBindingResolverCall(ast, "getMethodBinding", internalBinding) as IMethodBinding
+    private fun unsafeGetMethodBinding(ast: AST, internalBinding: MethodBinding): IMethodBinding? {
+        return unsafeBindingResolverCall(ast, "getMethodBinding", internalBinding) as IMethodBinding?
     }
 
-    private inline fun <reified T> unsafeBindingResolverCall(ast: AST, name: String, param: T): Any {
+    private inline fun <reified T> unsafeBindingResolverCall(ast: AST, name: String, param: T): Any? {
         val classDefaultBindingResolver = Class.forName("org.eclipse.jdt.core.dom.DefaultBindingResolver")
         val getBindingResolver = AST::class.java.getDeclaredMethod("getBindingResolver")
         getBindingResolver.isAccessible = true
