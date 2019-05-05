@@ -319,7 +319,12 @@ internal class BindingVisitor(
                 node.locationInParent != TypeMethodReference.TYPE_PROPERTY &&
                 node.locationInParent != AnnotationTypeMemberDeclaration.TYPE_PROPERTY &&
                 node.locationInParent != MethodInvocation.TYPE_ARGUMENTS_PROPERTY &&
-                node.locationInParent != QualifiedType.QUALIFIER_PROPERTY) {
+                node.locationInParent != QualifiedType.QUALIFIER_PROPERTY &&
+                node.locationInParent != CreationReference.TYPE_ARGUMENTS_PROPERTY &&
+                node.locationInParent != ExpressionMethodReference.TYPE_ARGUMENTS_PROPERTY &&
+                node.locationInParent != SuperMethodReference.TYPE_ARGUMENTS_PROPERTY &&
+                node.locationInParent != TypeMethodReference.TYPE_ARGUMENTS_PROPERTY &&
+                node.locationInParent != SuperMethodInvocation.TYPE_ARGUMENTS_PROPERTY) {
 
             visitType0(node, BindingRefType.UNCLASSIFIED)
         }
@@ -397,6 +402,9 @@ internal class BindingVisitor(
         }
         if (node.qualifier != null) {
             visitName0(node.qualifier, BindingRefType.SUPER_REFERENCE_QUALIFIER)
+        }
+        for (typeArgument in node.typeArguments()) {
+            visitType0(typeArgument as Type, BindingRefType.TYPE_PARAMETER)
         }
         return true
     }
@@ -680,6 +688,10 @@ internal class BindingVisitor(
             // annotate the ::
             if (s != null) annotatedSourceFile.annotate(internal.lhs.sourceEnd + 1, 2,
                     makeBindingRef(BindingRefType.SUPER_METHOD, s))
+        }
+
+        for (typeArgument in node.typeArguments()) {
+            visitType0(typeArgument as Type, BindingRefType.TYPE_PARAMETER)
         }
     }
 

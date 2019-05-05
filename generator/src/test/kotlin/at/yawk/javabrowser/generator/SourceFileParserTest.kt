@@ -705,6 +705,35 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `method ref type param`() {
+        write("A.java", "class A { static <T> void x() {} {Runnable r = A::<String>x;} }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
+    @Test
+    fun `super call type param`() {
+        write("A.java", "class A { <T> void x() {} }")
+        write("B.java", "class B extends A {{ super.<String>x(); }}")
+        val entries = compile().getValue("B.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
+                            annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")
