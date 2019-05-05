@@ -73,7 +73,12 @@ class SourceFileParser(
                 (comment as ASTNode).accept(styleVisitor)
             }
             ast.accept(styleVisitor)
-            ast.accept(BindingVisitor(ast, annotatedSourceFile))
+            val bindingVisitor = BindingVisitor(ast, annotatedSourceFile)
+            try {
+                ast.accept(bindingVisitor)
+            } catch (e: Exception) {
+                throw RuntimeException("Failed to accept node on character ${bindingVisitor.lastVisited?.startPosition}", e)
+            }
             KeywordHandler.annotateKeywords(annotatedSourceFile,
                     styleVisitor.noKeywordRanges)
 

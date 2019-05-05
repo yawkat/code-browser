@@ -78,6 +78,13 @@ internal class BindingVisitor(
     private var refIdCounter = 0
     private var inJavadoc = false
 
+    var lastVisited: ASTNode? = null
+
+    override fun preVisit2(node: ASTNode?): Boolean {
+        lastVisited = node
+        return true
+    }
+
     private fun makeBindingRef(type: BindingRefType, s: String): BindingRef {
         return BindingRef(
                 if (inJavadoc) BindingRefType.JAVADOC else type,
