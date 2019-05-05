@@ -40,6 +40,22 @@ artifacts:
     - name: GPLv2 + Classpath Exception
       url: https://openjdk.java.net/legal/gplv2+ce.html
     url: https://openjdk.java.net/
+- type: android
+  version: android-9.0.0_r35
+  repos:
+  - url: https://android.googlesource.com/platform/frameworks/base
+    tag: android-9.0.0_r35
+  # vold is required for some aidl interface definitions<
+  - url: https://android.googlesource.com/platform/system/vold
+    tag: android-9.0.0_r35
+  metadata:
+    logoUrl: https://upload.wikimedia.org/wikipedia/commons/d/db/Android_robot_2014.svg
+    licenses:
+      - name: GPLv2 + Classpath Exception
+        url: https://openjdk.java.net/legal/gplv2+ce.html
+      - name: Apache 2.0
+        url: http://www.apache.org/licenses/LICENSE-2.0
+    url: https://source.android.com/
 - type: maven
   groupId: com.google.guava
   artifactId: guava

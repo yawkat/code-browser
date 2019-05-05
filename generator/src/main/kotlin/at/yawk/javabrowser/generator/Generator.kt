@@ -33,6 +33,7 @@ fun main(args: Array<String>) {
         val id = when (artifact) {
             is ArtifactConfig.OldJava -> "java/${artifact.version}"
             is ArtifactConfig.Java -> "java/${artifact.version}"
+            is ArtifactConfig.Android -> "android/${artifact.version}"
             is ArtifactConfig.Maven -> "${artifact.groupId}/${artifact.artifactId}/${artifact.version}"
         }
 
@@ -41,6 +42,7 @@ fun main(args: Array<String>) {
             when (artifact) {
                 is ArtifactConfig.OldJava -> compiler.compileOldJava(id, artifact)
                 is ArtifactConfig.Java -> compiler.compileJava(id, artifact)
+                is ArtifactConfig.Android -> compiler.compileAndroid(id, artifact)
                 is ArtifactConfig.Maven -> compiler.compileMaven(id, artifact)
             }
         } catch (e: Exception) {
