@@ -23,7 +23,7 @@ class BindingResolver(
     }
 
     private val cache: LoadingCache<String, List<BindingLocation>> = CacheBuilder.newBuilder()
-            .maximumSize(100000)
+            .softValues()
             .build(CacheLoader.from { binding -> resolveBinding0(binding!!) })
 
     init {
