@@ -468,3 +468,77 @@ artifacts:
   version: 3.3.1
   metadata:
     logoUrl: https://raw.githubusercontent.com/wiki/brettwooldridge/HikariCP/Hikari.png
+- type: maven
+  groupId: com.jayway.jsonpath
+  artifactId: json-path
+  version: 2.4.0
+- type: maven
+  groupId: net.minidev
+  artifactId: json-smart
+  version: 2.3
+- type: maven
+  groupId: net.minidev
+  artifactId: accessors-smart
+  version: 1.2
+- type: maven
+  groupId: org.ehcache.modules
+  artifactId: ehcache-api
+  version: 3.7.1
+  metadata:
+    logoUrl: http://www.ehcache.org/images/Ehcache_Logo.png
+- type: maven
+  groupId: org.ehcache.modules
+  artifactId: ehcache-impl
+  version: 3.7.1
+  metadata:
+    logoUrl: http://www.ehcache.org/images/Ehcache_Logo.png
+- type: maven
+  groupId: org.ehcache.modules
+  artifactId: ehcache-core
+  version: 3.7.1
+  metadata:
+    logoUrl: http://www.ehcache.org/images/Ehcache_Logo.png
+- type: maven
+  groupId: org.ehcache.modules
+  artifactId: ehcache-common
+  version: 3.7.1
+  metadata:
+    logoUrl: http://www.ehcache.org/images/Ehcache_Logo.png
+- type: maven
+  groupId: org.ehcache.modules
+  artifactId: ehcache-xml
+  version: 3.7.1
+  metadata:
+    logoUrl: http://www.ehcache.org/images/Ehcache_Logo.png
+- type: maven
+  groupId: org.ehcache.modules
+  artifactId: ehcache-management
+  version: 3.7.1
+  metadata:
+    logoUrl: http://www.ehcache.org/images/Ehcache_Logo.png
+- type: maven
+  groupId: org.ehcache.modules
+  artifactId: ehcache-107
+  version: 3.7.1
+  metadata:
+    logoUrl: http://www.ehcache.org/images/Ehcache_Logo.png
+- type: maven
+  groupId: org.terracotta
+  artifactId: offheap-store
+  version: 2.4.3
+- type: maven
+  groupId: org.terracotta
+  artifactId: statistics
+  version: 2.1
+- type: maven
+  groupId: javax.cache
+  artifactId: cache-api
+  version: 1.1.1
+- type: maven
+  groupId: com.netflix.concurrency-limits
+  artifactId: concurrency-limits-core
+  version: 0.3.2
+- type: maven
+  groupId: com.netflix.concurrency-limits
+  artifactId: concurrency-limits-servlet
+  version: 0.3.2
