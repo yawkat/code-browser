@@ -5,7 +5,20 @@ import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import com.google.common.collect.Range
 import com.google.common.collect.TreeRangeSet
-import org.eclipse.jdt.core.dom.*
+import org.eclipse.jdt.core.dom.ASTNode
+import org.eclipse.jdt.core.dom.ASTVisitor
+import org.eclipse.jdt.core.dom.BlockComment
+import org.eclipse.jdt.core.dom.ITypeBinding
+import org.eclipse.jdt.core.dom.IVariableBinding
+import org.eclipse.jdt.core.dom.Javadoc
+import org.eclipse.jdt.core.dom.LineComment
+import org.eclipse.jdt.core.dom.MarkerAnnotation
+import org.eclipse.jdt.core.dom.Modifier
+import org.eclipse.jdt.core.dom.NormalAnnotation
+import org.eclipse.jdt.core.dom.NumberLiteral
+import org.eclipse.jdt.core.dom.SimpleName
+import org.eclipse.jdt.core.dom.StringLiteral
+import org.eclipse.jdt.core.dom.TagElement
 
 fun AnnotatedSourceFile.annotate(node: ASTNode, annotation: SourceAnnotation) =
         annotate(node.startPosition, node.length, annotation)
@@ -24,6 +37,7 @@ class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVi
             is IVariableBinding -> {
                 classes.add(if (binding.isField) "field" else "variable")
                 if (binding.isEffectivelyFinal) classes.add("effectively-final")
+                if (Modifier.isFinal(binding.modifiers)) classes.add("final")
                 if (Modifier.isStatic(binding.modifiers)) classes.add("static")
             }
             is ITypeBinding -> {

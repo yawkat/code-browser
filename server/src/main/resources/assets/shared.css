@@ -191,7 +191,7 @@ code .variable {
     text-decoration: underline dotted #ccc;
 }
 
-code .variable.effectively-final {
+code .variable.effectively-final, code .variable.final {
     text-decoration: none;
 }
 
