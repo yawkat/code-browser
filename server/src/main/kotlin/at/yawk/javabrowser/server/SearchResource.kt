@@ -8,6 +8,7 @@ import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
+import javax.annotation.concurrent.ThreadSafe
 import kotlin.coroutines.experimental.buildSequence
 
 /**
@@ -15,6 +16,7 @@ import kotlin.coroutines.experimental.buildSequence
  */
 private val log = LoggerFactory.getLogger(SearchResource::class.java)
 
+@ThreadSafe
 class SearchResource(private val dbi: DBI,
                      private val objectMapper: ObjectMapper,
                      artifactUpdater: ArtifactUpdater) : HttpHandler {
@@ -30,6 +32,9 @@ class SearchResource(private val dbi: DBI,
                 update(conn, artifactId)
             }
         }
+    }
+
+    fun firstUpdate() {
         dbi.inTransaction { conn: Handle, _ ->
             for (artifactId in conn.createQuery("select id from artifacts").map { _, r, _ -> r.getString(1) }) {
                 update(conn, artifactId)

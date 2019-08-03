@@ -65,8 +65,9 @@ fun main(args: Array<String>) {
     ftl.putDirective("imageCache", imageCache.directive)
     val artifactIndex = ArtifactIndex(updater, dbi)
     val baseHandler = BaseHandler(dbi, ftl, bindingResolver, objectMapper, artifactIndex)
+    val searchResource = SearchResource(dbi, objectMapper, updater)
     var handler: HttpHandler = PathTemplateHandler(baseHandler).also {
-        it.add(SearchResource.PATTERN, SearchResource(dbi, objectMapper, updater))
+        it.add(SearchResource.PATTERN, searchResource)
         it.add(ReferenceResource.PATTERN, ReferenceResource(dbi, objectMapper))
         it.add(ImageCache.PATTERN, imageCache.handler)
         it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl))
@@ -89,4 +90,6 @@ fun main(args: Array<String>) {
             .setHandler(handler)
             .build()
     undertow.start()
+
+    searchResource.firstUpdate()
 }
