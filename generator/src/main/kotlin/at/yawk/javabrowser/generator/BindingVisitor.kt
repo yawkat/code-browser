@@ -45,6 +45,8 @@ import org.eclipse.jdt.core.dom.Name
 import org.eclipse.jdt.core.dom.NameQualifiedType
 import org.eclipse.jdt.core.dom.NormalAnnotation
 import org.eclipse.jdt.core.dom.ParameterizedType
+import org.eclipse.jdt.core.dom.PostfixExpression
+import org.eclipse.jdt.core.dom.PrefixExpression
 import org.eclipse.jdt.core.dom.QualifiedName
 import org.eclipse.jdt.core.dom.QualifiedType
 import org.eclipse.jdt.core.dom.SimpleName
@@ -484,10 +486,18 @@ internal class BindingVisitor(
     }
 
     private fun fieldAccessTypeForNode(node: ASTNode) =
-            if (node.locationInParent == Assignment.LEFT_HAND_SIDE_PROPERTY)
-                BindingRefType.FIELD_WRITE
-            else
-                BindingRefType.FIELD_READ
+            when {
+                node.locationInParent == Assignment.LEFT_HAND_SIDE_PROPERTY -> {
+                    if ((node.parent as Assignment).operator == Assignment.Operator.ASSIGN) {
+                        BindingRefType.FIELD_WRITE
+                    } else {
+                        BindingRefType.FIELD_READ_WRITE
+                    }
+                }
+                node.locationInParent == PostfixExpression.OPERAND_PROPERTY -> BindingRefType.FIELD_READ_WRITE
+                node.locationInParent == PrefixExpression.OPERAND_PROPERTY -> BindingRefType.FIELD_READ_WRITE
+                else -> BindingRefType.FIELD_READ
+            }
 
     override fun visit(node: FieldAccess): Boolean {
         val binding = node.resolveFieldBinding()

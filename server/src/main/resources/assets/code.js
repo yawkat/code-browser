@@ -123,6 +123,9 @@ function showReferences(bindingName, superHtml) {
                         case "FIELD_WRITE":
                             name = "Field write";
                             break;
+                        case "FIELD_READ_WRITE":
+                            name = "Field read+write";
+                            break;
                         case "SUPER_TYPE":
                             name = "Super type of";
                             break;

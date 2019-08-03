@@ -742,6 +742,34 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `increment is a write`() {
+        write("A.java", "class A { int i; { i++; } }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ_WRITE &&
+                            annotation.binding == "A#i"
+                })
+        )
+    }
+
+    @Test
+    fun `accumulate is a write`() {
+        write("A.java", "class A { int i; { i+=1; } }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ_WRITE &&
+                            annotation.binding == "A#i"
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")

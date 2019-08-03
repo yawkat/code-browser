@@ -35,6 +35,7 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     @Deprecated("Replaced by FIELD_READ and FIELD_WRITE") FIELD_ACCESS(4, "Field access"),
     FIELD_READ(27, "Field read"),
     FIELD_WRITE(28, "Field write"),
+    FIELD_READ_WRITE(29, "Field read+write"),
     SUPER_TYPE(5, "Super type"),
     SUPER_METHOD(6, "Super method"),
     JAVADOC(7, "Javadoc"),
