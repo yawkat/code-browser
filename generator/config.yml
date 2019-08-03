@@ -117,9 +117,33 @@ artifacts:
   artifactId: commons-codec
   version: 1.12
 - type: maven
+  groupId: org.apache.commons
+  artifactId: commons-collections4
+  version: 4.3
+- type: maven
+  groupId: org.apache.commons
+  artifactId: commons-math3
+  version: 3.6.1
+- type: maven
+  groupId: org.apache.commons
+  artifactId: commons-compress
+  version: 1.18
+- type: maven
   groupId: org.apache.logging.log4j
   artifactId: log4j-core
   version: 2.11.0
+  metadata:
+    logoUrl: https://logging.apache.org/log4j/2.x/images/logo.png
+- type: maven
+  groupId: org.apache.logging.log4j
+  artifactId: log4j-core
+  version: 2.12.0
+  metadata:
+    logoUrl: https://logging.apache.org/log4j/2.x/images/logo.png
+- type: maven
+  groupId: org.apache.logging.log4j
+  artifactId: log4j-api
+  version: 2.12.0
   metadata:
     logoUrl: https://logging.apache.org/log4j/2.x/images/logo.png
 - type: maven
@@ -192,6 +216,48 @@ artifacts:
   groupId: org.jdbi
   artifactId: jdbi3-core
   version: 3.3.0
+  metadata:
+    logoUrl: http://jdbi.org/images/logo.svg
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi3-core
+  version: 3.8.2
+  metadata:
+    logoUrl: http://jdbi.org/images/logo.svg
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi3-sqlobject
+  version: 3.8.2
+  metadata:
+    logoUrl: http://jdbi.org/images/logo.svg
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi3-guava
+  version: 3.8.2
+  metadata:
+    logoUrl: http://jdbi.org/images/logo.svg
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi3-testing
+  version: 3.8.2
+  metadata:
+    logoUrl: http://jdbi.org/images/logo.svg
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi3-postgres
+  version: 3.8.2
+  metadata:
+    logoUrl: http://jdbi.org/images/logo.svg
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi3-json
+  version: 3.8.2
+  metadata:
+    logoUrl: http://jdbi.org/images/logo.svg
+- type: maven
+  groupId: org.jdbi
+  artifactId: jdbi3-jodatime2
+  version: 3.8.2
   metadata:
     logoUrl: http://jdbi.org/images/logo.svg
 - type: maven
@@ -308,6 +374,18 @@ artifacts:
   groupId: org.eclipse.collections
   artifactId: eclipse-collections-api
   version: 9.2.0
+  metadata:
+    logoUrl: https://www.eclipse.org/collections/img/eclipse-collections-logo.png
+- type: maven
+  groupId: org.eclipse.collections
+  artifactId: eclipse-collections
+  version: 10.0.0
+  metadata:
+    logoUrl: https://www.eclipse.org/collections/img/eclipse-collections-logo.png
+- type: maven
+  groupId: org.eclipse.collections
+  artifactId: eclipse-collections-api
+  version: 10.0.0
   metadata:
     logoUrl: https://www.eclipse.org/collections/img/eclipse-collections-logo.png
 - type: maven
@@ -542,3 +620,63 @@ artifacts:
   groupId: com.netflix.concurrency-limits
   artifactId: concurrency-limits-servlet
   version: 0.3.2
+- type: maven
+  groupId: org.postgresql
+  artifactId: postgresql
+  version: 42.2.6
+- type: maven
+  groupId: com.github.spotbugs
+  artifactId: spotbugs-annotations
+  version: 3.1.12
+- type: maven
+  groupId: org.apache.poi
+  artifactId: poi
+  version: 4.1.0
+  metadata:
+    logoUrl: https://poi.apache.org/images/project-header.png
+- type: maven
+  groupId: org.apache.poi
+  artifactId: poi-ooxml
+  version: 4.1.0
+  metadata:
+    logoUrl: https://poi.apache.org/images/project-header.png
+- type: maven
+  groupId: io.vertx
+  artifactId: vertx-core
+  version: 3.8.0
+- type: maven
+  groupId: io.vertx
+  artifactId: vertx-unit
+  version: 3.8.0
+- type: maven
+  groupId: io.vertx
+  artifactId: vertx-web
+  version: 3.8.0
+- type: maven
+  groupId: io.vertx
+  artifactId: vertx-web-common
+  version: 3.8.0
+- type: maven
+  groupId: io.vertx
+  artifactId: vertx-auth-common
+  version: 3.8.0
+- type: maven
+  groupId: io.vertx
+  artifactId: vertx-bridge-common
+  version: 3.8.0
+- type: maven
+  groupId: io.vertx
+  artifactId: vertx-codegen
+  version: 3.8.0
+- type: maven
+  groupId: io.vertx
+  artifactId: vertx-rx-java2
+  version: 3.8.0
+- type: maven
+  groupId: io.reactivex.rxjava2
+  artifactId: rxjava
+  version: 2.2.11
+- type: maven
+  groupId: io.reactiverse
+  artifactId: reactive-pg-client
+  version: 0.11.4
