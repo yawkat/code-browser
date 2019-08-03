@@ -14,6 +14,7 @@ import org.eclipse.jdt.core.dom.Annotation
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
 import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration
 import org.eclipse.jdt.core.dom.ArrayType
+import org.eclipse.jdt.core.dom.Assignment
 import org.eclipse.jdt.core.dom.CastExpression
 import org.eclipse.jdt.core.dom.ClassInstanceCreation
 import org.eclipse.jdt.core.dom.Comment
@@ -24,7 +25,6 @@ import org.eclipse.jdt.core.dom.EnumDeclaration
 import org.eclipse.jdt.core.dom.ExpressionMethodReference
 import org.eclipse.jdt.core.dom.FieldAccess
 import org.eclipse.jdt.core.dom.FieldDeclaration
-import org.eclipse.jdt.core.dom.IBinding
 import org.eclipse.jdt.core.dom.IMethodBinding
 import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
@@ -483,12 +483,18 @@ internal class BindingVisitor(
         return true
     }
 
+    private fun fieldAccessTypeForNode(node: ASTNode) =
+            if (node.locationInParent == Assignment.LEFT_HAND_SIDE_PROPERTY)
+                BindingRefType.FIELD_WRITE
+            else
+                BindingRefType.FIELD_READ
+
     override fun visit(node: FieldAccess): Boolean {
         val binding = node.resolveFieldBinding()
         if (binding != null) {
             val s = Bindings.toString(binding)
-            if (s != null) annotatedSourceFile.annotate(node.name,
-                    makeBindingRef(BindingRefType.FIELD_ACCESS, s))
+            if (s != null)
+                annotatedSourceFile.annotate(node.name, makeBindingRef(fieldAccessTypeForNode(node), s))
         }
         val expr = node.expression
         if (expr is Name && expr.resolveBinding() is ITypeBinding) {
@@ -501,8 +507,8 @@ internal class BindingVisitor(
         val binding = node.resolveFieldBinding()
         if (binding != null) {
             val s = Bindings.toString(binding)
-            if (s != null) annotatedSourceFile.annotate(node.name,
-                    makeBindingRef(BindingRefType.FIELD_ACCESS, s))
+            if (s != null)
+                annotatedSourceFile.annotate(node.name, makeBindingRef(fieldAccessTypeForNode(node), s))
         }
         if (node.qualifier != null) {
             visitName0(node.qualifier, BindingRefType.SUPER_REFERENCE_QUALIFIER)
@@ -555,7 +561,7 @@ internal class BindingVisitor(
             if (binding.isField) {
                 val s = Bindings.toString(binding)
                 if (s != null) annotatedSourceFile.annotate(target,
-                        makeBindingRef(refType ?: BindingRefType.FIELD_ACCESS, s))
+                        makeBindingRef(refType ?: fieldAccessTypeForNode(node), s))
             } else { // local
                 val id = Long.toHexString(Hashing.goodFastHash(64)
                         .hashString(binding.key, Charsets.UTF_8).asLong())

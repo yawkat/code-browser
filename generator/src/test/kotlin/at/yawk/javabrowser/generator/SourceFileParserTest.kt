@@ -585,7 +585,15 @@ class SourceFileParserTest {
                 entries,
                 Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
                     val annotation = it.annotation
-                    annotation is BindingRef && annotation.type == BindingRefType.FIELD_ACCESS &&
+                    annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ &&
+                            annotation.binding == "A#object"
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.FIELD_WRITE &&
                             annotation.binding == "A#object"
                 })
         )
