@@ -164,6 +164,10 @@ artifacts:
   version: 2.9.5
 - type: maven
   groupId: com.fasterxml.jackson.core
+  artifactId: jackson-annotations
+  version: 2.9.5
+- type: maven
+  groupId: com.fasterxml.jackson.core
   artifactId: jackson-core
   version: 2.9.5
 - type: maven
@@ -680,3 +684,115 @@ artifacts:
   groupId: io.reactiverse
   artifactId: reactive-pg-client
   version: 0.11.4
+- type: maven
+  groupId: com.github.purejavacomm
+  artifactId: purejavacomm
+  version: 1.0.2.RELEASE
+- type: maven
+  groupId: org.apache.avro
+  artifactId: avro
+  version: 1.9.1
+  metadata:
+    logoUrl: https://avro.apache.org/images/avro-logo.png
+- type: maven
+  groupId: org.eclipse.jetty
+  artifactId: jetty-server
+  version: 10.0.0-alpha0
+  metadata:
+    logoUrl: https://www.eclipse.org/jetty/images/jetty-logo-80x22.png
+- type: maven
+  groupId: org.eclipse.jetty
+  artifactId: jetty-http
+  version: 10.0.0-alpha0
+  metadata:
+    logoUrl: https://www.eclipse.org/jetty/images/jetty-logo-80x22.png
+- type: maven
+  groupId: org.eclipse.jetty
+  artifactId: jetty-io
+  version: 10.0.0-alpha0
+  metadata:
+    logoUrl: https://www.eclipse.org/jetty/images/jetty-logo-80x22.png
+- type: maven
+  groupId: org.eclipse.jetty
+  artifactId: jetty-jmx
+  version: 10.0.0-alpha0
+  metadata:
+    logoUrl: https://www.eclipse.org/jetty/images/jetty-logo-80x22.png
+- type: maven
+  groupId: org.eclipse.jetty
+  artifactId: jetty-util
+  version: 10.0.0-alpha0
+  metadata:
+    logoUrl: https://www.eclipse.org/jetty/images/jetty-logo-80x22.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-catalina
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-servlet-api
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-jsp-api
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-el-api
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-juli
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-annotations-api
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-api
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-jni
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-coyote
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-util
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-util-scan
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.apache.tomcat
+  artifactId: tomcat-jaspic-api
+  version: 9.0.26
+  metadata:
+    logoUrl: https://tomcat.apache.org/res/images/tomcat.png
