@@ -2,6 +2,7 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.DbConfig
 import at.yawk.javabrowser.DbMigration
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import io.undertow.Undertow
@@ -31,6 +32,7 @@ fun main(args: Array<String>) {
     val dbi = config.database.start(mode = DbConfig.Mode.FRONTEND)
     dbi.inTransaction { conn, _ -> DbMigration.initInteractiveSchema(conn) }
     val objectMapper = ObjectMapper().findAndRegisterModules()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     val exceptions: (ExceptionHandler) -> Unit = {
         it.addExceptionHandler(HttpException::class.java) {
