@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableRef
@@ -15,6 +16,7 @@ import org.intellij.lang.annotations.Language
 import org.testng.annotations.AfterMethod
 import org.testng.annotations.BeforeMethod
 import org.testng.annotations.Test
+import java.lang.reflect.Modifier
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -766,6 +768,190 @@ class SourceFileParserTest {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ_WRITE &&
                             annotation.binding == "A#i"
+                })
+        )
+    }
+
+    @Test
+    fun `field decl`() {
+        write("A.java", "class A { @Deprecated volatile int i; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Field &&
+                            description.name == "i" &&
+                            description.typeBinding.simpleName == "int" &&
+                            annotation.modifiers == Modifier.VOLATILE or BindingDecl.MODIFIER_DEPRECATED &&
+                            annotation.parent == "A"
+                })
+        )
+    }
+
+    @Test
+    fun `method decl`() {
+        write("A.java", "class A { java.util.List<java.util.Map.Entry> a(int p1, int p2) {} }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Method &&
+                            description.name == "a" &&
+                            description.returnTypeBinding == BindingDecl.Description.Type(
+                                BindingDecl.Description.Type.Kind.INTERFACE,
+                                "java.util.List",
+                                "List",
+                                listOf(
+                                        BindingDecl.Description.Type(
+                                                BindingDecl.Description.Type.Kind.INTERFACE,
+                                                "java.util.Map.Entry",
+                                                "Entry"
+                                        )
+                                )
+                        ) &&
+                            annotation.modifiers == 0 &&
+                            annotation.parent == "A"
+                })
+        )
+    }
+
+    @Test
+    fun `exception type decl`() {
+        write("A.java", "class A extends RuntimeException {}")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Type &&
+                            annotation.modifiers == 0 && annotation.parent == null &&
+                            description.kind == BindingDecl.Description.Type.Kind.EXCEPTION
+                })
+        )
+    }
+
+    @Test
+    fun `initializer`() {
+        write("A.java", "class A {static{}}")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Initializer &&
+                            annotation.modifiers == Modifier.STATIC && annotation.parent == "A"
+                })
+        )
+    }
+
+    @Test
+    fun `local type decl`() {
+        write("A.java", "class A {{ class B {} }}")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Type &&
+                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL && annotation.parent == "A" &&
+                            description.kind == BindingDecl.Description.Type.Kind.CLASS
+                })
+        )
+    }
+
+    @Test
+    fun `field anon class`() {
+        write("A.java", "class A { Object o = new Object() {}; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Type &&
+                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
+                            annotation.parent == "A#o" &&
+                            description.kind == BindingDecl.Description.Type.Kind.CLASS &&
+                            description.simpleName == "$1"
+                })
+        )
+    }
+
+    @Test
+    fun `field lambda`() {
+        write("A.java", "class A { Runnable o = () -> {}; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Lambda &&
+                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
+                            annotation.parent == "A#o"
+                })
+        )
+    }
+
+    @Test
+    fun `nested anon class`() {
+        write("A.java", "class A { class B { Object o = new Object() {}; } }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Type &&
+                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
+                            annotation.parent == "A.B#o"
+                })
+        )
+    }
+
+    @Test
+    fun `local in lambda`() {
+        write("A.java", "class A { Runnable o = () -> { class B {} }; }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Type &&
+                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL &&
+                            annotation.parent == "LA;.lambda\$0()V"
+                })
+        )
+    }
+
+    @Test
+    fun `enum constant`() {
+        write("A.java", "enum A { A { int i; } }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Field &&
+                            annotation.parent == "A"
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation as? BindingDecl ?: return@matches false
+                    val description = annotation.description
+                    description is BindingDecl.Description.Field &&
+                            annotation.parent == "A#A"
                 })
         )
     }

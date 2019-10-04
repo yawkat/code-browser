@@ -13,6 +13,7 @@ import org.eclipse.jdt.core.dom.AbstractTypeDeclaration
 import org.eclipse.jdt.core.dom.Annotation
 import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration
 import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration
 import org.eclipse.jdt.core.dom.ArrayType
 import org.eclipse.jdt.core.dom.Assignment
 import org.eclipse.jdt.core.dom.CastExpression
@@ -21,14 +22,17 @@ import org.eclipse.jdt.core.dom.Comment
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.ConstructorInvocation
 import org.eclipse.jdt.core.dom.CreationReference
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration
 import org.eclipse.jdt.core.dom.EnumDeclaration
 import org.eclipse.jdt.core.dom.ExpressionMethodReference
 import org.eclipse.jdt.core.dom.FieldAccess
 import org.eclipse.jdt.core.dom.FieldDeclaration
+import org.eclipse.jdt.core.dom.IBinding
 import org.eclipse.jdt.core.dom.IMethodBinding
 import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
 import org.eclipse.jdt.core.dom.ImportDeclaration
+import org.eclipse.jdt.core.dom.Initializer
 import org.eclipse.jdt.core.dom.InstanceofExpression
 import org.eclipse.jdt.core.dom.IntersectionType
 import org.eclipse.jdt.core.dom.Javadoc
@@ -78,6 +82,7 @@ internal class BindingVisitor(
         private val annotatedSourceFile: AnnotatedSourceFile
 ) : ASTVisitor(true) {
     private var refIdCounter = 0
+    private var initializerCounter = 0
     private var inJavadoc = false
 
     var lastVisited: ASTNode? = null
@@ -106,6 +111,42 @@ internal class BindingVisitor(
 
         val superclassType = (node as? TypeDeclaration)?.superclassType
         val interfaceTypes = (node as? TypeDeclaration)?.superInterfaceTypes()
+        val nameStartPosition = node.name.startPosition
+        val declAnnotationLength = node.name.length
+
+        visitTypeDecl(resolved, nameStartPosition, declAnnotationLength, superclassType, interfaceTypes)
+        return true
+    }
+
+    private fun describeType(resolved: ITypeBinding): BindingDecl.Description.Type {
+        var possibleExceptionType: ITypeBinding? = resolved
+        while (possibleExceptionType != null && possibleExceptionType.qualifiedName != "java.lang.Throwable") {
+            possibleExceptionType = possibleExceptionType.superclass
+        }
+        // resolved.erasure is null for some reason in some cases
+        val erasure = resolved.erasure ?: resolved
+        return BindingDecl.Description.Type(
+                kind = when {
+                    possibleExceptionType != null -> BindingDecl.Description.Type.Kind.EXCEPTION
+                    resolved.isAnnotation -> BindingDecl.Description.Type.Kind.ANNOTATION
+                    resolved.isEnum -> BindingDecl.Description.Type.Kind.ENUM
+                    resolved.isInterface -> BindingDecl.Description.Type.Kind.INTERFACE
+                    else -> BindingDecl.Description.Type.Kind.CLASS
+                },
+                binding = if (erasure.qualifiedName.isEmpty()) null
+                else Bindings.toString(resolved),
+                simpleName =
+                if (resolved.isAnonymous) resolved.binaryName.substring(resolved.binaryName.indexOf('$'))
+                else erasure.name,
+                typeParameters = resolved.typeArguments.map { describeType(it) }
+        )
+    }
+
+    private fun visitTypeDecl(resolved: ITypeBinding,
+                              nameStartPosition: Int,
+                              declAnnotationLength: Int,
+                              superclassType: Type?,
+                              interfaceTypes: List<Any?>?) {
 
         val superBindings = ArrayList<BindingDecl.Super>()
         if (superclassType != null) {
@@ -121,10 +162,10 @@ internal class BindingVisitor(
             if (b != null) {
                 superBindings.add(BindingDecl.Super(r.name, b))
                 annotatedSourceFile.annotate(
-                        node.name.startPosition, 0, makeBindingRef(BindingRefType.SUPER_TYPE, b))
+                        nameStartPosition, 0, makeBindingRef(BindingRefType.SUPER_TYPE, b))
             }
         }
-        if (interfaceTypes != null && interfaceTypes.size > 0) {
+        if (interfaceTypes != null && interfaceTypes.isNotEmpty()) {
             for (interfaceType in interfaceTypes) {
                 val r = (interfaceType as Type).resolveBinding()
                 val b = r?.let { Bindings.toString(it) }
@@ -139,16 +180,26 @@ internal class BindingVisitor(
                 if (b != null) {
                     superBindings.add(BindingDecl.Super(interfaceType.name, b))
                     annotatedSourceFile.annotate(
-                            node.name.startPosition, 0, makeBindingRef(BindingRefType.SUPER_TYPE, b))
+                            nameStartPosition, 0, makeBindingRef(BindingRefType.SUPER_TYPE, b))
                 }
             }
         }
 
         val binding = Bindings.toString(resolved)
         if (binding != null) {
-            annotatedSourceFile.annotate(node.name, BindingDecl(binding, superBindings))
+            val parent = if (resolved.isLocal) {
+                parentToString(resolved.declaringMember)
+            } else {
+                parentToString(resolved.declaringClass)
+            }
+            annotatedSourceFile.annotate(nameStartPosition, declAnnotationLength, BindingDecl(
+                    binding,
+                    parent = parent,
+                    description = describeType(resolved),
+                    modifiers = getModifiers(resolved),
+                    superBindings = superBindings
+            ))
         }
-        return true
     }
 
     override fun visit(node: TypeParameter): Boolean {
@@ -166,12 +217,27 @@ internal class BindingVisitor(
             if (binding != null) {
                 annotatedSourceFile.annotate(
                         target,
-                        BindingDecl(binding, overrides.mapNotNull {
-                            val b = Bindings.toString(it) ?: return@mapNotNull null
-                            BindingDecl.Super(it.declaringClass.name + "." + it.name, b)
-                        }))
+                        BindingDecl(
+                                binding = binding,
+                                parent = parentToString(resolved.declaringClass),
+                                description = describeMethod(resolved),
+                                modifiers = getModifiers(resolved),
+                                superBindings = overrides.mapNotNull {
+                                    val b = Bindings.toString(it) ?: return@mapNotNull null
+                                    BindingDecl.Super(it.declaringClass.name + "." + it.name, b)
+                                }
+                        )
+                )
             }
         }
+    }
+
+    private fun describeMethod(resolved: IMethodBinding): BindingDecl.Description.Method {
+        return BindingDecl.Description.Method(
+                name = resolved.name,
+                returnTypeBinding = describeType(resolved.returnType),
+                parameterTypeBindings = resolved.parameterTypes.map { describeType(it) }
+        )
     }
 
     override fun visit(node: MethodDeclaration): Boolean {
@@ -181,6 +247,31 @@ internal class BindingVisitor(
         for (thrownExceptionType in node.thrownExceptionTypes()) {
             visitType0(thrownExceptionType as Type, BindingRefType.THROWS_DECLARATION)
         }
+        return true
+    }
+
+    override fun visit(node: Initializer): Boolean {
+        @Suppress("MoveVariableDeclarationIntoWhen")
+        val parentNode = node.parent
+        val declaring = when (parentNode) {
+            is AbstractTypeDeclaration -> parentNode.resolveBinding()
+            is AnonymousClassDeclaration -> parentNode.resolveBinding()
+            else -> throw AssertionError(parentNode.javaClass.name)
+        }
+        val static = Modifier.isStatic(node.modifiers)
+        // TODO: find a binding for this initializer block
+        val binding = Bindings.toString(declaring) + "#${if (static) "<clinit>" else "<init>"}${initializerCounter++}"
+        //val internal = unsafeGetInternalNode(node) as org.eclipse.jdt.internal.compiler.ast.Initializer
+        //val binding = unsafeGetMethodBinding(node.ast, internal.methodBinding)!!
+        annotatedSourceFile.annotate(
+                node.startPosition, 0,
+                BindingDecl(
+                        binding = binding,
+                        parent = parentToString(declaring),
+                        description = BindingDecl.Description.Initializer(),
+                        modifiers = node.modifiers
+                )
+        )
         return true
     }
 
@@ -228,27 +319,37 @@ internal class BindingVisitor(
 
     override fun visit(node: VariableDeclarationFragment): Boolean {
         val resolved = node.resolveBinding()
-        if (resolved != null && resolved.isField) {
-            val binding = Bindings.toString(resolved)
-            if (binding != null) {
-                annotatedSourceFile.annotate(node.name, BindingDecl(binding))
-            }
-        }
+        visitFieldDecl(resolved, node.name)
         return true
     }
 
     override fun visit(node: SingleVariableDeclaration): Boolean {
         val resolved = node.resolveBinding()
         visitFieldType(resolved, node.type)
-        if (resolved != null) {
-            if (resolved.isField) {
-                val binding = Bindings.toString(resolved)
-                if (binding != null) {
-                    annotatedSourceFile.annotate(node.name, BindingDecl(binding))
-                }
+        visitFieldDecl(resolved, node.name)
+        return true
+    }
+
+    override fun visit(node: EnumConstantDeclaration): Boolean {
+        visitFieldDecl(node.resolveVariable(), node.name)
+        return true
+    }
+
+    private fun visitFieldDecl(resolved: IVariableBinding?, name: SimpleName) {
+        if (resolved != null && resolved.isField) {
+            val binding = Bindings.toString(resolved)
+            if (binding != null) {
+                annotatedSourceFile.annotate(name, BindingDecl(
+                        binding,
+                        parent = parentToString(resolved.declaringClass),
+                        description = BindingDecl.Description.Field(
+                                name = resolved.name,
+                                typeBinding = describeType(resolved.type)
+                        ),
+                        modifiers = getModifiers(resolved)
+                ))
             }
         }
-        return true
     }
 
     override fun visit(node: VariableDeclarationExpression): Boolean {
@@ -450,6 +551,23 @@ internal class BindingVisitor(
                 if (s != null) annotatedSourceFile.annotate(node.type,
                         makeBindingRef(BindingRefType.CONSTRUCTOR_CALL, s))
             }
+        }
+        return true
+    }
+
+    override fun visit(node: AnonymousClassDeclaration): Boolean {
+        val resolved = node.resolveBinding()
+        if (resolved != null && !resolved.isEnum) {
+            val superclass = resolved.superclass?.let { Bindings.toString(it) }
+            if (superclass != null) annotatedSourceFile.annotate(node.startPosition, 0,
+                    makeBindingRef(BindingRefType.SUPER_TYPE, superclass))
+            visitTypeDecl(
+                    resolved,
+                    nameStartPosition = node.startPosition,
+                    declAnnotationLength = 0,
+                    interfaceTypes = null,
+                    superclassType = null // handled above
+            )
         }
         return true
     }
@@ -664,6 +782,16 @@ internal class BindingVisitor(
                 annotatedSourceFile.annotate(internal.arrowPosition - 1, 2,
                         makeBindingRef(BindingRefType.SUPER_METHOD, s))
             }
+
+            annotatedSourceFile.annotate(node.startPosition, 0, BindingDecl(
+                    Bindings.toStringKeyBinding(binding),
+                    parent = parentToString(binding.declaringMember),
+                    description = BindingDecl.Description.Lambda(
+                            implementingMethodBinding = describeMethod(binding),
+                            implementingTypeBinding = describeType(binding.declaringClass)
+                    ),
+                    modifiers = BindingDecl.MODIFIER_ANONYMOUS or BindingDecl.MODIFIER_LOCAL
+            ))
         }
         val typeBinding = node.resolveTypeBinding()
         if (typeBinding != null) {
@@ -814,5 +942,49 @@ internal class BindingVisitor(
         val getCorrespondingNode = classDefaultBindingResolver.getDeclaredMethod(name, T::class.java)
         getCorrespondingNode.isAccessible = true
         return getCorrespondingNode.invoke(bindingResolver, param)
+    }
+
+    private fun getModifiers(binding: IBinding): Int {
+        var modifiers = binding.modifiers
+        if (binding.isDeprecated) {
+            modifiers = modifiers or BindingDecl.MODIFIER_DEPRECATED
+        }
+        if (binding is ITypeBinding) {
+            if (binding.isLocal) {
+                modifiers = modifiers or BindingDecl.MODIFIER_LOCAL
+            }
+            if (binding.isAnonymous) {
+                modifiers = modifiers or BindingDecl.MODIFIER_ANONYMOUS
+            }
+        }
+        return modifiers
+    }
+
+    private fun parentToString(parent: IBinding?): String? {
+        return when (parent) {
+            null -> null
+            is IVariableBinding -> Bindings.toString(parent)
+            is IMethodBinding -> {
+                when {
+                    // initializer block
+                    //parent.name == "" -> Bindings.toStringKeyBinding(parent)
+                    // we can't get the binding at the declaration site of the init block :(
+                    parent.name == "" -> parentToString(parent.declaringClass)
+
+                    // lambda
+                    parent.declaringMember != null -> Bindings.toStringKeyBinding(parent)
+                    else -> Bindings.toString(parent)
+                }
+            }
+            is ITypeBinding -> {
+                if (parent.isAnonymous && parent.isEnum) {
+                    // skip the anonymous class and make the declaring field the parent
+                    parentToString(parent.declaringMember)
+                } else {
+                    Bindings.toString(parent)
+                }
+            }
+            else -> throw AssertionError()
+        }
     }
 }

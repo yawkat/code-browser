@@ -14,7 +14,7 @@ artifacts:
         url: https://openjdk.java.net/legal/gplv2+ce.html
     url: https://openjdk.java.net/
 - type: java
-  baseDir: "/usr/lib/jvm/zulu-10"
+  baseDir: "/usr/lib/jvm/java-10-openjdk"
   version: 10
   metadata:
     logoUrl: https://openjdk.java.net/images/openjdk.png
@@ -23,7 +23,7 @@ artifacts:
         url: https://openjdk.java.net/legal/gplv2+ce.html
     url: https://openjdk.java.net/
 - type: java
-  baseDir: "/usr/lib/jvm/zulu-11"
+  baseDir: "/usr/lib/jvm/java-11-openjdk"
   version: 11
   metadata:
     logoUrl: https://openjdk.java.net/images/openjdk.png
@@ -32,7 +32,7 @@ artifacts:
       url: https://openjdk.java.net/legal/gplv2+ce.html
     url: https://openjdk.java.net/
 - type: java
-  baseDir: "/usr/lib/jvm/zulu-12"
+  baseDir: "/usr/lib/jvm/java-12-openjdk"
   version: 12
   metadata:
     logoUrl: https://openjdk.java.net/images/openjdk.png

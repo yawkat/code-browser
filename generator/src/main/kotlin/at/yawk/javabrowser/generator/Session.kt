@@ -72,7 +72,7 @@ class Session(
             val executor: ExecutorService
     ) {
         private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
-        private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType) VALUES (?, ?, ?, ?)")
+        private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?)")
 
         fun run() {
             if (mode == UpdateMode.MAJOR) {
@@ -191,7 +191,14 @@ class Session(
                                 artifactId,
                                 annotation.binding,
                                 path,
-                                !annotation.binding.contains('#') && !annotation.binding.contains('(')
+                                annotation.description is BindingDecl.Description.Type &&
+                                        // exclude local and anonymous types from isType so they don't appear in the
+                                        // search
+                                        annotation.modifiers and (BindingDecl.MODIFIER_ANONYMOUS or
+                                        BindingDecl.MODIFIER_LOCAL) == 0,
+                                objectMapper.writeValueAsBytes(annotation.description),
+                                annotation.modifiers,
+                                annotation.parent
                         )
                     }
                 }

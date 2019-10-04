@@ -80,11 +80,90 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     }
 }
 
-data class BindingDecl(val binding: String, val superBindings: List<Super> = emptyList()) : SourceAnnotation() {
+data class BindingDecl(
+        val binding: String,
+        val parent: String?,
+        val description: Description,
+        /**
+         * Modifier set as listed in the jvms and in `org.eclipse.jdt.core.dom.Modifier`.
+         *
+         * On top of the jvms modifiers, this may include:
+         *
+         * - `org.eclipse.jdt.core.dom.Modifier.DEFAULT`
+         * - `MODIFIER_DEPRECATED`
+         * - `MODIFIER_LOCAL`
+         * - `MODIFIER_ANONYMOUS`
+         */
+        val modifiers: Int,
+
+        val superBindings: List<Super> = emptyList()
+) : SourceAnnotation() {
+    @JsonTypeInfo(property = "type", use = JsonTypeInfo.Id.NAME)
+    @JsonSubTypes(value = [
+        JsonSubTypes.Type(value = Description.Type::class, name = "type"),
+        JsonSubTypes.Type(value = Description.Lambda::class, name = "lambda"),
+        JsonSubTypes.Type(value = Description.Initializer::class, name = "initializer"),
+        JsonSubTypes.Type(value = Description.Method::class, name = "method"),
+        JsonSubTypes.Type(value = Description.Field::class, name = "field")
+    ])
+    sealed class Description {
+        data class Type(
+                val kind: Kind,
+                val binding: String?,
+                val simpleName: String,
+                val typeParameters: List<Type> = emptyList()
+        ) : Description() {
+            enum class Kind(@get:JsonValue val id: Int) {
+                CLASS(0),
+                EXCEPTION(1),
+                INTERFACE(2),
+                ANNOTATION(3),
+                ENUM(4);
+
+                companion object {
+                    @JsonCreator
+                    @JvmStatic
+                    fun byId(id: Int) = when (id) {
+                        0 -> CLASS
+                        1 -> EXCEPTION
+                        2 -> INTERFACE
+                        3 -> ANNOTATION
+                        4 -> ENUM
+                        else -> throw NoSuchElementException("$id")
+                    }
+                }
+            }
+        }
+
+        data class Lambda(
+                val implementingMethodBinding: Method,
+                val implementingTypeBinding: Type
+        ) : Description()
+
+        class Initializer() : Description()
+
+        data class Method(
+                val name: String,
+                val returnTypeBinding: Type,
+                val parameterTypeBindings: List<Type>
+        ) : Description()
+
+        data class Field(
+                val name: String,
+                val typeBinding: Type
+        ) : Description()
+    }
+
     data class Super(
             val name: String,
             val binding: String
     )
+
+    companion object {
+        const val MODIFIER_DEPRECATED: Int = 1 shl 31
+        const val MODIFIER_LOCAL: Int = 1 shl 30
+        const val MODIFIER_ANONYMOUS: Int = 1 shl 29
+    }
 }
 data class Style(val styleClass: Set<String>) : SourceAnnotation()
 data class LocalVariableRef(val id: String) : SourceAnnotation()

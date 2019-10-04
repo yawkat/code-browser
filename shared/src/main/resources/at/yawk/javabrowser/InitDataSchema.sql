@@ -24,12 +24,16 @@ create table if not exists sourceFiles
 
 create table if not exists bindings
 (
-    artifactId varchar references artifacts,
-    binding    varchar not null,
-    sourceFile varchar not null,
-    isType     bool    not null,
+    artifactId  varchar references artifacts,
+    binding     varchar not null,
+    description bytea   null, -- json
+    parent      varchar null,
+    sourceFile  varchar not null,
+    isType      bool    not null,
+    modifiers   int4    not null, -- at.yawk.javabrowser.BindingDecl#modifiers
     primary key (artifactId, binding),
-    foreign key (artifactId, sourceFile) references sourceFiles
+    foreign key (artifactId, sourceFile) references sourceFiles,
+    foreign key (artifactId, parent) references bindings
 );
 
 -- BINDING REFERENCES
