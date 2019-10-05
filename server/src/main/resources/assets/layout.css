@@ -9,11 +9,14 @@ html {
 }
 
 #content > div {
-    max-width: 80em;
+    width: auto;
     margin: 0 auto;
     display: block;
-    padding: 0 0.2em 1em;
+    padding-bottom: 1em;
     position: relative;
+}
+#noncode {
+    padding: 0 1em;
 }
 
 #header {
@@ -25,9 +28,7 @@ html {
 }
 
 #header div {
-    max-width: 80em;
-    margin: 0 auto;
-    padding: .5em 0;
+    padding: .5em;
     display: flex;
 }
 #header div > * {
@@ -104,10 +105,11 @@ li {
 
 .message-box {
     display: block;
-    margin: 1em;
+    margin: 1em auto;
     padding: 1em;
     border: 1px solid #ccc;
     font-size: 1.2em;
+    max-width: 60em;
 }
 
 .metadata {
@@ -199,6 +201,9 @@ li {
     padding-left: 16px;
     width: auto;
 }
+#structure > ul > li {
+    padding-left: 0;
+}
 #structure a {
     color: inherit;
     text-decoration: none;
@@ -243,14 +248,14 @@ li {
         flex-direction: row;
     }
     #structure {
-        width: 20em;
+        width: 25%;
     }
     #structure > ul {
         /* room for navbar: 1em padding + 1.5em font size * 1.2em line height */
         top: 2.8em;
         bottom: 0;
         position: fixed;
-        width: 20em;
+        width: 25%;
         overflow: scroll;
     }
     /* expand top level items by default */

@@ -1,8 +1,10 @@
 /* search */
 .search-box {
     max-width: 60em;
-    margin: 0 auto;
     font-family: "DejaVu Sans", sans-serif;
+}
+.search-dialog {
+    margin: 0 auto;
 }
 
 .search-box input {

@@ -69,12 +69,13 @@ $(function () {
     }, false);
 });
 
-function moveTooltipTo(element) {
+function moveTooltipTo(element, rightAlign=false) {
     const pos = element.getBoundingClientRect();
     const wrapperPos = $("#content > div")[0].getBoundingClientRect();
     $("#tooltip").css({
         top: pos.bottom - wrapperPos.top,
-        left: pos.left - wrapperPos.left
+        left: rightAlign ? "auto" : pos.left - wrapperPos.left,
+        right: rightAlign ? pos.right - wrapperPos.right: "auto"
     });
 }
 
@@ -94,7 +95,7 @@ function showAlternativeSourceFiles(alternativeSourceFiles) {
         tooltip.append("<i>No alternative versions</i>");
     }
     tooltip.show();
-    moveTooltipTo(document.getElementById("alt-versions").parentElement);
+    moveTooltipTo(document.getElementById("alt-versions").parentElement, true);
 }
 
 function showReferences(bindingName, superHtml) {
