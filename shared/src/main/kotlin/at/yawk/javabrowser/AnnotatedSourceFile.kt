@@ -4,6 +4,7 @@ import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
 import org.jsoup.parser.Tag
+import java.util.BitSet
 
 /**
  * @author yawkat
@@ -15,6 +16,9 @@ data class AnnotatedSourceFile(
     companion object {
         const val URI = ""
     }
+
+    val declarations: List<BindingDecl>
+        get() = entries.mapNotNull { it.annotation as? BindingDecl }
 
     fun annotate(start: Int, length: Int, annotation: SourceAnnotation) {
         entries.add(Entry(start, length, annotation))

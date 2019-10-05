@@ -1,0 +1,253 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-family: "DejaVu Sans", sans-serif;
+    overflow-y: scroll;
+}
+
+#content > div {
+    max-width: 80em;
+    margin: 0 auto;
+    display: block;
+    padding: 0 0.2em 1em;
+    position: relative;
+}
+
+#header {
+    top: 0;
+    background-color: #222;
+    color: #AFB1B3;
+    width: 100%;
+    z-index: 100;
+}
+
+#header div {
+    max-width: 80em;
+    margin: 0 auto;
+    padding: .5em 0;
+    display: flex;
+}
+#header div > * {
+    font-size: 1.5em;
+    line-height: 1.2em;
+    flex-shrink: 0;
+}
+
+#header h1 {
+    display: inline;
+}
+
+#header a {
+    color: inherit;
+    text-decoration: none;
+}
+
+#header a:hover {
+    text-decoration: underline;
+}
+
+#header h1.shrink:last-of-type {
+    flex-grow: 1;
+}
+
+.search-button, #alt-versions {
+    color: inherit;
+    padding-left: .5em;
+}
+
+#wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* For desktops, scroll only the content */
+@media (min-height: 400px) {
+    #header {
+        position: sticky;
+        white-space: nowrap;
+    }
+    /* Keep the navbar fixed-size */
+    #header h1.shrink {
+        overflow: hidden;
+        direction: rtl;
+        text-align: left;
+    }
+    #header h1.shrink > * {
+        direction: ltr;
+        display: inline-block;
+    }
+}
+
+li {
+    list-style-type: none;
+}
+
+.dialog-wrapper {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    left: 0;
+    right: 0;
+    top: 0;
+    overflow-y: scroll;
+    display: none;
+}
+
+.dialog-wrapper.dialog-visible {
+    display: block;
+}
+
+.message-box {
+    display: block;
+    margin: 1em;
+    padding: 1em;
+    border: 1px solid #ccc;
+    font-size: 1.2em;
+}
+
+.metadata {
+    margin: .5em;
+    padding: .5em;
+    /* Some logos have a white background, so fade out before they appear. */
+    background: linear-gradient(to right, #eee 0%, #eee 60%, #fff 75%);
+    min-height: 40px;
+    max-height: 9.5em;
+    overflow: hidden;
+}
+
+.metadata:hover {
+    max-height: none;
+}
+
+.metadata img {
+    display: block;
+    float: right;
+}
+
+.metadata .itemize {
+    display: block;
+}
+/* icon */
+.metadata .itemize > .fa {
+    display: inline-block;
+    width: 1.5em;
+    text-align: center;
+    vertical-align: top;
+}
+.metadata .itemize > ul {
+    display: inline-block;
+}
+
+#tooltip {
+    position: absolute;
+    max-width: 50em;
+    right: 0;
+    background: white;
+    padding: .2em;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    font-size: .8em;
+}
+
+#tooltip li {
+    list-style-type: none;
+    text-indent: .5em;
+}
+
+.missing-lib {
+    font-size: .85em;
+    margin-top: 1em;
+}
+
+:target {
+    background-color: #64ccc9;
+}
+
+/* This ensures the target overlay is at least 2em wide. */
+:target::before {
+    content: "";
+    padding-right: 2em;
+    margin-right: -2em;
+    display: inline-block;
+    z-index: -100;
+    background-color: #64ccc9;
+}
+
+.declaration-icon {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+}
+.declaration-icon img {
+    display: block;
+    position: absolute;
+}
+#code #code-body {
+    flex-grow: 1;
+}
+#structure {
+    flex-shrink: 0;
+    flex-grow: 0;
+    white-space: nowrap;
+}
+#structure li {
+    padding-left: 16px;
+    width: auto;
+}
+#structure a {
+    color: inherit;
+    text-decoration: none;
+    cursor: default;
+    width: 100%;
+    display: block;
+}
+#structure .expander {
+    color: #888;
+    font-size: 0.7em;
+    vertical-align: middle;
+    display: inline-block;
+    position: absolute;
+    margin-left: -16px;
+}
+#structure .expander:before {
+    content: '▶';
+}
+#structure .expanded > .line .expander:before {
+    content: '▼';
+}
+#structure ul {
+    display: none;
+}
+#structure .expanded > ul, #structure > ul {
+    display: block;
+}
+@media (min-width:800px) {
+    /* If we have enough room, place the structure view on the side */
+    #code {
+        display: flex;
+        flex-direction: row;
+    }
+    #structure {
+        width: 20em;
+    }
+    #structure > ul {
+        /* room for navbar: 1em padding + 1.5em font size * 1.2em line height */
+        top: 2.8em;
+        bottom: 0;
+        position: fixed;
+        width: 20em;
+        overflow: scroll;
+    }
+    /* expand top level items by default */
+    #structure .expanded-on-desktop > .line .expander {
+        display: none;
+    }
+    #structure .expanded-on-desktop > ul {
+        display: block;
+    }
+}

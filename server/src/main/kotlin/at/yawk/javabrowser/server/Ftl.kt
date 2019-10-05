@@ -2,12 +2,14 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.server.view.View
 import freemarker.core.HTMLOutputFormat
+import freemarker.ext.beans.BeansWrapperBuilder
 import freemarker.template.Configuration
 import freemarker.template.TemplateDirectiveModel
 import freemarker.template.TemplateExceptionHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
 import java.io.OutputStreamWriter
+import java.lang.reflect.Modifier
 
 /**
  * @author yawkat
@@ -22,6 +24,10 @@ class Ftl {
         configuration.logTemplateExceptions = false
         configuration.wrapUncheckedExceptions = true
         configuration.outputFormat = HTMLOutputFormat.INSTANCE
+        configuration.whitespaceStripping = true
+
+        val statics = BeansWrapperBuilder(Configuration.VERSION_2_3_28).build().staticModels
+        configuration.setSharedVariable("Modifier", statics[Modifier::class.qualifiedName])
     }
 
     fun render(exchange: HttpServerExchange, view: View) {

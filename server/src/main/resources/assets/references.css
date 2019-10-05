@@ -1,0 +1,94 @@
+
+.reference-detail-table {
+    padding: 1em;
+    margin: 1em;
+    border: 1px solid #ccc;
+    max-height: 20.5em;
+    overflow-y: hidden;
+}
+.reference-detail-table table {
+    text-align: right;
+    border-collapse: collapse;
+}
+.reference-detail-table:hover {
+    max-height: none;
+}
+.reference-detail-table td, .reference-detail-table th {
+    padding: .2em;
+}
+.reference-detail-table td:nth-child(even), .reference-detail-table th:nth-child(even) {
+    background: #eee;
+}
+
+ul.reference-detail-list ul {
+    margin-left: 1em;
+}
+
+/* Lines */
+ul.reference-detail-list .source-file {
+    padding-left: 2em;
+}
+ul.reference-detail-list .source-file h4 {
+    display: inline-block;
+    text-indent: -2em;
+    font-size: 1em;
+    font-weight: normal;
+}
+
+@media (min-height: 400px) {
+    ul.reference-detail-list .source-file {
+        padding-left: 4em;
+    }
+    ul.reference-detail-list .source-file h4 {
+        text-indent: -4em;
+    }
+}
+
+ul.reference-detail-list .source-file ul {
+    display: inline-block;
+    margin: 0;
+}
+ul.reference-detail-list .source-file li {
+    display: inline-block;
+}
+
+.reference-detail-list h2, .reference-detail-list h3 {
+    position: sticky;
+    background: white;
+}
+
+ul.reference-detail-list h2 {
+    top: 0;
+    z-index: 2;
+}
+
+ul.reference-detail-list h3 {
+    top: 1.1em;
+    z-index: 1;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+/* Adjust for top bar on desktop */
+@media (min-height: 400px) {
+    ul.reference-detail-list h2 {
+        top: 45px;
+    }
+
+    ul.reference-detail-list h3 {
+        top: calc(45px + 1.1em);
+    }
+}
+
+ul.reference-detail-list h4 {
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+.hit-result-limit {
+    display: block;
+    font-weight: bold;
+    padding: 1em;
+    margin: 1em;
+    background: #fcc;
+}

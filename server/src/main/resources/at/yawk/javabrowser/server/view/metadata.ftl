@@ -15,7 +15,7 @@
 
   <#if artifactMetadata.licenses??>
     <div class="itemize" title="License">
-      <i class="fa-balance-scale fa"></i>
+      <i class="ij ij-documentation"></i>
       <ul>
         <#list artifactMetadata.licenses as license>
           <li>
@@ -29,7 +29,7 @@
   </#if>
   <#if artifactMetadata.contributors??>
     <div class="itemize" title="Contributors">
-      <i class="fa-user fa"></i>
+      <i class="ij ij-user"></i>
       <ul>
         <#list artifactMetadata.contributors as dev>
           <li>
@@ -46,7 +46,7 @@
   </#if>
   <#if artifactMetadata.developers?? && artifactMetadata.developers[0].name??>
     <div class="itemize" title="Developers">
-      <i class="fa-user fa"></i>
+      <i class="ij ij-user"></i>
       <ul>
         <#list artifactMetadata.developers as dev>
           <li>

@@ -41,6 +41,19 @@ class SourceFileView(
         pre.html()!! // inner HTML, we need the pre so jsoup properly formats
     }
 
+    val declarations: List<DeclarationNode>
+        get() {
+            val all: MutableMap<String?, MutableList<DeclarationNode>> = HashMap()
+            all[null] = ArrayList() // items with no parents
+            for (declaration in sourceFile.declarations) {
+                val children = ArrayList<DeclarationNode>()
+                all[declaration.binding] = children
+                val node = DeclarationNode(declaration, children)
+                all[declaration.parent]!!.add(node)
+            }
+            return all[null]!!
+        }
+
     private fun toNode(annotation: SourceAnnotation, members: List<Node>): List<Node> = when (annotation) {
         is BindingRef -> {
             linkToBinding(members, annotation.binding, annotation.id)

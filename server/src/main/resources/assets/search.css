@@ -1,0 +1,43 @@
+/* search */
+.search-box {
+    max-width: 60em;
+    margin: 0 auto;
+    font-family: "DejaVu Sans", sans-serif;
+}
+
+.search-box input {
+    width: 100%;
+    height: 2em;
+    margin: 1em 0;
+}
+
+.search-box li {
+    list-style: none;
+    width: 100%;
+}
+
+.search-box ul {
+    width: 100%;
+}
+
+.search-box li a {
+    padding: .2em;
+    display: block;
+    width: 100%;
+}
+
+.search-box li a:hover {
+    background: #eee;
+}
+
+.search-dialog {
+    margin-top: 2em;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    padding: 1em;
+}
+
+.search-dialog > * {
+    box-sizing: border-box;
+}

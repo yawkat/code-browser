@@ -1,0 +1,22 @@
+.ij {
+    height: 1.1em;
+    width: 1.1em;
+    display: inline-block;
+    background-size: contain;
+    vertical-align: middle;
+}
+.ij-home {
+    background-image: url('/assets/icons/nodes/homeFolder_dark.svg');
+}
+.ij-search {
+    background-image: url('/assets/icons/actions/find_dark.svg');
+}
+.ij-history {
+    background-image: url('/assets/icons/history_dark.svg');
+}
+.ij-user {
+    background-image: url('/assets/icons/user.svg');
+}
+.ij-documentation {
+    background-image: url('/assets/icons/documentation.svg');
+}

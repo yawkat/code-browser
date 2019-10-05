@@ -8,7 +8,6 @@
   <#if type??>of type '${type.displayName}'</#if>
 </#assign>
 <#assign head>
-  <@path.home/>
   References to ${targetBinding}
   <#if sourceArtifactId??>from <a href="/${sourceArtifactId}">${sourceArtifactId}</a></#if>
   <#if type??>of type '${type.displayName}'</#if>
