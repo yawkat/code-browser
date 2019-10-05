@@ -59,31 +59,40 @@ class SourceFileView(
             linkToBinding(members, annotation.binding, annotation.id)
         }
         is BindingDecl -> {
+            val showDeclaration = when (annotation.description) {
+                is BindingDecl.Description.Initializer -> false
+                else -> true
+            }
+
             val link = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
             link.attr("id", annotation.binding)
             link.attr("href", BindingResolver.bindingHash(annotation.binding))
             link.appendChildren(members)
 
-            val moreInfo = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
-            moreInfo.attr("class", "show-refs")
+            if (showDeclaration) {
+                val moreInfo = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
+                moreInfo.attr("class", "show-refs")
 
-            val superHtml = if (!annotation.superBindings.isEmpty()) {
-                val superList = Element(Tag.valueOf("ul"), AnnotatedSourceFile.URI)
-                for (superBinding in annotation.superBindings) {
-                    val entry = superList.appendElement("li")
-                    entry.appendChildren(linkToBinding(
-                            listOf(TextNode(superBinding.name, AnnotatedSourceFile.URI)),
-                            superBinding.binding,
-                            refId = null
-                    ))
+                val superHtml = if (!annotation.superBindings.isEmpty()) {
+                    val superList = Element(Tag.valueOf("ul"), AnnotatedSourceFile.URI)
+                    for (superBinding in annotation.superBindings) {
+                        val entry = superList.appendElement("li")
+                        entry.appendChildren(linkToBinding(
+                                listOf(TextNode(superBinding.name, AnnotatedSourceFile.URI)),
+                                superBinding.binding,
+                                refId = null
+                        ))
+                    }
+                    StringEscapeUtils.escapeEcmaScript(superList.html())
+                } else {
+                    ""
                 }
-                StringEscapeUtils.escapeEcmaScript(superList.html())
-            } else {
-                ""
-            }
-            moreInfo.attr("href", "javascript:showReferences('${annotation.binding}', '$superHtml')")
+                moreInfo.attr("href", "javascript:showReferences('${annotation.binding}', '$superHtml')")
 
-            listOf(moreInfo, link)
+                listOf(moreInfo, link)
+            } else {
+                listOf(link)
+            }
         }
         is Style -> listOf(Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
             it.attr("class", annotation.styleClass.joinToString(" "))
