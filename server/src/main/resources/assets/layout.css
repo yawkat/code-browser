@@ -206,8 +206,15 @@ li {
     width: 100%;
     display: block;
 }
+#structure .selected a {
+    background: #ccc;
+}
+#structure .line a > * {
+    vertical-align: middle;
+}
 #structure .expander {
     color: #888;
+    background: none !important;
     font-size: 0.7em;
     vertical-align: middle;
     display: inline-block;

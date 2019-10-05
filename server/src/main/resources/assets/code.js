@@ -28,8 +28,20 @@ $(function () {
         });
     }
 
+    const bindingMenuItems = {};
+    for (const element of document.querySelectorAll("#structure .line")) {
+        bindingMenuItems[element.getAttribute("data-binding")] = element;
+    }
+
+    let selectedMenuElement = null;
+
     function scrollIfAnchor(firstLoad) {
-        const target = document.getElementById(decodeURIComponent(window.location.hash.substring(1)));
+        const binding = decodeURIComponent(window.location.hash.substring(1));
+        const target = document.getElementById(binding);
+        if (selectedMenuElement) {
+            selectedMenuElement.classList.remove("selected");
+            selectedMenuElement = null;
+        }
         if (target) {
             /* This can lead to "false positives" when the bar is still on screen even though it's not sticky
             (e.g. on mobile), but the worst that'll happen is that we scroll a bit too far up. */
@@ -41,6 +53,12 @@ $(function () {
                 if (!firstLoad || targetTop === 0) {
                     window.scrollTo(0, targetTop - topBarOffset + window.pageYOffset);
                 }
+            }
+
+            selectedMenuElement = bindingMenuItems[binding];
+            if (selectedMenuElement) {
+                selectedMenuElement.classList.add("selected");
+                selectedMenuElement.scrollIntoView();
             }
         }
     }

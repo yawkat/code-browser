@@ -88,7 +88,7 @@
 
 <#macro declarationNode node>
 <#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
-  <span class="line">
+  <span class="line" data-binding="${node.declaration.binding}">
     <#if node.children?has_content>
       <a href="#" onclick="$(this).closest('li').toggleClass('expanded'); return false"
          class="expander"></a>
