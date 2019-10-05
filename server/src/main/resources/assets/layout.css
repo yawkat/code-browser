@@ -213,6 +213,9 @@ li {
     display: inline-block;
     position: absolute;
     margin-left: -16px;
+    width: 16px;
+    height: 16px;
+    text-align: center;
 }
 #structure .expander:before {
     content: '▶';
