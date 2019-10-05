@@ -10,12 +10,15 @@ import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.appendChildren
 import at.yawk.javabrowser.server.artifact.ArtifactNode
+import com.google.common.collect.Iterators
 import org.apache.commons.text.StringEscapeUtils
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
 import org.jsoup.parser.Tag
+import java.lang.AssertionError
+import java.lang.IllegalStateException
 
 /**
  * @author yawkat
@@ -41,17 +44,39 @@ class SourceFileView(
         pre.html()!! // inner HTML, we need the pre so jsoup properly formats
     }
 
-    val declarations: List<DeclarationNode>
+    val declarations: Iterator<DeclarationNode>
         get() {
-            val all: MutableMap<String?, MutableList<DeclarationNode>> = HashMap()
-            all[null] = ArrayList() // items with no parents
-            for (declaration in sourceFile.declarations) {
-                val children = ArrayList<DeclarationNode>()
-                all[declaration.binding] = children
-                val node = DeclarationNode(declaration, children)
-                all[declaration.parent]!!.add(node)
+            val flat = Iterators.peekingIterator(sourceFile.declarations)
+
+            class SubListItr(val parent: String?) : Iterator<DeclarationNode> {
+                var eaten = false
+                var toEat: SubListItr? = null
+
+                override fun hasNext(): Boolean {
+                    if (eaten) throw IllegalStateException("Iterator eaten. Parent is: $parent")
+
+                    // consume the toEat iterator so we're sure we reached the end of the previous subtree
+                    toEat?.forEach { _ -> }
+                    toEat?.eaten = true
+                    toEat = null
+
+                    if (!flat.hasNext()) return false
+                    if (flat.peek().parent == parent) return true
+                    // sanity check. The topmost iterator should consume all elements
+                    if (parent == null) throw AssertionError()
+                    return false
+                }
+
+                override fun next(): DeclarationNode {
+                    val item = flat.next()
+                    assert(item.parent == parent) // checked in hasNext
+                    val newItr = SubListItr(item.binding)
+                    toEat = newItr
+                    return DeclarationNode(item, newItr)
+                }
             }
-            return all[null]!!
+
+            return SubListItr(null)
         }
 
     private fun toNode(annotation: SourceAnnotation, members: List<Node>): List<Node> = when (annotation) {

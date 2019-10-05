@@ -7,7 +7,10 @@ import at.yawk.javabrowser.BindingDecl
  */
 data class DeclarationNode(
         val declaration: BindingDecl,
-        val children: List<DeclarationNode>
+        /**
+         * Once an element has been hasNext'd, previous items may become inaccessible.
+         */
+        val children: Iterator<DeclarationNode>
 ) {
     val descriptionType: String
         get() = when (declaration.description) {

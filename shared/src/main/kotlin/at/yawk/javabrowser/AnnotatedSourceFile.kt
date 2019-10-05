@@ -17,8 +17,8 @@ data class AnnotatedSourceFile(
         const val URI = ""
     }
 
-    val declarations: List<BindingDecl>
-        get() = entries.mapNotNull { it.annotation as? BindingDecl }
+    val declarations: Iterator<BindingDecl>
+        get() = entries.asSequence().mapNotNull { it.annotation as? BindingDecl }.iterator()
 
     fun annotate(start: Int, length: Int, annotation: SourceAnnotation) {
         entries.add(Entry(start, length, annotation))

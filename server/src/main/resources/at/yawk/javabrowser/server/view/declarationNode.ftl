@@ -109,9 +109,11 @@
     </a>
   </span>
 
-  <#list node.children as child>
-    <#if child?is_first><ul></#if>
-    <li><@declarationNode child/></li>
-    <#if child?is_last></ul></#if>
-  </#list>
+  <#if node.children?has_content>
+    <ul>
+      <@ConservativeLoopBlock iterator=node.children; child>
+        <li><@declarationNode child/></li>
+      </@ConservativeLoopBlock>
+    </ul>
+  </#if>
 </#macro>

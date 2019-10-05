@@ -16,11 +16,11 @@
   <div id="code">
     <div id="structure">
       <ul>
-        <#list declarations as declaration>
+        <@ConservativeLoopBlock iterator=declarations; declaration>
           <li class="expanded-on-desktop">
             <@declarationNode.declarationNode declaration/>
           </li>
-        </#list>
+        </@ConservativeLoopBlock>
       </ul>
     </div>
 

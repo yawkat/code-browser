@@ -28,6 +28,7 @@ class Ftl {
 
         val statics = BeansWrapperBuilder(Configuration.VERSION_2_3_28).build().staticModels
         configuration.setSharedVariable("Modifier", statics[Modifier::class.qualifiedName])
+        configuration.setSharedVariable("ConservativeLoopBlock", ConservativeLoopBlock())
     }
 
     fun render(exchange: HttpServerExchange, view: View) {
