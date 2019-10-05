@@ -58,7 +58,10 @@ $(function () {
             selectedMenuElement = bindingMenuItems[binding];
             if (selectedMenuElement) {
                 selectedMenuElement.classList.add("selected");
-                selectedMenuElement.scrollIntoView();
+                const rect = selectedMenuElement.getBoundingClientRect();
+                if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                    selectedMenuElement.scrollIntoView();
+                }
             }
         }
     }
