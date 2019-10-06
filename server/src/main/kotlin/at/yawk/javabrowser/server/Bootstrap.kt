@@ -20,6 +20,7 @@ import org.skife.jdbi.v2.exceptions.CallbackFailedException
 import org.skife.jdbi.v2.exceptions.TransactionFailedException
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * @author yawkat
@@ -77,8 +78,10 @@ fun main(args: Array<String>) {
     handler = ExceptionHandler(handler).also(exceptions)
     handler = BlockingHandler(handler)
     handler = PathHandler(handler).also {
-        it.addPrefixPath("/webjars", ResourceHandler(
-                ClassPathResourceManager(object {}.javaClass.classLoader, "META-INF/resources/webjars")))
+        val webjars = ResourceHandler(
+                ClassPathResourceManager(object {}.javaClass.classLoader, "META-INF/resources/webjars"))
+        webjars.cacheTime = TimeUnit.DAYS.toSeconds(1).toInt()
+        it.addPrefixPath("/webjars", webjars)
         it.addPrefixPath("/assets", ResourceHandler(
                 ClassPathResourceManager(object {}.javaClass.classLoader, "assets")))
     }
