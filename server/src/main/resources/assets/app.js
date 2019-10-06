@@ -39,3 +39,23 @@ $(function () {
         }
     });
 });
+
+function expandDeclaration(element) {
+    const wrapped = $(element);
+    const container = wrapped.closest("li");
+    const loadChildrenFrom = wrapped.data('load-children-from');
+    if (loadChildrenFrom) {
+        wrapped.data('loadChildrenFrom', null);
+        const spinner = $("<span class='spinner'>…</span>");
+        container.append(spinner);
+        $.ajax({
+            url: loadChildrenFrom,
+            dataType: 'html',
+            success: function (html) {
+                spinner.remove();
+                container.append(html);
+            }
+        });
+    }
+    container.toggleClass('expanded');
+}

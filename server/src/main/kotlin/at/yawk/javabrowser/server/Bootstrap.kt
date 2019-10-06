@@ -35,9 +35,6 @@ fun main(args: Array<String>) {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     val exceptions: (ExceptionHandler) -> Unit = {
-        it.addExceptionHandler(HttpException::class.java) {
-
-        }
         it.addExceptionHandler(Throwable::class.java) {
             var exception = it.getAttachment(ExceptionHandler.THROWABLE)
             if (exception is CallbackFailedException) {
@@ -66,13 +63,15 @@ fun main(args: Array<String>) {
     val ftl = Ftl()
     ftl.putDirective("imageCache", imageCache.directive)
     val artifactIndex = ArtifactIndex(updater, dbi)
-    val baseHandler = BaseHandler(dbi, ftl, bindingResolver, objectMapper, artifactIndex)
+    val packageTreeHandler = DeclarationTreeHandler(dbi, ftl, objectMapper)
+    val baseHandler = BaseHandler(dbi, ftl, bindingResolver, objectMapper, artifactIndex, packageTreeHandler)
     val searchResource = SearchResource(dbi, objectMapper, updater)
     var handler: HttpHandler = PathTemplateHandler(baseHandler).also {
         it.add(SearchResource.PATTERN, searchResource)
         it.add(ReferenceResource.PATTERN, ReferenceResource(dbi, objectMapper))
         it.add(ImageCache.PATTERN, imageCache.handler)
         it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl))
+        it.add(DeclarationTreeHandler.PATTERN, packageTreeHandler)
     }
 
     handler = ExceptionHandler(handler).also(exceptions)

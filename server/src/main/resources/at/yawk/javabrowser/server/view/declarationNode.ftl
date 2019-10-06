@@ -86,33 +86,45 @@
   </span>
 </#macro>
 
-<#macro declarationNode node>
-<#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
-  <span class="line" data-binding="${node.declaration.binding}">
-    <#if node.children?has_content>
-      <a href="#" onclick="$(this).closest('li').toggleClass('expanded'); return false"
-         class="expander"></a>
+<#macro declarationNode node fullSourceFilePath="">
+  <#-- node could also be a at.yawk.javabrowser.server.view.PackageNode -->
+  <#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
+  <#local fullSourceFilePath=node.fullSourceFilePath!fullSourceFilePath/>
+
+  <span class="line"<#if node.descriptionType != "package"> data-binding="${node.declaration.binding}"</#if>>
+    <#if node.children?has_content || node.canLoadChildren!false>
+      <a href="#" onclick="expandDeclaration(this); return false" class="expander"
+      <#if node.canLoadChildren!false>
+        data-load-children-from="/declarationTree?artifactId=${node.artifactId}&binding=${node.fullName}"
+      </#if>
+      ></a>
     </#if>
 
-    <a href="#${node.declaration.binding}">
-      <#if node.descriptionType == "type">
-        <@type node.declaration/>
-      <#elseif node.descriptionType == "lambda">
-        <@lambda node.declaration/>
-      <#elseif node.descriptionType == "initializer">
-        <@initializer node.declaration/>
-      <#elseif node.descriptionType == "method">
-        <@method node.declaration/>
-      <#elseif node.descriptionType == "field">
-        <@field node.declaration/>
-      </#if>
-    </a>
+    <#if node.descriptionType == "package">
+      <#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.PackageNode.Package" -->
+      <img alt="package" src="/assets/icons/nodes/package.svg">
+      <span class="declaration-name">${node.relativeName}</span>
+    <#else>
+      <a href="${fullSourceFilePath}#${node.declaration.binding}">
+        <#if node.descriptionType == "type">
+          <@type node.declaration/>
+        <#elseif node.descriptionType == "lambda">
+          <@lambda node.declaration/>
+        <#elseif node.descriptionType == "initializer">
+          <@initializer node.declaration/>
+        <#elseif node.descriptionType == "method">
+          <@method node.declaration/>
+        <#elseif node.descriptionType == "field">
+          <@field node.declaration/>
+        </#if>
+      </a>
+    </#if>
   </span>
 
   <#if node.children?has_content>
     <ul>
       <@ConservativeLoopBlock iterator=node.children; child>
-        <li><@declarationNode child/></li>
+        <li><@declarationNode child fullSourceFilePath/></li>
       </@ConservativeLoopBlock>
     </ul>
   </#if>

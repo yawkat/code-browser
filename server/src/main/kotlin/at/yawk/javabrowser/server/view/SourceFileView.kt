@@ -8,17 +8,17 @@ import at.yawk.javabrowser.LocalVariableRef
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
+import at.yawk.javabrowser.server.TreeIterator
 import at.yawk.javabrowser.server.appendChildren
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import com.google.common.collect.Iterators
+import com.google.common.collect.PeekingIterator
 import org.apache.commons.text.StringEscapeUtils
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
 import org.jsoup.parser.Tag
-import java.lang.AssertionError
-import java.lang.IllegalStateException
 
 /**
  * @author yawkat
@@ -31,6 +31,7 @@ class SourceFileView(
         val sourceFilePathFile: String,
         val alternatives: List<Alternative>,
         val artifactMetadata: ArtifactMetadata,
+        val declarations: Iterator<DeclarationNode>,
 
         private val bindingResolver: BindingResolver,
         private val sourceFile: AnnotatedSourceFile
@@ -43,41 +44,6 @@ class SourceFileView(
         pre.appendChildren(sourceFile.toHtml(::toNode))
         pre.html()!! // inner HTML, we need the pre so jsoup properly formats
     }
-
-    val declarations: Iterator<DeclarationNode>
-        get() {
-            val flat = Iterators.peekingIterator(sourceFile.declarations)
-
-            class SubListItr(val parent: String?) : Iterator<DeclarationNode> {
-                var eaten = false
-                var toEat: SubListItr? = null
-
-                override fun hasNext(): Boolean {
-                    if (eaten) throw IllegalStateException("Iterator eaten. Parent is: $parent")
-
-                    // consume the toEat iterator so we're sure we reached the end of the previous subtree
-                    toEat?.forEach { _ -> }
-                    toEat?.eaten = true
-                    toEat = null
-
-                    if (!flat.hasNext()) return false
-                    if (flat.peek().parent == parent) return true
-                    // sanity check. The topmost iterator should consume all elements
-                    if (parent == null) throw AssertionError()
-                    return false
-                }
-
-                override fun next(): DeclarationNode {
-                    val item = flat.next()
-                    assert(item.parent == parent) // checked in hasNext
-                    val newItr = SubListItr(item.binding)
-                    toEat = newItr
-                    return DeclarationNode(item, newItr)
-                }
-            }
-
-            return SubListItr(null)
-        }
 
     private fun toNode(annotation: SourceAnnotation, members: List<Node>): List<Node> = when (annotation) {
         is BindingRef -> {

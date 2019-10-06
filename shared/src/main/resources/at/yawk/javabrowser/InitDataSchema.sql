@@ -67,3 +67,43 @@ create materialized view if not exists binding_references_count_view as
 select targetbinding, type, sourceArtifactId, count(*) as count
 from binding_references
 group by (targetbinding, type, sourceArtifactId);
+
+create or replace function count_dots(text)
+    returns int
+as 'select char_length($1) - char_length(replace ($1, ''.'', ''''));'
+    language sql
+    immutable
+    returns null on null input ;
+
+create or replace function until_last_dot(text)
+    returns text
+as 'select array_to_string((string_to_array($1, ''.''))[1:array_length(string_to_array($1, ''.''), 1) - 1], ''.'');'
+    language sql
+    immutable
+    returns null on null input ;
+
+create materialized view if not exists packages_view as
+with recursive rec (artifactId, name) as (
+    select artifactId, until_last_dot(binding) as name from bindings where parent is null
+    union distinct
+    select artifactId, null from bindings
+    union distinct
+    select artifactId, until_last_dot(name)
+    from rec where position('.' in name) != 0
+)
+select * from rec
+order by artifactId, name;
+
+-- This view counts the number of direct and indirect members of all packages.
+-- The package column may be NULL to denote the "top-level" package.
+create materialized view if not exists type_count_by_depth_view as
+with types_and_packages (artifactId, name) as (
+    select artifactId, binding as name from bindings where parent is null
+    union distinct
+    select artifactId, name from packages_view
+)
+select outer_.artifactId, outer_.name package, count_dots(inner_.name) - coalesce(count_dots(outer_.name), -1) depth, count(inner_.name) typeCount
+from types_and_packages as outer_
+         inner join types_and_packages as inner_
+                    on outer_.artifactId = inner_.artifactId and (outer_.name is null or inner_.name like outer_.name || '.%')
+group by outer_.artifactId, outer_.name, count_dots(inner_.name);

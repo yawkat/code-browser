@@ -14,7 +14,7 @@
 <@page.page title="${artifactId.id} : ${sourceFilePathDir}${sourceFilePathFile}" artifactId=artifactId hasSearch=true additionalTitle=additionalTitle additionalMenu=additionalMenu>
 
   <div id="code">
-    <div id="structure">
+    <div class="declaration-tree structure">
       <ul>
         <@ConservativeLoopBlock iterator=declarations; declaration>
           <li class="expanded-on-desktop">

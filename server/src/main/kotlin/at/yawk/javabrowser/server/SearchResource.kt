@@ -9,7 +9,6 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
 import javax.annotation.concurrent.ThreadSafe
-import kotlin.coroutines.experimental.buildSequence
 
 /**
  * @author yawkat
@@ -66,7 +65,7 @@ class SearchResource(private val dbi: DBI,
         val f = if (artifactId == null) {
             val seq = searchIndex.find(query)
             // avoid duplicating search results - prefer newer artifacts.
-            buildSequence<SearchIndex.SearchResult<String, String>> {
+            sequence<SearchIndex.SearchResult<String, String>> {
                 var prev: SearchIndex.SearchResult<String, String>? = null
                 for (item in seq) {
                     if (prev != null) {

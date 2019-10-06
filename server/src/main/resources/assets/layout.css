@@ -192,32 +192,35 @@ li {
 #code #code-body {
     flex-grow: 1;
 }
-#structure {
+.structure {
     flex-shrink: 0;
     flex-grow: 0;
-    white-space: nowrap;
 }
-#structure li {
+.declaration-tree {
+    white-space: nowrap;
+    margin: 0 1em;
+}
+.declaration-tree li {
     padding-left: 16px;
     width: auto;
 }
-#structure > ul > li {
+.declaration-tree > ul > li {
     padding-left: 0;
 }
-#structure a {
-    color: inherit;
+.declaration-tree a {
+    color: inherit !important;
     text-decoration: none;
     cursor: default;
     width: 100%;
     display: block;
 }
-#structure .selected a {
+.declaration-tree .selected a {
     background: #ccc;
 }
-#structure .line a > * {
+.declaration-tree .line a > * {
     vertical-align: middle;
 }
-#structure .expander {
+.declaration-tree .expander {
     color: #888;
     background: none !important;
     font-size: 0.7em;
@@ -229,16 +232,16 @@ li {
     height: 16px;
     text-align: center;
 }
-#structure .expander:before {
+.declaration-tree .expander:before {
     content: '▶';
 }
-#structure .expanded > .line .expander:before {
+.declaration-tree .expanded > .line .expander:before {
     content: '▼';
 }
-#structure ul {
+.declaration-tree ul {
     display: none;
 }
-#structure .expanded > ul, #structure > ul {
+.declaration-tree .expanded > ul, .declaration-tree > ul {
     display: block;
 }
 @media (min-width:800px) {
@@ -247,10 +250,11 @@ li {
         display: flex;
         flex-direction: row;
     }
-    #structure {
+    .structure {
         width: 25%;
+        margin: 0;
     }
-    #structure > ul {
+    .structure > ul {
         /* room for navbar: 1em padding + 1.5em font size * 1.2em line height */
         top: 2.8em;
         bottom: 0;
@@ -259,10 +263,10 @@ li {
         overflow: scroll;
     }
     /* expand top level items by default */
-    #structure .expanded-on-desktop > .line .expander {
+    .structure .expanded-on-desktop > .line .expander {
         display: none;
     }
-    #structure .expanded-on-desktop > ul {
+    .structure .expanded-on-desktop > ul {
         display: block;
     }
 }

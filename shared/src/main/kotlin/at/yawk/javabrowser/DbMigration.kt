@@ -1,6 +1,9 @@
 package at.yawk.javabrowser
 
 import org.skife.jdbi.v2.Handle
+import org.skife.jdbi.v2.NoOpStatementRewriter
+import org.skife.jdbi.v2.Script
+import org.skife.jdbi.v2.tweak.StatementRewriter
 import org.slf4j.LoggerFactory
 
 /**
@@ -9,9 +12,17 @@ import org.slf4j.LoggerFactory
 private val log = LoggerFactory.getLogger(DbMigration::class.java)
 
 object DbMigration {
+    private fun Script.executeNoParameters(conn: Handle) {
+        for (s in statements) {
+            val stmt = conn.createStatement(s)
+            stmt.setStatementRewriter(NoOpStatementRewriter())
+            stmt.execute()
+        }
+    }
+
     fun initDataSchema(conn: Handle) {
         log.info("Initializing DB")
-        conn.createScript("at/yawk/javabrowser/InitDataSchema.sql").execute()
+        conn.createScript("at/yawk/javabrowser/InitDataSchema.sql").executeNoParameters(conn)
     }
 
     fun initInteractiveSchema(conn: Handle) {

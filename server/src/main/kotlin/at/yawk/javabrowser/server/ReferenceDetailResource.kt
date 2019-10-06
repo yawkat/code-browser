@@ -149,14 +149,14 @@ class ReferenceDetailResource(
     private class ResultGenerator(resultIterator: Iterator<ReferenceDetailView.Row>) {
         private val iterator = Iterators.peekingIterator(resultIterator)
 
-        fun splitByType() = SentinelIterator(buildIterator {
+        fun splitByType() = SentinelIterator(iterator {
             while (iterator.hasNext()) {
                 val type = iterator.peek().type ?: continue
                 yield(ReferenceDetailView.TypeListing(type, splitByArtifact(type)))
             }
         }, null)
 
-        private fun splitByArtifact(type: BindingRefType) = SentinelIterator(buildIterator {
+        private fun splitByArtifact(type: BindingRefType) = SentinelIterator(iterator {
             while (iterator.hasNext() && iterator.peek().type == type) {
                 val sourceArtifactId = iterator.peek().sourceArtifactId
                 yield(ReferenceDetailView.ArtifactListing(
@@ -166,7 +166,7 @@ class ReferenceDetailResource(
             }
         }, null)
 
-        private fun splitBySourceFile(sourceArtifactId: String, type: BindingRefType) = SentinelIterator(buildIterator {
+        private fun splitBySourceFile(sourceArtifactId: String, type: BindingRefType) = SentinelIterator(iterator {
             while (iterator.hasNext() &&
                     iterator.peek().sourceArtifactId == sourceArtifactId &&
                     iterator.peek().type == type) {

@@ -8,7 +8,6 @@ import java.util.Locale
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
-import kotlin.coroutines.experimental.buildSequence
 
 /**
  * @author yawkat
@@ -52,7 +51,7 @@ class SearchIndex<K, V> {
         }.sortedBy { it.name }.toList()
     }
 
-    fun find(query: String, includedCats: Set<K> = this.categories.keys) = buildSequence {
+    fun find(query: String, includedCats: Set<K> = this.categories.keys) = sequence {
         val queryLower = query.toLowerCase(Locale.US)
         val candidates = ArrayList<List<Entry<V>>>(includedCats.size)
         val includedCategoriesFinal = ArrayList<K>(includedCats.size)

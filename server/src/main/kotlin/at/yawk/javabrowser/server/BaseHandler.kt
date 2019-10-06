@@ -24,12 +24,13 @@ class BaseHandler(private val dbi: DBI,
                   private val ftl: Ftl,
                   private val bindingResolver: BindingResolver,
                   private val objectMapper: ObjectMapper,
-                  private val artifactIndex: ArtifactIndex) : HttpHandler {
+                  private val artifactIndex: ArtifactIndex,
+                  private val declarationTreeHandler: DeclarationTreeHandler) : HttpHandler {
     override fun handleRequest(exchange: HttpServerExchange) {
         val path = exchange.relativePath.removePrefix("/").removeSuffix("/")
         val pathParts = if (path.isEmpty()) emptyList() else path.split('/')
 
-        val view = dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction { conn: Handle, _ ->
             var node = artifactIndex.rootArtifact
             for ((i, pathPart) in pathParts.withIndex()) {
                 val child = node.children[pathPart]
@@ -38,21 +39,26 @@ class BaseHandler(private val dbi: DBI,
                 } else {
                     val sourceFileParts = pathParts.subList(i, pathParts.size)
                     val sourceFilePath = sourceFileParts.joinToString("/")
-                    return@inTransaction sourceFile(exchange, conn, node, sourceFilePath)
+                    val view = sourceFile(exchange, conn, node, sourceFilePath)
+                    ftl.render(exchange, view)
+                    return@inTransaction
                 }
             }
-            if (node.children.isEmpty()) {
+            val view = if (node.children.isEmpty()) {
                 // artifact overview
-                return@inTransaction TypeSearchView(node,
+                TypeSearchView(
+                        node,
                         getArtifactMetadata(conn, node),
                         listDependencies(conn, node.id).map {
                             buildDependencyInfo(conn, it)
-                        })
+                        },
+                        declarationTreeHandler.packageTree(conn, node.id)
+                )
             } else {
-                return@inTransaction IndexView(node)
+                IndexView(node)
             }
+            ftl.render(exchange, view)
         }
-        ftl.render(exchange, view)
     }
 
     private fun getArtifactMetadata(conn: Handle, artifact: ArtifactNode): ArtifactMetadata {
@@ -132,6 +138,7 @@ class BaseHandler(private val dbi: DBI,
                 sourceFilePathFile = sourceFilePath.substring(separator + 1),
                 alternatives = alternatives,
                 artifactMetadata = getArtifactMetadata(conn, artifactPath),
+                declarations = declarationTreeHandler.declarationTree(sourceFile),
                 bindingResolver = bindingResolver,
                 sourceFile = sourceFile
         )

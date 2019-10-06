@@ -9,7 +9,8 @@ import at.yawk.javabrowser.server.artifact.ArtifactNode
 @Suppress("unused")
 data class TypeSearchView(val artifactId: ArtifactNode,
                           val artifactMetadata: ArtifactMetadata,
-                          val dependencies: List<Dependency>) : View("type-search.ftl") {
+                          val dependencies: List<Dependency>,
+                          val topLevelPackages: Iterator<PackageNode>) : View("type-search.ftl") {
     data class Dependency(
             val prefix: String?,
             val suffix: String
