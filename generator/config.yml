@@ -796,3 +796,7 @@ artifacts:
   version: 9.0.26
   metadata:
     logoUrl: https://tomcat.apache.org/res/images/tomcat.png
+- type: maven
+  groupId: org.eclipse.jgit
+  artifactId: org.eclipse.jgit
+  version: 5.5.0.201909110433-r
