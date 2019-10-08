@@ -38,7 +38,7 @@ class SourceFileView(
 
         private val bindingResolver: BindingResolver,
         private val sourceFile: AnnotatedSourceFile,
-        private val sourceFileOld: AnnotatedSourceFile?
+        sourceFileOld: AnnotatedSourceFile?
 ) : View("source-file.ftl") {
     val diff = sourceFileOld?.let { SourceFilePrinter.Diff(sourceFile, it) }
 

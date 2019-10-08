@@ -10,10 +10,6 @@ import org.eclipse.jgit.diff.EditList
 import org.eclipse.jgit.diff.Sequence
 import org.eclipse.jgit.diff.SequenceComparator
 import org.intellij.lang.annotations.Language
-import org.jsoup.nodes.Element
-import org.jsoup.nodes.Node
-import org.jsoup.nodes.TextNode
-import org.jsoup.parser.Tag
 
 /**
  * @author yawkat
@@ -124,16 +120,23 @@ object SourceFilePrinter {
     private fun Emitter<*>.diffLineMarker(newLine: Int?, oldLine: Int?) {
         if (oldLine != null) {
             val id = "--- ${oldLine + 1}"
-            html("<a href='#$id' id='$id' class='line' data-line='${oldLine + 1}'></a>")
+            html("<a href='#$id' id='$id' class='line line-diff' data-line='${oldLine + 1}'></a>")
         } else {
-            html("<a class='line'></a>")
+            html("<a class='line line-diff'></a>")
         }
         if (newLine != null) {
             val id = (newLine + 1).toString()
-            html("<a href='#$id' id='$id' class='line' data-line='${newLine + 1}'></a>")
+            html("<a href='#$id' id='$id' class='line line-diff' data-line='${newLine + 1}'></a>")
         } else {
-            html("<a class='line'></a>")
+            html("<a class='line line-diff'></a>")
         }
+        html("<span class='diff-marker'>")
+        when {
+            newLine == null -> html("-")
+            oldLine == null -> html("+")
+            else -> html(" ")
+        }
+        html("</span>")
     }
 
     private fun Emitter<*>.normalLineMarker(line: Int) {
