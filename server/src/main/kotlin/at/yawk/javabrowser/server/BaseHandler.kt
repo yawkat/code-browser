@@ -152,15 +152,21 @@ class BaseHandler(private val dbi: DBI,
 
         val sourceFileOld: AnnotatedSourceFile?
         val declarations: Iterator<DeclarationNode>
+        val oldInfo: SourceFileView.FileInfo?
         if (diffWith == null) {
-            sourceFileOld = null
+            oldInfo = null
             declarations = declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile)
         } else {
             @Suppress("USELESS_CAST")
-            sourceFileOld = requestSourceFile(conn, diffWith as ParsedPath.SourceFile)
+            oldInfo = SourceFileView.FileInfo(
+                    artifactId = diffWith.artifact,
+                    sourceFile = requestSourceFile(conn, diffWith as ParsedPath.SourceFile),
+                    classpath = listDependencies(conn, diffWith.artifact.id).toSet() + diffWith.artifact.id,
+                    sourceFilePath = diffWith.sourceFilePath
+            )
             declarations = declarationTreeHandler.diffDeclarationTree(
                     oldArtifactId = diffWith.artifact.id,
-                    oldSourceFile = sourceFileOld,
+                    oldSourceFile = oldInfo.sourceFile,
                     newArtifactId = parsedPath.artifact.id,
                     newSourceFile = sourceFile,
                     fullSourceFilePath = "/${parsedPath.artifact.id}/${parsedPath.sourceFilePath}" +
@@ -170,17 +176,17 @@ class BaseHandler(private val dbi: DBI,
 
         val separator = parsedPath.sourceFilePath.lastIndexOf('/')
         return SourceFileView(
-                artifactId = parsedPath.artifact,
-                classpath =  dependencies.toSet() + parsedPath.artifact.id,
-                classpathOld = diffWith?.let { listDependencies(conn, it.artifact.id).toSet() + it.artifact.id },
-                sourceFilePathDir = parsedPath.sourceFilePath.substring(0, separator + 1),
-                sourceFilePathFile = parsedPath.sourceFilePath.substring(separator + 1),
+                newInfo = SourceFileView.FileInfo(
+                        artifactId = parsedPath.artifact,
+                        classpath = dependencies.toSet() + parsedPath.artifact.id,
+                        sourceFile = sourceFile,
+                        sourceFilePath = parsedPath.sourceFilePath
+                ),
+                oldInfo = oldInfo,
                 alternatives = alternatives,
                 artifactMetadata = getArtifactMetadata(conn, parsedPath.artifact),
                 declarations = declarations,
-                bindingResolver = bindingResolver,
-                sourceFile = sourceFile,
-                sourceFileOld = sourceFileOld
+                bindingResolver = bindingResolver
         )
     }
 

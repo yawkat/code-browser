@@ -140,6 +140,23 @@ code .show-refs {
     background-color: #adffad;
 }
 
+.foreground-old {
+    color: #b32424;
+}
+
+.foreground-new {
+    color: #24b324;
+}
+
+.diff-stats {
+    display: block;
+    text-align: right;
+    font-weight: bold;
+    font-family: monospace;
+    position: absolute;
+    right: 0;
+}
+
 .decl-diff-CHANGED_INTERNALLY {
     background-color: #ffffad;
 }

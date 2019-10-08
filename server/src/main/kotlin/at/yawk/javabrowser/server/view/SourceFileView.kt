@@ -27,92 +27,33 @@ import java.io.Writer
  */
 @Suppress("unused")
 class SourceFileView(
-        val artifactId: ArtifactNode,
-        private val classpath: Set<String>,
-        private val classpathOld: Set<String>?,
-        val sourceFilePathDir: String,
-        val sourceFilePathFile: String,
+        val newInfo: FileInfo,
+        val oldInfo: FileInfo?,
         val alternatives: List<Alternative>,
         val artifactMetadata: ArtifactMetadata,
         val declarations: Iterator<DeclarationNode>,
 
-        private val bindingResolver: BindingResolver,
-        private val sourceFile: AnnotatedSourceFile,
-        sourceFileOld: AnnotatedSourceFile?
+        private val bindingResolver: BindingResolver
 ) : View("source-file.ftl") {
-    val diff = sourceFileOld?.let { SourceFilePrinter.Diff(sourceFile, it) }
+    class FileInfo(
+            val artifactId: ArtifactNode,
+            val sourceFile: AnnotatedSourceFile,
+            val classpath: Set<String>,
+            sourceFilePath: String
+    ) {
+        val sourceFilePathDir: String
+        val sourceFilePathFile: String
+
+        init {
+            val separator = sourceFilePath.lastIndexOf('/')
+            sourceFilePathDir = sourceFilePath.substring(0, separator + 1)
+            sourceFilePathFile = sourceFilePath.substring(separator + 1)
+        }
+    }
+
+    val diff = oldInfo?.let { SourceFilePrinter.Diff(newInfo.sourceFile, it.sourceFile) }
 
     val printerDirective = PrinterDirective()
-
-    private fun toNode(scopePrefix: String,
-                       annotation: SourceAnnotation,
-                       members: List<Node>): List<Node> = when (annotation) {
-        is BindingRef -> {
-            linkToBinding(members, annotation.binding, annotation.id)
-        }
-        is BindingDecl -> {
-            val showDeclaration = when (annotation.description) {
-                is BindingDecl.Description.Initializer -> false
-                else -> true
-            }
-
-            val id = scopePrefix + annotation.binding
-
-            val link = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
-            link.attr("id", id)
-            link.attr("href", BindingResolver.bindingHash(id))
-            link.appendChildren(members)
-
-            if (showDeclaration) {
-                val moreInfo = Element(Tag.valueOf("a"), AnnotatedSourceFile.URI)
-                moreInfo.attr("class", "show-refs")
-
-                val superHtml = if (!annotation.superBindings.isEmpty()) {
-                    val superList = Element(Tag.valueOf("ul"), AnnotatedSourceFile.URI)
-                    for (superBinding in annotation.superBindings) {
-                        val entry = superList.appendElement("li")
-                        entry.appendChildren(linkToBinding(
-                                listOf(TextNode(superBinding.name, AnnotatedSourceFile.URI)),
-                                superBinding.binding,
-                                refId = null
-                        ))
-                    }
-                    StringEscapeUtils.escapeEcmaScript(superList.html())
-                } else {
-                    ""
-                }
-                moreInfo.attr("href", "javascript:showReferences('${annotation.binding}', '$superHtml')")
-
-                listOf(moreInfo, link)
-            } else {
-                listOf(link)
-            }
-        }
-        is Style -> listOf(Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
-            it.attr("class", annotation.styleClass.joinToString(" "))
-            it.appendChildren(members)
-        })
-        is LocalVariableRef -> listOf(Element(Tag.valueOf("span"), AnnotatedSourceFile.URI).also {
-            it.attr("class", "local-variable")
-            it.attr("data-local-variable", annotation.id)
-            it.appendChildren(members)
-        })
-    }
-
-    private fun linkToBinding(members: List<Node>,
-                              binding: String,
-                              refId: Int?): List<Node> {
-        val uris = bindingResolver.resolveBinding(classpath, binding)
-        return if (uris.isEmpty()) {
-            members
-        } else {
-            listOf(Element(Tag.valueOf("a"), AnnotatedSourceFile.URI).also {
-                it.attr("href", uris[0].toASCIIString())
-                if (refId != null) it.attr("id", "ref-$refId")
-                it.appendChildren(members)
-            })
-        }
-    }
 
     data class Alternative(
             val artifactId: String,
@@ -128,7 +69,7 @@ class SourceFileView(
             if (diff != null) {
                 diff.toHtml(emitter)
             } else {
-                SourceFilePrinter.toHtmlSingle(emitter, sourceFile)
+                SourceFilePrinter.toHtmlSingle(emitter, newInfo.sourceFile)
             }
         }
     }
@@ -144,7 +85,7 @@ class SourceFileView(
             get() = if (this == SourceFilePrinter.Scope.OLD) "--- " else ""
 
         override fun computeMemory(scope: SourceFilePrinter.Scope, annotation: SourceAnnotation): EmitterImplMemory {
-            val cp = if (scope == SourceFilePrinter.Scope.OLD) classpathOld!! else classpath
+            val cp = if (scope == SourceFilePrinter.Scope.OLD) oldInfo!!.classpath else newInfo.classpath
             return when (annotation) {
                 is BindingRef -> EmitterImplMemory.ResolvedBinding(
                         bindingResolver.resolveBinding(cp, annotation.binding).firstOrNull()?.toASCIIString())

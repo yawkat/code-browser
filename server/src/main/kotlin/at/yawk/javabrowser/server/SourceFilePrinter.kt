@@ -241,6 +241,11 @@ object SourceFilePrinter {
             diff = algorithm.diff(SplitSourceFileComparator, old, new)
         }
 
+        val insertions: Int
+            get() = diff.sumBy { it.endB - it.beginB }
+        val deletions: Int
+            get() = diff.sumBy { it.endA - it.beginA }
+
         fun <M : Any> toHtml(emitter: Emitter<M>) {
             val cursorNew = Cursor<M>(new)
             val cursorOld = Cursor<M>(old)
