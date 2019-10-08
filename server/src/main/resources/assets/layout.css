@@ -211,6 +211,7 @@ li {
     cursor: default;
     width: 100%;
     display: block;
+    background: inherit;
 }
 .declaration-tree .selected a {
     background: #ccc;
@@ -241,6 +242,12 @@ li {
 }
 .declaration-tree .expanded > ul, .declaration-tree > ul {
     display: block;
+}
+.decl-diff-icon {
+    width: 1em;
+    display: inline-block;
+    text-align: center;
+    font-family: monospace;
 }
 @media (min-width:800px) {
     /* If we have enough room, place the structure view on the side */

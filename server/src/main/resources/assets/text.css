@@ -132,10 +132,14 @@ code .show-refs {
     width: auto;
 }
 
-.deletion {
+.deletion, .decl-diff-DELETION {
     background-color: #ffadad;
 }
 
-.insertion {
+.insertion, .decl-diff-INSERTION {
     background-color: #adffad;
+}
+
+.decl-diff-CHANGED_INTERNALLY {
+    background-color: #ffffad;
 }

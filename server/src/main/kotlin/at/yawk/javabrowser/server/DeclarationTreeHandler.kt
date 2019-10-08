@@ -9,9 +9,13 @@ import com.google.common.collect.Iterators
 import com.google.common.collect.PeekingIterator
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
+import org.eclipse.jgit.diff.DiffAlgorithm
+import org.eclipse.jgit.diff.Sequence
+import org.eclipse.jgit.diff.SequenceComparator
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import java.util.Collections
+import java.util.Objects
 
 /**
  * @author yawkat
@@ -41,7 +45,7 @@ class DeclarationTreeHandler(
                         json.single()["json"] as ByteArray,
                         AnnotatedSourceFile::class.java)
                 val fullPath = "/$artifactId/${json.single()["path"]}"
-                for (topLevelType in declarationTree(artifactId, sourceFile, fullSourceFilePath = fullPath)) {
+                for (topLevelType in sourceDeclarationTree(artifactId, sourceFile, fullSourceFilePath = fullPath)) {
                     if (topLevelType.binding == binding) {
                         ftl.render(exchange, PackageNodeView(topLevelType.children!!))
                         return@inTransaction
@@ -55,6 +59,26 @@ class DeclarationTreeHandler(
                 if (!iterator.hasNext()) throw HttpException(404, "Binding not found")
                 ftl.render(exchange, PackageNodeView(iterator))
             }
+        }
+    }
+
+    private data class PrefixIterator(
+            /* work around kotlinc bug: Passing a captured variable to the super constructor is broken */
+            val types: PeekingIterator<DeclarationNode>,
+            val prefix: String) : TreeIterator<DeclarationNode, DeclarationNode>(types) {
+        override fun mapOneItem(): DeclarationNode {
+            var item = flatDelegate.next()
+            if (item.description is BindingDecl.Description.Package) {
+                // add children to package
+                val subIterator = copy(prefix = item.binding + '.')
+                registerSubIterator(subIterator)
+                item = item.copy(children = subIterator)
+            }
+            return item
+        }
+
+        override fun returnToParent(item: DeclarationNode): Boolean {
+            return !item.binding.startsWith(prefix)
         }
     }
 
@@ -112,64 +136,160 @@ class DeclarationTreeHandler(
                 }
                 .iterator())
 
-        class PrefixIterator(
-                /* work around kotlinc bug: Passing a captured variable to the super constructor is broken */
-                types: PeekingIterator<DeclarationNode>,
-                val prefix: String) : TreeIterator<DeclarationNode, DeclarationNode>(types) {
-            override fun mapOneItem(): DeclarationNode {
-                var item = flatDelegate.next()
-                if (item.description is BindingDecl.Description.Package) {
-                    // add children to package
-                    val subIterator = PrefixIterator(flatDelegate, item.binding + '.')
-                    registerSubIterator(subIterator)
-                    item = item.copy(children = subIterator)
-                }
-                return item
-            }
-
-            override fun returnToParent(item: DeclarationNode): Boolean {
-                return !item.binding.startsWith(prefix)
-            }
-        }
-
         return PrefixIterator(types, "")
     }
 
-    fun declarationTree(
+    private data class SourceDeclarationTreeItr(
+            /* work around kotlinc bug: Passing a captured variable to the constructor is broken */
+            val flat_capture: PeekingIterator<BindingDecl>,
+            val fullSourceFilePath_capture: String?,
+            val artifactId_capture: String,
+
+            val parent: String?
+    ) : TreeIterator<BindingDecl, DeclarationNode>(flat_capture) {
+        override fun mapOneItem(): DeclarationNode {
+            val item = flatDelegate.next()
+            assert(!returnToParent(item)) // checked in hasNext
+            val newItr = copy(parent = item.binding)
+            registerSubIterator(newItr)
+            return DeclarationNode(
+                    artifactId = artifactId_capture,
+                    binding = item.binding,
+                    description = item.description,
+                    modifiers = item.modifiers,
+                    fullSourceFilePath = fullSourceFilePath_capture,
+                    children = newItr
+            )
+        }
+
+        override fun returnToParent(item: BindingDecl): Boolean {
+            // sanity check. The topmost iterator should never return to its non-existent parent
+            if (parent == null && item.parent != null) throw AssertionError()
+            return item.parent != parent
+        }
+    }
+
+    fun sourceDeclarationTree(
             artifactId: String,
             sourceFile: AnnotatedSourceFile,
             fullSourceFilePath: String? = null
     ): Iterator<DeclarationNode> {
         val flat = Iterators.peekingIterator(sourceFile.declarations)
 
-        class SubListItr(
-                /* work around kotlinc bug: Passing a captured variable to the constructor is broken */
-                flat_capture: PeekingIterator<BindingDecl>,
-                val fullSourceFilePath_capture: String?,
-                val parent: String?
-        ) : TreeIterator<BindingDecl, DeclarationNode>(flat_capture) {
-            override fun mapOneItem(): DeclarationNode {
-                val item = flatDelegate.next()
-                assert(!returnToParent(item)) // checked in hasNext
-                val newItr = SubListItr(flatDelegate, fullSourceFilePath_capture, item.binding)
-                registerSubIterator(newItr)
-                return DeclarationNode(
-                        artifactId = artifactId,
-                        binding = item.binding,
-                        description = item.description,
-                        modifiers = item.modifiers,
-                        fullSourceFilePath = fullSourceFilePath_capture,
-                        children = null
-                )
-            }
+        return SourceDeclarationTreeItr(flat, fullSourceFilePath, artifactId, null)
+    }
 
-            override fun returnToParent(item: BindingDecl): Boolean {
-                // sanity check. The topmost iterator should never return to its non-existent parent
-                if (parent == null && item.parent != null) throw AssertionError()
-                return item.parent != parent
+    private class DiffDeclarationTree {
+        // dumps of DeclarationNode#children
+        val fullDumpOld = HashMap<String?, List<DeclarationNode>>()
+        val fullDumpNew = HashMap<String?, List<DeclarationNode>>()
+
+        fun dump(target: MutableMap<String?, List<DeclarationNode>>, itr: Iterator<DeclarationNode>):
+                List<DeclarationNode> {
+            val items = ArrayList<DeclarationNode>()
+            for (item in itr) {
+                if (item.children != null) {
+                    target[item.binding] = dump(target, item.children)
+                }
+                items.add(item)
             }
+            return items
         }
 
-        return SubListItr(flat, fullSourceFilePath, null)
+        fun diffNode(parentBinding: String?): List<DeclarationNode> {
+            val new = fullDumpNew[parentBinding]!!
+            val old = fullDumpOld[parentBinding]!!
+            val algorithm = DiffAlgorithm.getAlgorithm(DiffAlgorithm.SupportedAlgorithm.HISTOGRAM)
+
+            class SequenceImpl(val items: List<DeclarationNode>) : Sequence() {
+                override fun size() = items.size
+            }
+
+            class ComparatorImpl : SequenceComparator<SequenceImpl>() {
+                override fun hash(seq: SequenceImpl, ptr: Int) = Objects.hash(
+                        seq.items[ptr].binding.hashCode(),
+                        seq.items[ptr].description.hashCode(),
+                        seq.items[ptr].modifiers.hashCode()
+                )
+                override fun equals(a: SequenceImpl, ai: Int, b: SequenceImpl, bi: Int): Boolean {
+                    val nodeA = a.items[ai]
+                    val nodeB = b.items[bi]
+                    val identical = nodeA.binding == nodeB.binding &&
+                            nodeA.description == nodeB.description &&
+                            nodeA.modifiers == nodeB.modifiers
+                    return identical
+                }
+            }
+
+            val diff = algorithm.diff(ComparatorImpl(), SequenceImpl(old), SequenceImpl(new))
+
+            val result = ArrayList<DeclarationNode>()
+            var newI = 0
+            var oldI = 0
+
+            for (edit in diff) {
+                while (newI < edit.beginB) {
+                    assert(oldI < edit.beginA)
+                    result.add(mapNode(new[newI], DeclarationNode.DiffResult.UNCHANGED))
+                    newI++
+                    oldI++
+                }
+
+                while (oldI < edit.endA) {
+                    result.add(mapNode(old[oldI++], DeclarationNode.DiffResult.DELETION))
+                }
+                while (newI < edit.endB) {
+                    result.add(mapNode(new[newI++], DeclarationNode.DiffResult.INSERTION))
+                }
+            }
+            while (newI < new.size) {
+                assert(oldI < old.size)
+                result.add(mapNode(new[newI], DeclarationNode.DiffResult.UNCHANGED))
+                newI++
+                oldI++
+            }
+            assert(oldI == old.size)
+
+            return result
+        }
+
+        fun mapNode(node: DeclarationNode, diffResult: DeclarationNode.DiffResult): DeclarationNode {
+            var ownResult = diffResult
+            val mappedChildren: Iterator<DeclarationNode> = when (diffResult) {
+                DeclarationNode.DiffResult.UNCHANGED -> {
+                    val childrenDiff = diffNode(node.binding)
+                    if (childrenDiff.any { it.diffResult != DeclarationNode.DiffResult.UNCHANGED }) {
+                        ownResult = DeclarationNode.DiffResult.CHANGED_INTERNALLY
+                    }
+                    childrenDiff.iterator()
+                }
+                // should only be set in this function
+                DeclarationNode.DiffResult.CHANGED_INTERNALLY -> throw AssertionError()
+                DeclarationNode.DiffResult.INSERTION -> Iterators.transform(fullDumpNew[node.binding]!!.iterator()) {
+                    mapNode(it!!, diffResult)
+                }
+                DeclarationNode.DiffResult.DELETION -> Iterators.transform(fullDumpOld[node.binding]!!.iterator()) {
+                    mapNode(it!!, diffResult)
+                }
+            }
+            return node.copy(diffResult = ownResult, children = mappedChildren)
+        }
+    }
+
+    fun diffDeclarationTree(
+            oldArtifactId: String,
+            oldSourceFile: AnnotatedSourceFile,
+            newArtifactId: String,
+            newSourceFile: AnnotatedSourceFile,
+
+            fullSourceFilePath: String? = null
+    ): Iterator<DeclarationNode> {
+        val worker = DiffDeclarationTree()
+        worker.fullDumpOld[null] = worker.dump(worker.fullDumpOld,
+                sourceDeclarationTree(oldArtifactId, oldSourceFile, fullSourceFilePath))
+        worker.fullDumpNew[null] = worker.dump(worker.fullDumpNew,
+                sourceDeclarationTree(newArtifactId, newSourceFile, fullSourceFilePath))
+
+        return worker.diffNode(null).iterator()
     }
 }

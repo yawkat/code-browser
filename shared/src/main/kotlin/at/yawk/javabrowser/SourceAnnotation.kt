@@ -140,7 +140,11 @@ data class BindingDecl(
                 val implementingTypeBinding: Type
         ) : Description()
 
-        class Initializer() : Description()
+        object Initializer : Description() {
+            @JvmStatic
+            @JsonCreator
+            fun create() = Initializer
+        }
 
         data class Method(
                 val name: String,

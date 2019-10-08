@@ -2,7 +2,7 @@
 <#-- @ftlvariable name="Modifier" type="java.lang.reflect.Modifier" -->
 <#macro typeName type><#-- @ftlvariable name="type" type="at.yawk.javabrowser.BindingDecl.Description.Type" -->${type.simpleName}<#if type.typeParameters?has_content>&lt;<#list type.typeParameters as par><#if !par?is_first>, </#if><@typeName par/></#list>&gt;</#if></#macro>
 <#macro decoratedIcon modifiers>
-  <span class="declaration-icon">
+  <span class="declaration-icon"><#t>
     <#nested/>
     <#if Modifier.isFinal(modifiers)>
       <img alt="final" src="/assets/icons/nodes/finalMark.svg">
@@ -85,13 +85,27 @@
     <i>Lambda implementing <@typeName decl.description.implementingTypeBinding/></i><#t>
   </span>
 </#macro>
+<#macro diffIcon node>
+  <#if node.diffResult??>
+    <span class="decl-diff-icon"><#t>
+      <#if node.diffResult == "INSERTION">
+        +<#t>
+      <#elseif node.diffResult == "DELETION">
+        -<#t>
+      <#elseif node.diffResult == "CHANGED_INTERNALLY">
+        ~<#t>
+      </#if>
+    </span><#t>
+  </#if>
+</#macro>
 
 <#macro declarationNode node fullSourceFilePath="" parentBinding="">
   <#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
   <#local fullSourceFilePath=node.fullSourceFilePath!fullSourceFilePath/>
   <#local canLoadChildren=!(node.children??)/>
 
-  <span class="line"<#if node.kind != "PACKAGE"> data-binding="${node.binding}"</#if>>
+  <span class="line<#if node.diffResult??> decl-diff decl-diff-${node.diffResult}</#if>"
+          <#if node.kind != "PACKAGE"> data-binding="${node.binding}"</#if>>
     <#if node.children?has_content || canLoadChildren>
       <a href="#" onclick="expandDeclaration(this); return false" class="expander"
       <#if canLoadChildren>
@@ -102,10 +116,12 @@
     </#if>
 
     <#if node.kind == "PACKAGE">
+      <@diffIcon node/>
       <img alt="package" src="/assets/icons/nodes/package.svg">
       <span class="declaration-name">${(parentBinding == "")?then(node.binding, node.binding.substring(parentBinding.length()))}</span>
     <#else>
-      <a href="${fullSourceFilePath}#${node.declaration.binding}"><#-- TODO: urlencode -->
+      <a href="${fullSourceFilePath}#${node.binding}"><#-- TODO: urlencode --><#t>
+        <@diffIcon node/>
         <#if node.kind == "TYPE">
           <@type node/>
         <#elseif node.kind == "LAMBDA">

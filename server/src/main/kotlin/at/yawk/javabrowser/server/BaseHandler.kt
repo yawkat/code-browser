@@ -3,6 +3,7 @@ package at.yawk.javabrowser.server
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.server.artifact.ArtifactNode
+import at.yawk.javabrowser.server.view.DeclarationNode
 import at.yawk.javabrowser.server.view.IndexView
 import at.yawk.javabrowser.server.view.SourceFileView
 import at.yawk.javabrowser.server.view.TypeSearchView
@@ -149,6 +150,24 @@ class BaseHandler(private val dbi: DBI,
             }
         }
 
+        val sourceFileOld: AnnotatedSourceFile?
+        val declarations: Iterator<DeclarationNode>
+        if (diffWith == null) {
+            sourceFileOld = null
+            declarations = declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile)
+        } else {
+            @Suppress("USELESS_CAST")
+            sourceFileOld = requestSourceFile(conn, diffWith as ParsedPath.SourceFile)
+            declarations = declarationTreeHandler.diffDeclarationTree(
+                    oldArtifactId = diffWith.artifact.id,
+                    oldSourceFile = sourceFileOld,
+                    newArtifactId = parsedPath.artifact.id,
+                    newSourceFile = sourceFile,
+                    fullSourceFilePath = "/${parsedPath.artifact.id}/${parsedPath.sourceFilePath}" +
+                            "?diff=/${diffWith.artifact.id}/${diffWith.sourceFilePath}"
+            )
+        }
+
         val separator = parsedPath.sourceFilePath.lastIndexOf('/')
         return SourceFileView(
                 artifactId = parsedPath.artifact,
@@ -158,10 +177,10 @@ class BaseHandler(private val dbi: DBI,
                 sourceFilePathFile = parsedPath.sourceFilePath.substring(separator + 1),
                 alternatives = alternatives,
                 artifactMetadata = getArtifactMetadata(conn, parsedPath.artifact),
-                declarations = declarationTreeHandler.declarationTree(parsedPath.artifact.id, sourceFile),
+                declarations = declarations,
                 bindingResolver = bindingResolver,
                 sourceFile = sourceFile,
-                sourceFileOld = diffWith?.let { requestSourceFile(conn, it as ParsedPath.SourceFile) }
+                sourceFileOld = sourceFileOld
         )
     }
 

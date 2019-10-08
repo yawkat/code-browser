@@ -17,7 +17,9 @@ data class DeclarationNode(
          * Once an element has been hasNext'd, previous items may become inaccessible. If this is `null`, children
          * should be lazy-loaded.
          */
-        val children: Iterator<DeclarationNode>?
+        val children: Iterator<DeclarationNode>?,
+
+        val diffResult: DiffResult? = null
 ) {
     val kind: Kind
         get() = when (description) {
@@ -28,6 +30,13 @@ data class DeclarationNode(
             is BindingDecl.Description.Field -> Kind.FIELD
             is BindingDecl.Description.Package -> Kind.PACKAGE
         }
+
+    enum class DiffResult {
+        UNCHANGED,
+        CHANGED_INTERNALLY,
+        INSERTION,
+        DELETION,
+    }
 
     enum class Kind {
         PACKAGE,
