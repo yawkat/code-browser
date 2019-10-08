@@ -19,7 +19,7 @@ data class ArtifactMetadata(
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class License(
             val name: String,
-            val url: String
+            val url: String?
     )
 
     @JsonIgnoreProperties(ignoreUnknown = true)
