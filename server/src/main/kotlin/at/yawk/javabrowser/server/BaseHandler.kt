@@ -26,36 +26,50 @@ class BaseHandler(private val dbi: DBI,
                   private val objectMapper: ObjectMapper,
                   private val artifactIndex: ArtifactIndex,
                   private val declarationTreeHandler: DeclarationTreeHandler) : HttpHandler {
-    override fun handleRequest(exchange: HttpServerExchange) {
-        val path = exchange.relativePath.removePrefix("/").removeSuffix("/")
+    private sealed class ParsedPath(val artifact: ArtifactNode) {
+        class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact)
+        class Artifact(artifact: ArtifactNode) : ParsedPath(artifact)
+        class Root(artifact: ArtifactNode) : ParsedPath(artifact)
+    }
+
+    private fun parsePath(rawPath: String): ParsedPath {
+        val path = rawPath.removePrefix("/").removeSuffix("/")
         val pathParts = if (path.isEmpty()) emptyList() else path.split('/')
 
-        dbi.inTransaction { conn: Handle, _ ->
-            var node = artifactIndex.rootArtifact
-            for ((i, pathPart) in pathParts.withIndex()) {
-                val child = node.children[pathPart]
-                if (child != null) {
-                    node = child
-                } else {
-                    val sourceFileParts = pathParts.subList(i, pathParts.size)
-                    val sourceFilePath = sourceFileParts.joinToString("/")
-                    val view = sourceFile(exchange, conn, node, sourceFilePath)
-                    ftl.render(exchange, view)
-                    return@inTransaction
-                }
+        var node = artifactIndex.rootArtifact
+        for ((i, pathPart) in pathParts.withIndex()) {
+            val child = node.children[pathPart]
+            if (child != null) {
+                node = child
+            } else {
+                val sourceFileParts = pathParts.subList(i, pathParts.size)
+                val sourceFilePath = sourceFileParts.joinToString("/")
+                return ParsedPath.SourceFile(node, sourceFilePath)
             }
-            val view = if (node.children.isEmpty()) {
-                // artifact overview
-                TypeSearchView(
-                        node,
-                        getArtifactMetadata(conn, node),
-                        listDependencies(conn, node.id).map {
+        }
+        if (node.children.isEmpty()) {
+            // artifact overview
+            return ParsedPath.Artifact(node)
+        } else {
+            return ParsedPath.Root(node)
+        }
+    }
+
+    override fun handleRequest(exchange: HttpServerExchange) {
+        val path = parsePath(exchange.relativePath)
+
+        dbi.inTransaction { conn: Handle, _ ->
+            val view = when (path) {
+                is ParsedPath.SourceFile -> sourceFile(exchange, conn, path)
+                is ParsedPath.Artifact -> TypeSearchView(
+                        path.artifact,
+                        getArtifactMetadata(conn, path.artifact),
+                        listDependencies(conn, path.artifact.id).map {
                             buildDependencyInfo(conn, it)
                         },
-                        declarationTreeHandler.packageTree(conn, node.id)
+                        declarationTreeHandler.packageTree(conn, path.artifact.id)
                 )
-            } else {
-                IndexView(node)
+                is ParsedPath.Root -> IndexView(path.artifact)
             }
             ftl.render(exchange, view)
         }
@@ -83,25 +97,34 @@ class BaseHandler(private val dbi: DBI,
         return TypeSearchView.Dependency(null, it)
     }
 
-    private fun sourceFile(exchange: HttpServerExchange,
-                           conn: Handle,
-                           artifactPath: ArtifactNode,
-                           sourceFilePath: String): View {
-        val dependencies = listDependencies(conn, artifactPath.id)
-
+    private fun requestSourceFile(conn: Handle, parsedPath: ParsedPath.SourceFile): AnnotatedSourceFile {
         val result = conn.select("select json from sourceFiles where artifactId = ? and path = ?",
-                artifactPath.id, sourceFilePath)
+                parsedPath.artifact.id, parsedPath.sourceFilePath)
         if (result.isEmpty()) {
             throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
         }
+        return objectMapper.readValue(result.single()["json"] as ByteArray, AnnotatedSourceFile::class.java)
+    }
+
+    private fun sourceFile(exchange: HttpServerExchange,
+                           conn: Handle,
+                           parsedPath: ParsedPath.SourceFile): View {
+        val diffWith = exchange.queryParameters["diff"]?.peekFirst()?.let { parsePath(it) }
+        if (diffWith !is ParsedPath.SourceFile?) {
+            throw HttpException(StatusCodes.BAD_REQUEST, "Can't diff with that")
+        }
+
+        val dependencies = listDependencies(conn, parsedPath.artifact.id)
+
+        val sourceFile = requestSourceFile(conn, parsedPath)
 
         if (!exchange.isCrawler()) {
             // increment hit counter for this time bin
             val timestamp = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS)
             conn.update("insert into hits (timestamp, sourceFile, artifactId, hits) values (?, ?, ?, 1) on conflict (timestamp, sourceFile, artifactId) do update set hits = hits.hits + 1",
                     timestamp.toLocalDateTime(),
-                    sourceFilePath,
-                    artifactPath.id)
+                    parsedPath.sourceFilePath,
+                    parsedPath.artifact.id)
         }
 
         val alternatives = ArrayList<SourceFileView.Alternative>()
@@ -112,35 +135,33 @@ class BaseHandler(private val dbi: DBI,
                     .forEach { alternatives.add(it) }
         }
 
-        tryExactMatch(sourceFilePath)
+        tryExactMatch(parsedPath.sourceFilePath)
 
-        if (artifactPath.idList[0] == "java") {
-            if (artifactPath.idList[1].toInt() < 9) {
+        if (parsedPath.artifact.idList[0] == "java") {
+            if (parsedPath.artifact.idList[1].toInt() < 9) {
                 conn.createQuery("select artifactId, path from sourceFiles where artifactId like 'java/%' and path like ?")
-                        .bind(0, "%/$sourceFilePath")
+                        .bind(0, "%/${parsedPath.sourceFilePath}")
                         .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2)) }
                         .forEach { alternatives.add(it) }
             } else {
                 // try without module
-                tryExactMatch(sourceFilePath.substring(sourceFilePath.indexOf('/') + 1))
+                tryExactMatch(parsedPath.sourceFilePath.substring(parsedPath.sourceFilePath.indexOf('/') + 1))
             }
         }
 
-        val sourceFile = objectMapper.readValue(
-                result.single()["json"] as ByteArray,
-                AnnotatedSourceFile::class.java)
-
-        val separator = sourceFilePath.lastIndexOf('/')
+        val separator = parsedPath.sourceFilePath.lastIndexOf('/')
         return SourceFileView(
-                artifactId = artifactPath,
-                classpath =  dependencies.toSet() + artifactPath.id,
-                sourceFilePathDir = sourceFilePath.substring(0, separator + 1),
-                sourceFilePathFile = sourceFilePath.substring(separator + 1),
+                artifactId = parsedPath.artifact,
+                classpath =  dependencies.toSet() + parsedPath.artifact.id,
+                classpathOld = diffWith?.let { listDependencies(conn, it.artifact.id).toSet() + it.artifact.id },
+                sourceFilePathDir = parsedPath.sourceFilePath.substring(0, separator + 1),
+                sourceFilePathFile = parsedPath.sourceFilePath.substring(separator + 1),
                 alternatives = alternatives,
-                artifactMetadata = getArtifactMetadata(conn, artifactPath),
+                artifactMetadata = getArtifactMetadata(conn, parsedPath.artifact),
                 declarations = declarationTreeHandler.declarationTree(sourceFile),
                 bindingResolver = bindingResolver,
-                sourceFile = sourceFile
+                sourceFile = sourceFile,
+                sourceFileOld = diffWith?.let { requestSourceFile(conn, it as ParsedPath.SourceFile) }
         )
     }
 

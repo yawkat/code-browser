@@ -116,3 +116,16 @@ code .show-refs {
 .small {
     font-size: .85em;
 }
+
+.deletion, .insertion {
+    display: block;
+    width: auto;
+}
+
+.deletion {
+    background-color: #ffadad;
+}
+
+.insertion {
+    background-color: #adffad;
+}

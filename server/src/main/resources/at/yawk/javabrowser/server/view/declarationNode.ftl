@@ -95,6 +95,7 @@
     <#if node.children?has_content || node.canLoadChildren!false>
       <a href="#" onclick="expandDeclaration(this); return false" class="expander"
       <#if node.canLoadChildren!false>
+      <#-- TODO: urlencode -->
         data-load-children-from="/declarationTree?artifactId=${node.artifactId}&binding=${node.fullName}"
       </#if>
       ></a>
@@ -105,7 +106,7 @@
       <img alt="package" src="/assets/icons/nodes/package.svg">
       <span class="declaration-name">${node.relativeName}</span>
     <#else>
-      <a href="${fullSourceFilePath}#${node.declaration.binding}">
+      <a href="${fullSourceFilePath}#${node.declaration.binding}"><#-- TODO: urlencode -->
         <#if node.descriptionType == "type">
           <@type node.declaration/>
         <#elseif node.descriptionType == "lambda">

@@ -27,7 +27,7 @@
     <div id="code-body">
       <#include "metadata.ftl">
 
-      <code><pre>${codeHtml?no_esc}</pre></code>
+      <code><pre><@printerDirective/></pre></code>
     </div>
   </div>
 
