@@ -135,10 +135,8 @@ li {
     display: block;
 }
 /* icon */
-.metadata .itemize > .fa {
+.metadata .itemize > .ij {
     display: inline-block;
-    width: 1.5em;
-    text-align: center;
     vertical-align: top;
 }
 .metadata .itemize > ul {
