@@ -17,4 +17,10 @@ drop index if exists binding_references_targetbinding_type_idx;
 create index if not exists binding_references_targetbinding_type_sourceartifactid_sour_idx on binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileId);
 
 -- BINDING REFERENCE COUNTS
-create index if not exists binding_references_count_view_targetbinding_type_sourcearti_idx on binding_references_count_view (targetbinding, type, sourceArtifactId);
+create unique index if not exists binding_references_count_view_targetbinding_type_sourcearti_idx on binding_references_count_view (targetbinding, type, sourceArtifactId);
+
+-- PACKAGES
+create unique index if not exists packages_artifactId_name_idx on packages_view (artifactId, name);
+
+-- TYPE COUNT BY PACKAGE
+create unique index if not exists type_count_by_depth_artifactId_name_depth_idx on type_count_by_depth_view (artifactId, package, depth);

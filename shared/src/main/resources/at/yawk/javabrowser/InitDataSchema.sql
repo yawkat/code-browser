@@ -64,9 +64,11 @@ create table if not exists dependencies
 -- BINDING REFERENCE COUNTS
 
 create materialized view if not exists binding_references_count_view as
-select targetbinding, type, sourceArtifactId, count(*) as count
+select targetBinding, type, sourceArtifactId, count(*) as count
 from binding_references
-group by (targetbinding, type, sourceArtifactId);
+group by (targetBinding, type, sourceArtifactId);
+
+-- PACKAGES
 
 create or replace function count_dots(text)
     returns int
@@ -93,6 +95,8 @@ with recursive rec (artifactId, name) as (
 )
 select * from rec
 order by artifactId, name;
+
+-- TYPE COUNT BY PACKAGE
 
 -- This view counts the number of direct and indirect members of all packages.
 -- The package column may be NULL to denote the "top-level" package.

@@ -32,7 +32,7 @@ class Session(
     fun execute() {
         val ourTasks = ArrayList(tasks)
         tasks.clear()
-        dbi.inTransaction { conn: Handle, _ ->
+        val mode = dbi.inTransaction { conn: Handle, _ ->
             val present = conn.select("select id from artifacts").map { it["id"] as String }
             val updating = ourTasks.map { it.artifactId }
             val mode = when {
@@ -48,6 +48,18 @@ class Session(
                 SessionConnection(objectMapper, conn, ourTasks, mode, executor).run()
             } finally {
                 executor.shutdownNow()
+            }
+            mode
+        }
+        // do this outside the tx so some data is already available
+        if (mode != UpdateMode.FULL) {
+            dbi.useHandle { otherTx ->
+                log.info("Updating reference count view")
+                otherTx.update("refresh materialized view concurrently binding_references_count_view")
+                log.info("Updating package view")
+                otherTx.update("refresh materialized view concurrently packages_view")
+                log.info("Updating type count view")
+                otherTx.update("refresh materialized view concurrently type_count_by_depth_view")
             }
         }
     }
@@ -99,11 +111,6 @@ class Session(
                     delete(inParam, artifactIds.toTypedArray())
                 }
                 UpdateMode.MINOR -> {
-                    if (mode == UpdateMode.FULL) {
-                        conn.update("create table bindings (like bindings including all)")
-                        conn.update("create table binding_references (like binding_references including all)")
-                        conn.update("create table sourceFiles (like sourceFiles including all)")
-                    }
                     for (artifactId in artifactIds) {
                         delete("= ?", arrayOf(artifactId))
                     }
@@ -143,8 +150,6 @@ class Session(
 
             if (mode != UpdateMode.MINOR) {
                 DbMigration.createIndices(conn)
-                log.info("Updating reference count table")
-                conn.update("refresh materialized view binding_references_count_view")
 
                 if (mode == UpdateMode.FULL) {
                     log.info("Replacing schema")
