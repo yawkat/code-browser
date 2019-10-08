@@ -268,7 +268,7 @@ internal class BindingVisitor(
                 BindingDecl(
                         binding = binding,
                         parent = parentToString(declaring),
-                        description = BindingDecl.Description.Initializer(),
+                        description = BindingDecl.Description.Initializer,
                         modifiers = node.modifiers
                 )
         )
