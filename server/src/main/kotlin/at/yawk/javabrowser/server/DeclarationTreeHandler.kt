@@ -72,7 +72,9 @@ class DeclarationTreeHandler(
                 // add children to package
                 val subIterator = copy(prefix = item.binding + '.')
                 registerSubIterator(subIterator)
-                item = item.copy(children = subIterator)
+                if (subIterator.hasNext()) {
+                    item = item.copy(children = subIterator)
+                }
             }
             return item
         }
@@ -130,7 +132,7 @@ class DeclarationTreeHandler(
                                 modifiers = modifiers,
                                 description = objectMapper.readValue(description,
                                         BindingDecl.Description::class.java),
-                                children = Collections.emptyIterator()
+                                children = null
                         )
                     }
                 }

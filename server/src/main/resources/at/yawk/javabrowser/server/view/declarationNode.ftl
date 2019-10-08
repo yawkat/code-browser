@@ -118,7 +118,7 @@
     <#if node.kind == "PACKAGE">
       <@diffIcon node/>
       <img alt="package" src="/assets/icons/nodes/package.svg">
-      <span class="declaration-name">${(parentBinding == "")?then(node.binding, node.binding.substring(parentBinding.length()))}</span>
+      <span class="declaration-name">${(parentBinding == "")?then(node.binding, node.binding[parentBinding?length+1..])}</span>
     <#else>
       <a href="${fullSourceFilePath}#${node.binding}"><#-- TODO: urlencode --><#t>
         <@diffIcon node/>
