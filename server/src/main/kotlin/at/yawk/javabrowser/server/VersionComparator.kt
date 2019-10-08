@@ -1,7 +1,5 @@
 package at.yawk.javabrowser.server
 
-import com.google.common.collect.Lists
-
 /**
  * @author yawkat
  */

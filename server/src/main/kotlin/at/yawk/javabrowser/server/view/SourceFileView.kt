@@ -57,7 +57,8 @@ class SourceFileView(
 
     data class Alternative(
             val artifactId: String,
-            val sourceFilePath: String
+            val sourceFilePath: String,
+            val diffPath: String?
     )
 
     inner class PrinterDirective : TemplateDirectiveModel {

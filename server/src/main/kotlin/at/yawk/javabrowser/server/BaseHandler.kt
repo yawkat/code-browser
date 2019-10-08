@@ -14,9 +14,11 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
+import java.net.URLEncoder
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import java.util.function.Function
 
 /**
  * @author yawkat
@@ -132,7 +134,7 @@ class BaseHandler(private val dbi: DBI,
         fun tryExactMatch(path: String) {
             conn.createQuery("select artifactId, path from sourceFiles where path = ?")
                     .bind(0, path)
-                    .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2)) }
+                    .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2), null) }
                     .forEach { alternatives.add(it) }
         }
 
@@ -142,7 +144,7 @@ class BaseHandler(private val dbi: DBI,
             if (parsedPath.artifact.idList[1].toInt() < 9) {
                 conn.createQuery("select artifactId, path from sourceFiles where artifactId like 'java/%' and path like ?")
                         .bind(0, "%/${parsedPath.sourceFilePath}")
-                        .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2)) }
+                        .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2), null) }
                         .forEach { alternatives.add(it) }
             } else {
                 // try without module
@@ -150,7 +152,23 @@ class BaseHandler(private val dbi: DBI,
             }
         }
 
-        val sourceFileOld: AnnotatedSourceFile?
+        alternatives.sortWith(Comparator.comparing(Function { it.artifactId }, VersionComparator))
+        alternatives.replaceAll {
+            if (it.artifactId == parsedPath.artifact.id) {
+                it
+            } else {
+                val newerAlternative = VersionComparator.compare(it.artifactId, parsedPath.artifact.id) < 0
+                var new = "/${parsedPath.artifact.id}/${parsedPath.sourceFilePath}"
+                var old = "/${it.artifactId}/${it.sourceFilePath}"
+                if (newerAlternative) {
+                    val tmp = new
+                    new = old
+                    old = tmp
+                }
+                it.copy(diffPath = "$new?diff=${URLEncoder.encode(old, "UTF-8")}")
+            }
+        }
+
         val declarations: Iterator<DeclarationNode>
         val oldInfo: SourceFileView.FileInfo?
         if (diffWith == null) {
@@ -174,7 +192,6 @@ class BaseHandler(private val dbi: DBI,
             )
         }
 
-        val separator = parsedPath.sourceFilePath.lastIndexOf('/')
         return SourceFileView(
                 newInfo = SourceFileView.FileInfo(
                         artifactId = parsedPath.artifact,

@@ -91,7 +91,10 @@ function showAlternativeSourceFiles(alternativeSourceFiles) {
         for (const alternativeSourceFile of alternativeSourceFiles) {
             const artifact = alternativeSourceFile.artifact;
             const path = alternativeSourceFile.path;
-            list.append("<li><a href='/" + artifact + "/" + path + location.hash + "'>" + artifact + "</a></li>");
+            const diffUrl = alternativeSourceFile.diffPath;
+            list.append("<li><a href='/" + artifact + "/" + path + location.hash + "'>" + artifact + "</a> (" +
+                (diffUrl ? "<a href='"+diffUrl+"'>diff</a>" : "current") +
+                ")</li>");
         }
         tooltip.append(list);
     } else {

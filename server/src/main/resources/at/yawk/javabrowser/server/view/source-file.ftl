@@ -8,7 +8,7 @@
 </#assign>
 <#assign additionalMenu>
   <a id="alt-versions" href="javascript:showAlternativeSourceFiles([
-      <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'},</#list>
+      <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'<#if alternative.diffPath??>,diffPath:'${alternative.diffPath}'</#if>},</#list>
       ])"><i class="ij ij-history"></i></a>
 </#assign>
 <@page.page title="${newInfo.artifactId.id} : ${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile}" artifactId=newInfo.artifactId hasSearch=true additionalTitle=additionalTitle additionalMenu=additionalMenu>
