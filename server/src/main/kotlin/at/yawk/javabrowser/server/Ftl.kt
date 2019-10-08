@@ -25,6 +25,7 @@ class Ftl {
         configuration.wrapUncheckedExceptions = true
         configuration.outputFormat = HTMLOutputFormat.INSTANCE
         configuration.whitespaceStripping = true
+        configuration.urlEscapingCharset = "UTF-8"
 
         val statics = BeansWrapperBuilder(Configuration.VERSION_2_3_28).build().staticModels
         configuration.setSharedVariable("Modifier", statics[Modifier::class.qualifiedName])

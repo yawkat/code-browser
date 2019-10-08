@@ -31,8 +31,8 @@ class BaseHandler(private val dbi: DBI,
                   private val declarationTreeHandler: DeclarationTreeHandler) : HttpHandler {
     private sealed class ParsedPath(val artifact: ArtifactNode) {
         class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact)
-        class Artifact(artifact: ArtifactNode) : ParsedPath(artifact)
-        class Root(artifact: ArtifactNode) : ParsedPath(artifact)
+        class LeafArtifact(artifact: ArtifactNode) : ParsedPath(artifact)
+        class Group(artifact: ArtifactNode) : ParsedPath(artifact)
     }
 
     private fun parsePath(rawPath: String): ParsedPath {
@@ -52,9 +52,9 @@ class BaseHandler(private val dbi: DBI,
         }
         if (node.children.isEmpty()) {
             // artifact overview
-            return ParsedPath.Artifact(node)
+            return ParsedPath.LeafArtifact(node)
         } else {
-            return ParsedPath.Root(node)
+            return ParsedPath.Group(node)
         }
     }
 
@@ -64,18 +64,45 @@ class BaseHandler(private val dbi: DBI,
         dbi.inTransaction { conn: Handle, _ ->
             val view = when (path) {
                 is ParsedPath.SourceFile -> sourceFile(exchange, conn, path)
-                is ParsedPath.Artifact -> TypeSearchView(
-                        path.artifact,
-                        getArtifactMetadata(conn, path.artifact),
-                        listDependencies(conn, path.artifact.id).map {
-                            buildDependencyInfo(conn, it)
-                        },
-                        declarationTreeHandler.packageTree(conn, path.artifact.id)
-                )
-                is ParsedPath.Root -> IndexView(path.artifact)
+                is ParsedPath.LeafArtifact -> typeSearch(exchange, conn, path)
+                is ParsedPath.Group -> IndexView(path.artifact)
             }
             ftl.render(exchange, view)
         }
+    }
+
+    private fun typeSearch(exchange: HttpServerExchange, conn: Handle, path: ParsedPath): TypeSearchView {
+        val diffWith = exchange.queryParameters["diff"]?.peekFirst()?.let { parsePath(it) }
+        if (diffWith !is ParsedPath.LeafArtifact?) {
+            throw HttpException(StatusCodes.BAD_REQUEST, "Can't diff with that")
+        }
+
+        val topLevelPackages: Iterator<DeclarationNode>
+        if (diffWith == null) {
+            topLevelPackages = declarationTreeHandler.packageTree(conn, path.artifact.id)
+        } else {
+            topLevelPackages = declarationTreeHandler.packageTreeDiff(conn, diffWith.artifact.id, path.artifact.id)
+        }
+        val alternatives = path.artifact.parent!!.children.values
+                .sortedWith(Comparator.comparing(Function { it.id }, VersionComparator))
+                .map {
+                    val cmp = VersionComparator.compare(it.id, path.artifact.id)
+                    when {
+                        cmp < 0 -> TypeSearchView.Alternative(it, "/${it.id}?diff=${URLEncoder.encode(path.artifact.id, "UTF-8")}")
+                        cmp > 0 -> TypeSearchView.Alternative(it, "/${path.artifact.id}?diff=${URLEncoder.encode(it.id, "UTF-8")}")
+                        else -> TypeSearchView.Alternative(it, null)
+                    }
+                }
+        return TypeSearchView(
+                path.artifact,
+                diffWith?.artifact,
+                getArtifactMetadata(conn, path.artifact),
+                listDependencies(conn, path.artifact.id).map {
+                    buildDependencyInfo(conn, it)
+                },
+                topLevelPackages,
+                alternatives
+        )
     }
 
     private fun getArtifactMetadata(conn: Handle, artifact: ArtifactNode): ArtifactMetadata {
@@ -182,13 +209,9 @@ class BaseHandler(private val dbi: DBI,
                     classpath = listDependencies(conn, diffWith.artifact.id).toSet() + diffWith.artifact.id,
                     sourceFilePath = diffWith.sourceFilePath
             )
-            declarations = declarationTreeHandler.diffDeclarationTree(
-                    oldArtifactId = diffWith.artifact.id,
-                    oldSourceFile = oldInfo.sourceFile,
-                    newArtifactId = parsedPath.artifact.id,
-                    newSourceFile = sourceFile,
-                    fullSourceFilePath = "/${parsedPath.artifact.id}/${parsedPath.sourceFilePath}" +
-                            "?diff=/${diffWith.artifact.id}/${diffWith.sourceFilePath}"
+            declarations = DeclarationTreeDiff.diffUnordered(
+                    declarationTreeHandler.sourceDeclarationTree(diffWith.artifact.id, oldInfo.sourceFile),
+                    declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile)
             )
         }
 

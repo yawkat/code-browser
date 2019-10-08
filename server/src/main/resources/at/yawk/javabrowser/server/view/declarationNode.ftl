@@ -99,7 +99,7 @@
   </#if>
 </#macro>
 
-<#macro declarationNode node fullSourceFilePath="" parentBinding="">
+<#macro declarationNode node fullSourceFilePath="" parentBinding="" diffArtifactId="">
   <#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
   <#local fullSourceFilePath=node.fullSourceFilePath!fullSourceFilePath/>
   <#local canLoadChildren=!(node.children??)/>
@@ -109,8 +109,7 @@
     <#if node.children?has_content || canLoadChildren>
       <a href="#" onclick="expandDeclaration(this); return false" class="expander"
       <#if canLoadChildren>
-      <#-- TODO: urlencode -->
-        data-load-children-from="/declarationTree?artifactId=${node.artifactId}&binding=${node.binding}"
+        data-load-children-from="/declarationTree?artifactId=${node.artifactId?url}&binding=${node.binding?url}<#if diffArtifactId?? && diffArtifactId != "">&diff=${diffArtifactId?url}</#if>"
       </#if>
       ></a>
     </#if>
@@ -120,7 +119,7 @@
       <img alt="package" src="/assets/icons/nodes/package.svg">
       <span class="declaration-name">${(parentBinding == "")?then(node.binding, node.binding[parentBinding?length+1..])}</span>
     <#else>
-      <a href="${fullSourceFilePath}#${node.binding}"><#-- TODO: urlencode --><#t>
+      <a href="${fullSourceFilePath}#<#if node.diffResult?? && node.diffResult == "DELETION">---%20</#if>${node.binding?url}"><#t>
         <@diffIcon node/>
         <#if node.kind == "TYPE">
           <@type node/>
@@ -140,7 +139,7 @@
   <#if node.children?has_content>
     <ul>
       <@ConservativeLoopBlock iterator=node.children; child>
-        <li><@declarationNode child fullSourceFilePath node.binding/></li>
+        <li><@declarationNode child fullSourceFilePath node.binding diffArtifactId/></li>
       </@ConservativeLoopBlock>
     </ul>
   </#if>

@@ -3,19 +3,16 @@ package at.yawk.javabrowser.server
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.server.view.DeclarationNode
-import at.yawk.javabrowser.server.view.PackageNodeView
+import at.yawk.javabrowser.server.view.DeclarationNodeView
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.collect.Iterators
 import com.google.common.collect.PeekingIterator
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
-import org.eclipse.jgit.diff.DiffAlgorithm
-import org.eclipse.jgit.diff.Sequence
-import org.eclipse.jgit.diff.SequenceComparator
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
+import java.net.URLEncoder
 import java.util.Collections
-import java.util.Objects
 
 /**
  * @author yawkat
@@ -29,35 +26,77 @@ class DeclarationTreeHandler(
         const val PATTERN = "/declarationTree"
     }
 
+    private data class SourceFileResult(
+            val sourceFile: AnnotatedSourceFile,
+            val path: String
+    )
+
+    private fun getSourceFile(conn: Handle, artifactId: String, binding: String): SourceFileResult? {
+        val result = conn.select("select path, json from sourceFiles where artifactId = ? and path = (select sourceFile from bindings where bindings.artifactId = ? and binding = ?)",
+                artifactId,
+                artifactId,
+                binding)
+        if (result.isEmpty()) {
+            return null
+        } else {
+            return SourceFileResult(
+                    sourceFile = objectMapper.readValue(
+                            result.single()["json"] as ByteArray,
+                            AnnotatedSourceFile::class.java),
+                    path = "/$artifactId/${result.single()["path"]}"
+            )
+        }
+    }
+
     override fun handleRequest(exchange: HttpServerExchange) {
         val artifactId = exchange.queryParameters["artifactId"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass artifact ID")
         val binding = exchange.queryParameters["binding"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass binding")
-
-        // TODO: handle binding source file
+        val diffArtifactId = exchange.queryParameters["diff"]?.peekFirst()
 
         dbi.inTransaction { conn: Handle, _ ->
-            val json = conn.select("select path, json from sourceFiles where artifactid = ? and path = (select sourceFile from bindings where bindings.artifactid = ? and binding = ?)", artifactId, artifactId, binding)
+            val new = getSourceFile(conn, artifactId, binding)
+            val oldFile = diffArtifactId?.let { getSourceFile(conn, it, binding) }
 
-            if (json.isNotEmpty()) {
-                val sourceFile = objectMapper.readValue(
-                        json.single()["json"] as ByteArray,
-                        AnnotatedSourceFile::class.java)
-                val fullPath = "/$artifactId/${json.single()["path"]}"
-                for (topLevelType in sourceDeclarationTree(artifactId, sourceFile, fullSourceFilePath = fullPath)) {
+            if (new != null || oldFile != null) {
+                val tree: Iterator<DeclarationNode>
+
+                if (diffArtifactId == null) {
+                    tree = sourceDeclarationTree(artifactId, new!!.sourceFile, fullSourceFilePath = new.path)
+                } else {
+                    val fullPath =
+                            when {
+                                oldFile == null -> new!!.path
+                                // TODO: if new is null, links to the old file will be broken.
+                                new == null -> oldFile.path
+                                else -> "${new.path}?diff=${URLEncoder.encode(oldFile.path, "UTF-8")}"
+                            }
+                    tree = DeclarationTreeDiff.diffUnordered(
+                            new =
+                            if (new == null) Collections.emptyIterator()
+                            else sourceDeclarationTree(artifactId, new.sourceFile, fullSourceFilePath = fullPath),
+                            old =
+                            if (oldFile == null) Collections.emptyIterator()
+                            else sourceDeclarationTree(artifactId, oldFile.sourceFile, fullSourceFilePath = fullPath)
+                    )
+                }
+                for (topLevelType in tree) {
                     if (topLevelType.binding == binding) {
-                        ftl.render(exchange, PackageNodeView(topLevelType.children!!))
+                        ftl.render(exchange, DeclarationNodeView(topLevelType.children!!, diffArtifactId))
                         return@inTransaction
                     }
                 }
                 throw HttpException(404, "Binding not found - is it a top-level declaration?")
             } else {
                 // the binding must be a package
-                val iterator = packageTree(conn, artifactId, binding)
-                // this is also some protection against XSS because it checks that `binding` is actually a valid package
+                var iterator = packageTree(conn, artifactId, binding)
+                if (diffArtifactId != null) {
+                    val old = packageTree(conn, diffArtifactId, binding)
+                    iterator = DeclarationTreeDiff.diffOrdered(old, iterator, DatabasePackageTreeComparator)
+                }
                 if (!iterator.hasNext()) throw HttpException(404, "Binding not found")
-                ftl.render(exchange, PackageNodeView(iterator))
+                ftl.render(exchange, DeclarationNodeView(iterator, diffArtifactId))
             }
         }
     }
@@ -141,6 +180,20 @@ class DeclarationTreeHandler(
         return PrefixIterator(types, "")
     }
 
+    fun packageTreeDiff(conn: Handle, artifactIdOld: String, artifactIdNew: String, packageName: String? = null): Iterator<DeclarationNode> {
+        return DeclarationTreeDiff.diffOrdered(
+                packageTree(conn, artifactIdOld, packageName),
+                packageTree(conn, artifactIdNew, packageName),
+                DatabasePackageTreeComparator
+        )
+    }
+
+    // postgres does case insensitive comparison for ORDER BY on linux.
+    object DatabasePackageTreeComparator : Comparator<DeclarationNode> {
+        override fun compare(o1: DeclarationNode, o2: DeclarationNode) =
+                String.CASE_INSENSITIVE_ORDER.compare(o1.binding, o2.binding)
+    }
+
     private data class SourceDeclarationTreeItr(
             /* work around kotlinc bug: Passing a captured variable to the constructor is broken */
             val flat_capture: PeekingIterator<BindingDecl>,
@@ -179,119 +232,5 @@ class DeclarationTreeHandler(
         val flat = Iterators.peekingIterator(sourceFile.declarations)
 
         return SourceDeclarationTreeItr(flat, fullSourceFilePath, artifactId, null)
-    }
-
-    private class DiffDeclarationTree {
-        // dumps of DeclarationNode#children
-        val fullDumpOld = HashMap<String?, List<DeclarationNode>>()
-        val fullDumpNew = HashMap<String?, List<DeclarationNode>>()
-
-        fun dump(target: MutableMap<String?, List<DeclarationNode>>, itr: Iterator<DeclarationNode>):
-                List<DeclarationNode> {
-            val items = ArrayList<DeclarationNode>()
-            for (item in itr) {
-                if (item.children != null) {
-                    target[item.binding] = dump(target, item.children)
-                }
-                items.add(item)
-            }
-            return items
-        }
-
-        fun diffNode(parentBinding: String?): List<DeclarationNode> {
-            val new = fullDumpNew[parentBinding]!!
-            val old = fullDumpOld[parentBinding]!!
-            val algorithm = DiffAlgorithm.getAlgorithm(DiffAlgorithm.SupportedAlgorithm.HISTOGRAM)
-
-            class SequenceImpl(val items: List<DeclarationNode>) : Sequence() {
-                override fun size() = items.size
-            }
-
-            class ComparatorImpl : SequenceComparator<SequenceImpl>() {
-                override fun hash(seq: SequenceImpl, ptr: Int) = Objects.hash(
-                        seq.items[ptr].binding.hashCode(),
-                        seq.items[ptr].description.hashCode(),
-                        seq.items[ptr].modifiers.hashCode()
-                )
-                override fun equals(a: SequenceImpl, ai: Int, b: SequenceImpl, bi: Int): Boolean {
-                    val nodeA = a.items[ai]
-                    val nodeB = b.items[bi]
-                    val identical = nodeA.binding == nodeB.binding &&
-                            nodeA.description == nodeB.description &&
-                            nodeA.modifiers == nodeB.modifiers
-                    return identical
-                }
-            }
-
-            val diff = algorithm.diff(ComparatorImpl(), SequenceImpl(old), SequenceImpl(new))
-
-            val result = ArrayList<DeclarationNode>()
-            var newI = 0
-            var oldI = 0
-
-            for (edit in diff) {
-                while (newI < edit.beginB) {
-                    assert(oldI < edit.beginA)
-                    result.add(mapNode(new[newI], DeclarationNode.DiffResult.UNCHANGED))
-                    newI++
-                    oldI++
-                }
-
-                while (oldI < edit.endA) {
-                    result.add(mapNode(old[oldI++], DeclarationNode.DiffResult.DELETION))
-                }
-                while (newI < edit.endB) {
-                    result.add(mapNode(new[newI++], DeclarationNode.DiffResult.INSERTION))
-                }
-            }
-            while (newI < new.size) {
-                assert(oldI < old.size)
-                result.add(mapNode(new[newI], DeclarationNode.DiffResult.UNCHANGED))
-                newI++
-                oldI++
-            }
-            assert(oldI == old.size)
-
-            return result
-        }
-
-        fun mapNode(node: DeclarationNode, diffResult: DeclarationNode.DiffResult): DeclarationNode {
-            var ownResult = diffResult
-            val mappedChildren: Iterator<DeclarationNode> = when (diffResult) {
-                DeclarationNode.DiffResult.UNCHANGED -> {
-                    val childrenDiff = diffNode(node.binding)
-                    if (childrenDiff.any { it.diffResult != DeclarationNode.DiffResult.UNCHANGED }) {
-                        ownResult = DeclarationNode.DiffResult.CHANGED_INTERNALLY
-                    }
-                    childrenDiff.iterator()
-                }
-                // should only be set in this function
-                DeclarationNode.DiffResult.CHANGED_INTERNALLY -> throw AssertionError()
-                DeclarationNode.DiffResult.INSERTION -> Iterators.transform(fullDumpNew[node.binding]!!.iterator()) {
-                    mapNode(it!!, diffResult)
-                }
-                DeclarationNode.DiffResult.DELETION -> Iterators.transform(fullDumpOld[node.binding]!!.iterator()) {
-                    mapNode(it!!, diffResult)
-                }
-            }
-            return node.copy(diffResult = ownResult, children = mappedChildren)
-        }
-    }
-
-    fun diffDeclarationTree(
-            oldArtifactId: String,
-            oldSourceFile: AnnotatedSourceFile,
-            newArtifactId: String,
-            newSourceFile: AnnotatedSourceFile,
-
-            fullSourceFilePath: String? = null
-    ): Iterator<DeclarationNode> {
-        val worker = DiffDeclarationTree()
-        worker.fullDumpOld[null] = worker.dump(worker.fullDumpOld,
-                sourceDeclarationTree(oldArtifactId, oldSourceFile, fullSourceFilePath))
-        worker.fullDumpNew[null] = worker.dump(worker.fullDumpNew,
-                sourceDeclarationTree(newArtifactId, newSourceFile, fullSourceFilePath))
-
-        return worker.diffNode(null).iterator()
     }
 }

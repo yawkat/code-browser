@@ -29,7 +29,7 @@
 
       <#if oldInfo??>
         Showing changes in
-        <span class="foreground-new"><b>${newInfo.artifactId.id}</b>/${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile} (new version)</span> to
+        <span class="foreground-new"><b>${newInfo.artifactId.id}</b>/${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile} (new version)</span> from
         <span class="foreground-old"><b>${oldInfo.artifactId.id}</b>/${oldInfo.sourceFilePathDir}${oldInfo.sourceFilePathFile} (old version)</span>.
         <span class="diff-stats">
           <span class="foreground-new">+${diff.insertions}</span>
