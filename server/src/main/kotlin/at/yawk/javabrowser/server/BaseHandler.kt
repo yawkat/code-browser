@@ -158,7 +158,7 @@ class BaseHandler(private val dbi: DBI,
                 sourceFilePathFile = parsedPath.sourceFilePath.substring(separator + 1),
                 alternatives = alternatives,
                 artifactMetadata = getArtifactMetadata(conn, parsedPath.artifact),
-                declarations = declarationTreeHandler.declarationTree(sourceFile),
+                declarations = declarationTreeHandler.declarationTree(parsedPath.artifact.id, sourceFile),
                 bindingResolver = bindingResolver,
                 sourceFile = sourceFile,
                 sourceFileOld = diffWith?.let { requestSourceFile(conn, it as ParsedPath.SourceFile) }

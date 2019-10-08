@@ -3,7 +3,6 @@ package at.yawk.javabrowser.server
 import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.server.view.DeclarationNode
-import at.yawk.javabrowser.server.view.PackageNode
 import at.yawk.javabrowser.server.view.PackageNodeView
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.collect.Iterators
@@ -41,9 +40,10 @@ class DeclarationTreeHandler(
                 val sourceFile = objectMapper.readValue(
                         json.single()["json"] as ByteArray,
                         AnnotatedSourceFile::class.java)
-                for (topLevelType in declarationTree(sourceFile)) {
-                    if (topLevelType.declaration.binding == binding) {
-                        ftl.render(exchange, PackageNodeView(topLevelType.children, "/$artifactId/${json.single()["path"]}"))
+                val fullPath = "/$artifactId/${json.single()["path"]}"
+                for (topLevelType in declarationTree(artifactId, sourceFile, fullSourceFilePath = fullPath)) {
+                    if (topLevelType.binding == binding) {
+                        ftl.render(exchange, PackageNodeView(topLevelType.children!!))
                         return@inTransaction
                     }
                 }
@@ -58,7 +58,7 @@ class DeclarationTreeHandler(
         }
     }
 
-    fun packageTree(conn: Handle, artifactId: String, packageName: String? = null): Iterator<PackageNode> {
+    fun packageTree(conn: Handle, artifactId: String, packageName: String? = null): Iterator<DeclarationNode> {
         val itemsByDepth = conn.createQuery("select depth, typeCount from data.type_count_by_depth_view where artifactId = ? and (package = ? or ?)")
                 .bind(0, artifactId)
                 .bind(1, packageName)
@@ -90,58 +90,77 @@ class DeclarationTreeHandler(
                     val modifiers = rs.getInt(3)
                     val sourceFile: String? = rs.getString(4)
                     if (description == null) {
-                        // children are added later
-                        PackageNode.Package(artifactId, binding, binding, Collections.emptyIterator())
+                        DeclarationNode(
+                                artifactId = artifactId,
+                                binding = binding,
+                                description = BindingDecl.Description.Package,
+                                modifiers = 0,
+                                // children may be added later
+                                children = null
+                        )
                     } else {
-                        PackageNode.Type(artifactId, DeclarationNode(BindingDecl(
-                                binding,
-                                parent = null,
+                        DeclarationNode(
+                                artifactId = artifactId,
+                                binding = binding,
+                                fullSourceFilePath = "/$artifactId/$sourceFile",
+                                modifiers = modifiers,
                                 description = objectMapper.readValue(description,
                                         BindingDecl.Description::class.java),
-                                modifiers = modifiers
-                        ), children = Collections.emptyIterator()), fullSourceFilePath = "/$artifactId/$sourceFile")
+                                children = Collections.emptyIterator()
+                        )
                     }
                 }
                 .iterator())
 
         class PrefixIterator(
                 /* work around kotlinc bug: Passing a captured variable to the super constructor is broken */
-                types: PeekingIterator<PackageNode>,
-                val prefix: String) : TreeIterator<PackageNode, PackageNode>(types) {
-            override fun mapOneItem(): PackageNode {
+                types: PeekingIterator<DeclarationNode>,
+                val prefix: String) : TreeIterator<DeclarationNode, DeclarationNode>(types) {
+            override fun mapOneItem(): DeclarationNode {
                 var item = flatDelegate.next()
-                if (item is PackageNode.Package) {
+                if (item.description is BindingDecl.Description.Package) {
                     // add children to package
-                    val subIterator = PrefixIterator(flatDelegate, item.fullName + '.')
+                    val subIterator = PrefixIterator(flatDelegate, item.binding + '.')
                     registerSubIterator(subIterator)
-                    val relativeBinding = item.fullName.removePrefix(prefix)
-                    item = PackageNode.Package(item.artifactId, item.fullName, relativeBinding, subIterator)
+                    item = item.copy(children = subIterator)
                 }
                 return item
             }
 
-            override fun returnToParent(item: PackageNode): Boolean {
-                return !item.fullName.startsWith(prefix)
+            override fun returnToParent(item: DeclarationNode): Boolean {
+                return !item.binding.startsWith(prefix)
             }
         }
 
         return PrefixIterator(types, "")
     }
 
-    fun declarationTree(sourceFile: AnnotatedSourceFile): Iterator<DeclarationNode> {
+    fun declarationTree(
+            artifactId: String,
+            sourceFile: AnnotatedSourceFile,
+            fullSourceFilePath: String? = null
+    ): Iterator<DeclarationNode> {
         val flat = Iterators.peekingIterator(sourceFile.declarations)
 
         class SubListItr(
-                /* work around kotlinc bug: Passing a captured variable to the super constructor is broken */
-                flat: PeekingIterator<BindingDecl>,
+                /* work around kotlinc bug: Passing a captured variable to the constructor is broken */
+                flat_capture: PeekingIterator<BindingDecl>,
+                val fullSourceFilePath_capture: String?,
                 val parent: String?
-        ) : TreeIterator<BindingDecl, DeclarationNode>(flat) {
+        ) : TreeIterator<BindingDecl, DeclarationNode>(flat_capture) {
             override fun mapOneItem(): DeclarationNode {
                 val item = flatDelegate.next()
                 assert(!returnToParent(item)) // checked in hasNext
-                val newItr = SubListItr(flatDelegate, item.binding)
+                val newItr = SubListItr(flatDelegate, fullSourceFilePath_capture, item.binding)
                 registerSubIterator(newItr)
-                return DeclarationNode(item, newItr)
+                return DeclarationNode(
+                        artifactId = artifactId,
+                        binding = item.binding,
+                        description = item.description,
+                        modifiers = item.modifiers,
+                        fullSourceFilePath = fullSourceFilePath_capture,
+                        children = null
+                )
             }
 
             override fun returnToParent(item: BindingDecl): Boolean {
@@ -151,6 +170,6 @@ class DeclarationTreeHandler(
             }
         }
 
-        return SubListItr(flat, null)
+        return SubListItr(flat, fullSourceFilePath, null)
     }
 }

@@ -152,6 +152,8 @@ data class BindingDecl(
                 val name: String,
                 val typeBinding: Type
         ) : Description()
+
+        object Package : Description()
     }
 
     data class Super(

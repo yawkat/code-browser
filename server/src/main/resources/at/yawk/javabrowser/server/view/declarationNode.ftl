@@ -22,7 +22,7 @@
   </#if>
 </#macro>
 <#macro type decl>
-  <#-- @ftlvariable name="decl" type="at.yawk.javabrowser.BindingDecl" -->
+  <#-- @ftlvariable name="decl" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
   <#-- @ftlvariable name="decl.description" type="at.yawk.javabrowser.BindingDecl.Description.Type" -->
   <@decoratedIcon decl.modifiers>
     <#if decl.description.kind == "ANNOTATION">
@@ -48,7 +48,7 @@
   <span class="declaration-name">${decl.description.simpleName}</span><#t>
 </#macro>
 <#macro field decl>
-  <#-- @ftlvariable name="decl" type="at.yawk.javabrowser.BindingDecl" -->
+  <#-- @ftlvariable name="decl" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
   <#-- @ftlvariable name="decl.description" type="at.yawk.javabrowser.BindingDecl.Description.Field" -->
   <@decoratedIcon decl.modifiers>
     <img alt="field" src="/assets/icons/nodes/field.svg">
@@ -86,37 +86,36 @@
   </span>
 </#macro>
 
-<#macro declarationNode node fullSourceFilePath="">
-  <#-- node could also be a at.yawk.javabrowser.server.view.PackageNode -->
+<#macro declarationNode node fullSourceFilePath="" parentBinding="">
   <#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
   <#local fullSourceFilePath=node.fullSourceFilePath!fullSourceFilePath/>
+  <#local canLoadChildren=!(node.children??)/>
 
-  <span class="line"<#if node.descriptionType != "package"> data-binding="${node.declaration.binding}"</#if>>
-    <#if node.children?has_content || node.canLoadChildren!false>
+  <span class="line"<#if node.kind != "PACKAGE"> data-binding="${node.binding}"</#if>>
+    <#if node.children?has_content || canLoadChildren>
       <a href="#" onclick="expandDeclaration(this); return false" class="expander"
-      <#if node.canLoadChildren!false>
+      <#if canLoadChildren>
       <#-- TODO: urlencode -->
-        data-load-children-from="/declarationTree?artifactId=${node.artifactId}&binding=${node.fullName}"
+        data-load-children-from="/declarationTree?artifactId=${node.artifactId}&binding=${node.binding}"
       </#if>
       ></a>
     </#if>
 
-    <#if node.descriptionType == "package">
-      <#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.PackageNode.Package" -->
+    <#if node.kind == "PACKAGE">
       <img alt="package" src="/assets/icons/nodes/package.svg">
-      <span class="declaration-name">${node.relativeName}</span>
+      <span class="declaration-name">${(parentBinding == "")?then(node.binding, node.binding.substring(parentBinding.length()))}</span>
     <#else>
       <a href="${fullSourceFilePath}#${node.declaration.binding}"><#-- TODO: urlencode -->
-        <#if node.descriptionType == "type">
-          <@type node.declaration/>
-        <#elseif node.descriptionType == "lambda">
-          <@lambda node.declaration/>
-        <#elseif node.descriptionType == "initializer">
-          <@initializer node.declaration/>
-        <#elseif node.descriptionType == "method">
-          <@method node.declaration/>
-        <#elseif node.descriptionType == "field">
-          <@field node.declaration/>
+        <#if node.kind == "TYPE">
+          <@type node/>
+        <#elseif node.kind == "LAMBDA">
+          <@lambda node/>
+        <#elseif node.kind == "INITIALIZER">
+          <@initializer node/>
+        <#elseif node.kind == "METHOD">
+          <@method node/>
+        <#elseif node.kind == "FIELD">
+          <@field node/>
         </#if>
       </a>
     </#if>
@@ -125,7 +124,7 @@
   <#if node.children?has_content>
     <ul>
       <@ConservativeLoopBlock iterator=node.children; child>
-        <li><@declarationNode child fullSourceFilePath/></li>
+        <li><@declarationNode child fullSourceFilePath node.binding/></li>
       </@ConservativeLoopBlock>
     </ul>
   </#if>
