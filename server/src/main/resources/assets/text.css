@@ -160,3 +160,7 @@ code .show-refs {
 .decl-diff-CHANGED_INTERNALLY {
     background-color: #ffffad;
 }
+
+.declaration-name.deprecated {
+    text-decoration-line: line-through;
+}

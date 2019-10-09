@@ -45,7 +45,7 @@
       <img alt="interface" src="/assets/icons/nodes/interface.svg">
     </#if>
   </@decoratedIcon>
-  <span class="declaration-name">${decl.description.simpleName}</span><#t>
+  <span class="declaration-name<#if decl.deprecated> deprecated</#if>">${decl.description.simpleName}</span><#t>
 </#macro>
 <#macro field decl>
   <#-- @ftlvariable name="decl" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
@@ -53,7 +53,7 @@
   <@decoratedIcon decl.modifiers>
     <img alt="field" src="/assets/icons/nodes/field.svg">
   </@decoratedIcon>
-  <span class="declaration-name"><#t>
+  <span class="declaration-name<#if decl.deprecated> deprecated</#if>"><#t>
     ${decl.description.name}: <@typeName decl.description.typeBinding/><#t>
   </span>
 </#macro>
@@ -65,7 +65,7 @@
       <img alt="method" src="/assets/icons/nodes/method.svg">
     </#if>
   </@decoratedIcon>
-  <span class="declaration-name"><#t>
+  <span class="declaration-name<#if decl.deprecated> deprecated</#if>"><#t>
     ${decl.description.name}(<#list decl.description.parameterTypeBindings as p><#if !p?is_first>, </#if><@typeName p/></#list>): <@typeName decl.description.returnTypeBinding/><#t>
   </span>
 </#macro>
@@ -74,7 +74,7 @@
     <img alt="initializer" src="/assets/icons/nodes/classInitializer.svg">
   </@decoratedIcon>
   <span class="declaration-name"><#t>
-    <i><#if Modifier.isStatic(decl.modifiers)>static</#if> class initializer</i><#t>
+    <i><#if Modifier.isStatic(decl.modifiers)>static </#if>class initializer</i><#t>
   </span>
 </#macro>
 <#macro lambda decl>

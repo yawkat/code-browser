@@ -31,6 +31,9 @@ data class DeclarationNode(
             is BindingDecl.Description.Package -> Kind.PACKAGE
         }
 
+    val deprecated: Boolean
+        get() = (modifiers and BindingDecl.MODIFIER_DEPRECATED) != 0
+
     enum class DiffResult {
         UNCHANGED,
         CHANGED_INTERNALLY,

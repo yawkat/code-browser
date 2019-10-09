@@ -157,6 +157,7 @@ data class BindingDecl(
                 val typeBinding: Type
         ) : Description()
 
+        // never serialized.
         object Package : Description()
     }
 
