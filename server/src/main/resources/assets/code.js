@@ -104,8 +104,11 @@ function showAlternativeSourceFiles(alternativeSourceFiles) {
     moveTooltipTo(document.getElementById("alt-versions").parentElement, true);
 }
 
-function showReferences(bindingName, superHtml) {
+function showReferences(targetElement) {
     const LIMIT = 100;
+
+    const bindingName = targetElement.getAttribute("data-binding");
+    const superHtml = targetElement.getAttribute("data-super-html");
 
     $.ajax({
         url: '/api/references/' + encodeURIComponent(bindingName) + "?limit=" + LIMIT,
@@ -255,7 +258,7 @@ function showReferences(bindingName, superHtml) {
             }
 
             tooltip.show();
-            moveTooltipTo(document.getElementById(bindingName));
+            moveTooltipTo(targetElement);
         }
     });
 }

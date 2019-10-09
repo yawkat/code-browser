@@ -8,18 +8,14 @@ import at.yawk.javabrowser.LocalVariableRef
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
+import at.yawk.javabrowser.server.Escaper
 import at.yawk.javabrowser.server.SourceFilePrinter
-import at.yawk.javabrowser.server.appendChildren
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import freemarker.core.Environment
 import freemarker.template.TemplateDirectiveBody
 import freemarker.template.TemplateDirectiveModel
 import freemarker.template.TemplateModel
-import org.apache.commons.text.StringEscapeUtils
-import org.jsoup.nodes.Element
-import org.jsoup.nodes.Node
-import org.jsoup.nodes.TextNode
-import org.jsoup.parser.Tag
+import org.intellij.lang.annotations.Language
 import java.io.Writer
 
 /**
@@ -100,7 +96,7 @@ class SourceFileView(
 
         private fun linkBindingStart(scope: SourceFilePrinter.Scope, uri: String?, refId: Int?) =
                 if (uri != null) {
-                    "<a href='${StringEscapeUtils.escapeHtml4(uri)}'" +
+                    "<a href='${Escaper.HTML.escape(uri)}'" +
                             (if (refId != null) " id='${scope.prefix}ref-$refId'" else "") +
                             ">"
                 } else {
@@ -129,22 +125,20 @@ class SourceFileView(
                     }
 
                     if (showDeclaration) {
-                        html("<a class='show-refs'")
                         val superUris = (memory as EmitterImplMemory.Decl).superBindingUris
                         val superHtml = if (!annotation.superBindings.isEmpty()) {
-                            val h = "<ul>" +
+                            "<ul>" +
                                     annotation.superBindings.withIndex().joinToString { (i, binding) ->
                                         "<li>" +
                                                 linkBindingStart(scope, superUris[i], refId = null) +
-                                                StringEscapeUtils.escapeHtml4(binding.name) +
+                                                Escaper.HTML.escape(binding.name) +
                                                 "</li>"
                                     } +
                                     "</ul>"
-                            StringEscapeUtils.escapeHtml4(StringEscapeUtils.escapeEcmaScript(h))
                         } else {
                             ""
                         }
-                        html("<a class='show-refs' href='javascript:showReferences(\"${annotation.binding}\", \"$superHtml\")'></a>")
+                        html("<a class='show-refs' href='javascript:;' onclick='showReferences(this); return false' data-binding='${Escaper.HTML.escape(annotation.binding)}' data-super-html='${Escaper.HTML.escape(superHtml)}'></a>")
                     }
 
                     val id = scope.prefix + annotation.binding
@@ -165,12 +159,12 @@ class SourceFileView(
             }
         }
 
-        override fun html(s: String) {
+        override fun html(@Language("HTML") s: String) {
             writer.write(s)
         }
 
         override fun text(s: String, start: Int, end: Int) {
-            StringEscapeUtils.ESCAPE_HTML4.translate(s.substring(start, end), writer)
+            Escaper.HTML.escape(writer, s, start, end)
         }
     }
 }
