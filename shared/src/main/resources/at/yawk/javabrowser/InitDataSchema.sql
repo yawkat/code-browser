@@ -86,7 +86,7 @@ as 'select array_to_string((string_to_array($1, ''.''))[1:array_length(string_to
 
 create materialized view if not exists packages_view as
 with recursive rec (artifactId, name) as (
-    select artifactId, until_last_dot(binding) as name from bindings where parent is null
+    select artifactId, until_last_dot(binding) as name from bindings where parent is null and position('.' in binding) != 0
     union distinct
     select artifactId, null from bindings
     union distinct
