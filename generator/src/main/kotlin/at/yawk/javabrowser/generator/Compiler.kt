@@ -55,6 +55,7 @@ class Compiler(private val dbi: DBI, private val session: Session) {
          * Java version listed as a dependency for maven artifacts
          */
         private const val NOMINAL_JAVA_VERSION = "java/11"
+        private const val ANDROID_JAVA_VERSION = "java/8"
 
         const val VERSION = 24
     }
@@ -274,6 +275,7 @@ class Compiler(private val dbi: DBI, private val session: Session) {
                         includeRunningVmBootclasspath = true,
                         printer = printer
                 )
+                printer.addDependency(ANDROID_JAVA_VERSION)
             }
         }
     }
