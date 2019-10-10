@@ -32,7 +32,7 @@ class Session(
     fun execute() {
         val ourTasks = ArrayList(tasks)
         tasks.clear()
-        val mode = dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction { conn: Handle, _ ->
             val present = conn.select("select id from artifacts").map { it["id"] as String }
             val updating = ourTasks.map { it.artifactId }
             val mode = when {
@@ -49,18 +49,15 @@ class Session(
             } finally {
                 executor.shutdownNow()
             }
-            mode
         }
         // do this outside the tx so some data is already available
-        if (mode != UpdateMode.FULL) {
-            dbi.useHandle { otherTx ->
-                log.info("Updating reference count view")
-                otherTx.update("refresh materialized view concurrently binding_references_count_view")
-                log.info("Updating package view")
-                otherTx.update("refresh materialized view concurrently packages_view")
-                log.info("Updating type count view")
-                otherTx.update("refresh materialized view concurrently type_count_by_depth_view")
-            }
+        dbi.useHandle { otherTx ->
+            log.info("Updating reference count view")
+            otherTx.update("refresh materialized view concurrently binding_references_count_view")
+            log.info("Updating package view")
+            otherTx.update("refresh materialized view concurrently packages_view")
+            log.info("Updating type count view")
+            otherTx.update("refresh materialized view concurrently type_count_by_depth_view")
         }
     }
 
