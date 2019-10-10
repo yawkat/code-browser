@@ -32,19 +32,28 @@ class DeclarationTreeHandler(
     )
 
     private fun getSourceFile(conn: Handle, artifactId: String, binding: String): SourceFileResult? {
-        val result = conn.select("select path, json from sourceFiles where artifactId = ? and path = (select sourceFile from bindings where bindings.artifactId = ? and binding = ?)",
-                artifactId,
+        val result = conn.select(
+                "select description, path, json from bindings " +
+                        "left join sourceFiles on sourceFiles.artifactId = bindings.artifactId and sourceFiles.path = bindings.sourceFile " +
+                        "where bindings.artifactId = ? and bindings.binding = ?",
                 artifactId,
                 binding)
         if (result.isEmpty()) {
             return null
         } else {
-            return SourceFileResult(
-                    sourceFile = objectMapper.readValue(
-                            result.single()["json"] as ByteArray,
-                            AnnotatedSourceFile::class.java),
-                    path = "/$artifactId/${result.single()["path"]}"
-            )
+            val description = objectMapper.readValue(
+                    result.single()["description"] as ByteArray,
+                    BindingDecl.Description::class.java)
+            if (description is BindingDecl.Description.Package) {
+                return null // list as package instead
+            } else {
+                return SourceFileResult(
+                        sourceFile = objectMapper.readValue(
+                                result.single()["json"] as ByteArray,
+                                AnnotatedSourceFile::class.java),
+                        path = "/$artifactId/${result.single()["path"]}"
+                )
+            }
         }
     }
 
@@ -83,7 +92,7 @@ class DeclarationTreeHandler(
                 }
                 for (topLevelType in tree) {
                     if (topLevelType.binding == binding) {
-                        ftl.render(exchange, DeclarationNodeView(topLevelType.children!!, diffArtifactId))
+                        ftl.render(exchange, DeclarationNodeView(topLevelType.children!!, binding, diffArtifactId))
                         return@inTransaction
                     }
                 }
@@ -96,7 +105,7 @@ class DeclarationTreeHandler(
                     iterator = DeclarationTreeDiff.diffOrdered(old, iterator, DatabasePackageTreeComparator)
                 }
                 if (!iterator.hasNext()) throw HttpException(404, "Binding not found")
-                ftl.render(exchange, DeclarationNodeView(iterator, diffArtifactId))
+                ftl.render(exchange, DeclarationNodeView(iterator, binding, diffArtifactId))
             }
         }
     }
@@ -124,7 +133,7 @@ class DeclarationTreeHandler(
     }
 
     fun packageTree(conn: Handle, artifactId: String, packageName: String? = null): Iterator<DeclarationNode> {
-        val itemsByDepth = conn.createQuery("select depth, typeCount from data.type_count_by_depth_view where artifactId = ? and (package = ? or ?)")
+        val itemsByDepth = conn.createQuery("select depth, typeCount from type_count_by_depth_view where artifactId = ? and (package = ? or ?)")
                 .bind(0, artifactId)
                 .bind(1, packageName)
                 .bind(2, packageName == null)
@@ -141,11 +150,12 @@ class DeclarationTreeHandler(
 
         val types = Iterators.peekingIterator(conn.createQuery(
                 """
-                    select name, description, modifiers, sourcefile 
+                    select name, description, modifiers, sourceFile 
                     from (
-                        select artifactId, binding as name, description, modifiers, sourcefile from data.bindings where parent is null 
-                        union select artifactId, name, NULL as description, 0 as modifiers, NULL as sourcefile from data.packages_view
-                    ) sq where artifactId = ? and name like ? and data.count_dots(name) < ? order by name""")
+                        select artifactId, binding as name, description, modifiers, sourceFile from bindings where parent is null 
+                        union select artifactId, name, NULL as description, 0 as modifiers, NULL as sourceFile from packages_view where not exists(select 1 from bindings where bindings.artifactId = packages_view.artifactId and binding = packages_view.name)
+                    ) sq where artifactId = ? and name like ? and count_dots(name) < ? order by name
+                    """)
                 .bind(0, artifactId)
                 .bind(1, if (packageName == null) "%" else "$packageName.%")
                 .bind(2, depth + (packageName?.count { it == '.' } ?: -1))
@@ -154,26 +164,16 @@ class DeclarationTreeHandler(
                     val description: ByteArray? = rs.getBytes(2)
                     val modifiers = rs.getInt(3)
                     val sourceFile: String? = rs.getString(4)
-                    if (description == null) {
-                        DeclarationNode(
-                                artifactId = artifactId,
-                                binding = binding,
-                                description = BindingDecl.Description.Package,
-                                modifiers = 0,
-                                // children may be added later
-                                children = null
-                        )
-                    } else {
-                        DeclarationNode(
-                                artifactId = artifactId,
-                                binding = binding,
-                                fullSourceFilePath = "/$artifactId/$sourceFile",
-                                modifiers = modifiers,
-                                description = objectMapper.readValue(description,
-                                        BindingDecl.Description::class.java),
-                                children = null
-                        )
-                    }
+                    DeclarationNode(
+                            artifactId = artifactId,
+                            binding = binding,
+                            fullSourceFilePath = sourceFile?.let { "/$artifactId/$it" },
+                            modifiers = modifiers,
+                            description = description?.let {
+                                objectMapper.readValue(it, BindingDecl.Description::class.java) }
+                                    ?: BindingDecl.Description.Package,
+                            children = null
+                    )
                 }
                 .iterator())
 

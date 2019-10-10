@@ -5,5 +5,6 @@ package at.yawk.javabrowser.server.view
  */
 data class DeclarationNodeView(
         val children: Iterator<DeclarationNode>,
+        val parentBinding: String?,
         val diffArtifactId: String?
 ) : View("declarationNodeView.ftl")

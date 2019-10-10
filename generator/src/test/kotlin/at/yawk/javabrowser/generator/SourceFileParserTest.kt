@@ -240,8 +240,21 @@ class SourceFileParserTest {
                 compileOne().entries,
                 Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
                     val annotation = it.annotation
-                    annotation is BindingRef && annotation.type == BindingRefType.IMPORT &&
+                    annotation is BindingRef && annotation.type == BindingRefType.ON_DEMAND_IMPORT &&
                             annotation.binding == "java.lang.String"
+                })
+        )
+    }
+
+    @Test
+    fun `ref - import package wildcard`() {
+        write("A.java", "import static java.lang.*; class A {}")
+        MatcherAssert.assertThat(
+                compileOne().entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.ON_DEMAND_IMPORT &&
+                            annotation.binding == "java.lang"
                 })
         )
     }
@@ -952,6 +965,75 @@ class SourceFileParserTest {
                     val description = annotation.description
                     description is BindingDecl.Description.Field &&
                             annotation.parent == "A#A"
+                })
+        )
+    }
+
+    @Test
+    fun `package declaration ref`() {
+        write("A.java", "package java.lang;")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingRef && annotation.type == BindingRefType.PACKAGE_DECLARATION &&
+                            annotation.binding == "java.lang"
+                })
+        )
+    }
+
+    @Test
+    fun `package declaration`() {
+        write("package-info.java", "package java.lang;")
+        val entries = compile().getValue("package-info.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl && annotation.description is BindingDecl.Description.Package
+                })
+        )
+    }
+
+    @Test
+    fun `package declaration deprecated`() {
+        write("package-info.java", "@Deprecated package java.util;")
+        val entries = compile().getValue("package-info.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl && annotation.description is BindingDecl.Description.Package &&
+                            annotation.modifiers == BindingDecl.MODIFIER_DEPRECATED
+                })
+        )
+    }
+
+    @Test
+    fun `type declaration deprecated through comment`() {
+        write("A.java", "/** @deprecated */ class A {}")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl && annotation.description is BindingDecl.Description.Type &&
+                            annotation.modifiers == BindingDecl.MODIFIER_DEPRECATED
+                })
+        )
+    }
+
+    @Test
+    fun `package declaration deprecated through comment`() {
+        write("package-info.java", "/** @deprecated */ package java.util;")
+        val entries = compile().getValue("package-info.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl && annotation.description is BindingDecl.Description.Package &&
+                            annotation.modifiers == BindingDecl.MODIFIER_DEPRECATED
                 })
         )
     }

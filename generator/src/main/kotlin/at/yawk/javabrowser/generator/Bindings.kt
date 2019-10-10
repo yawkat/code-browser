@@ -2,9 +2,9 @@ package at.yawk.javabrowser.generator
 
 import org.eclipse.jdt.core.dom.IBinding
 import org.eclipse.jdt.core.dom.IMethodBinding
+import org.eclipse.jdt.core.dom.IPackageBinding
 import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
-import java.lang.AssertionError
 
 /**
  * @author yawkat
@@ -32,6 +32,10 @@ object Bindings {
         }
     }
 
+    fun toString(packageBinding: IPackageBinding): String? =
+            if (packageBinding.isUnnamed) null
+            else packageBinding.name
+
     fun toString(varBinding: IVariableBinding): String? {
         val decl = varBinding.variableDeclaration ?: return null
         if (decl.declaringClass == null) return null // array length for example
@@ -51,25 +55,6 @@ object Bindings {
             builder.append(toString(parameterType) ?: return null)
         }
         builder.append(')')
-        return builder.toString()
-    }
-
-    fun toStringPretty(typeBinding: ITypeBinding): String {
-        if (typeBinding.name != "") return typeBinding.name
-        if (typeBinding.isAnonymous) return typeBinding.binaryName.substring(typeBinding.binaryName.indexOf('$'))
-        throw AssertionError()
-    }
-
-    fun toStringPretty(varBinding: IVariableBinding) = varBinding.name + ": " + toStringPretty(varBinding.type)
-    fun toStringPretty(methodBinding: IMethodBinding): String {
-        val builder = StringBuilder(methodBinding.name)
-        builder.append('(')
-        for ((i, parameterType) in methodBinding.parameterTypes.withIndex()) {
-            if (i != 0) builder.append(", ")
-            builder.append(toStringPretty(parameterType))
-        }
-        builder.append("): ")
-        builder.append(toStringPretty(methodBinding.returnType))
         return builder.toString()
     }
 }

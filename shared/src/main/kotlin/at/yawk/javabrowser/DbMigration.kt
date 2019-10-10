@@ -3,7 +3,6 @@ package at.yawk.javabrowser
 import org.skife.jdbi.v2.Handle
 import org.skife.jdbi.v2.NoOpStatementRewriter
 import org.skife.jdbi.v2.Script
-import org.skife.jdbi.v2.tweak.StatementRewriter
 import org.slf4j.LoggerFactory
 
 /**

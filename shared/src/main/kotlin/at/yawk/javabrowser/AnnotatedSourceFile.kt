@@ -6,10 +6,6 @@ package at.yawk.javabrowser
 data class AnnotatedSourceFile(
         val text: String,
         @Suppress("MemberVisibilityCanBePrivate") val entries: MutableList<Entry> = ArrayList()) {
-    companion object {
-        const val URI = ""
-    }
-
     val declarations: Iterator<BindingDecl>
         get() = entries.asSequence().mapNotNull { it.annotation as? BindingDecl }.iterator()
 

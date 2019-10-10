@@ -47,6 +47,7 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     INSTANCE_OF(13, "instanceof"),
     CAST(14, "Cast type"),
     IMPORT(15, "Import"),
+    ON_DEMAND_IMPORT(30, "On-Demand Import"),
     ANNOTATION_TYPE(16, "Annotation type"),
     CONSTRUCTOR_CALL(17, "Constructor call"),
     THROWS_DECLARATION(18, "Throws declaration"),
@@ -57,7 +58,8 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     WILDCARD_BOUND(22, "Wildcard bound"),
     THIS_REFERENCE_QUALIFIER(23, "this reference qualifier"),
     SUPER_REFERENCE_QUALIFIER(24, "super reference qualifier"),
-    ANNOTATION_MEMBER_VALUE(25, "Annotation member value");
+    ANNOTATION_MEMBER_VALUE(25, "Annotation member value"),
+    PACKAGE_DECLARATION(31, "Package declaration");
 
     companion object {
         private val byId: List<BindingRefType?>
@@ -82,6 +84,9 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
 
 data class BindingDecl(
         val binding: String,
+        /**
+         * Parent binding of this declaration. `null` for top-level classes and packages.
+         */
         val parent: String?,
         val description: Description,
         /**
@@ -104,7 +109,8 @@ data class BindingDecl(
         JsonSubTypes.Type(value = Description.Lambda::class, name = "lambda"),
         JsonSubTypes.Type(value = Description.Initializer::class, name = "initializer"),
         JsonSubTypes.Type(value = Description.Method::class, name = "method"),
-        JsonSubTypes.Type(value = Description.Field::class, name = "field")
+        JsonSubTypes.Type(value = Description.Field::class, name = "field"),
+        JsonSubTypes.Type(value = Description.Package::class, name = "package")
     ])
     sealed class Description {
         data class Type(
@@ -157,8 +163,11 @@ data class BindingDecl(
                 val typeBinding: Type
         ) : Description()
 
-        // never serialized.
-        object Package : Description()
+        object Package : Description() {
+            @JvmStatic
+            @JsonCreator
+            fun create() = Initializer
+        }
     }
 
     data class Super(

@@ -1,7 +1,7 @@
 <#ftl strip_text=true>
 <#-- @ftlvariable name="Modifier" type="java.lang.reflect.Modifier" -->
 <#macro typeName type><#-- @ftlvariable name="type" type="at.yawk.javabrowser.BindingDecl.Description.Type" -->${type.simpleName}<#if type.typeParameters?has_content>&lt;<#list type.typeParameters as par><#if !par?is_first>, </#if><@typeName par/></#list>&gt;</#if></#macro>
-<#macro decoratedIcon modifiers>
+<#macro decoratedIcon modifiers showAccess=true>
   <span class="declaration-icon"><#t>
     <#nested/>
     <#if Modifier.isFinal(modifiers)>
@@ -11,14 +11,16 @@
       <img alt="final" src="/assets/icons/nodes/staticMark.svg">
     </#if>
   </span><#t>
-  <#if Modifier.isPrivate(modifiers)>
-    <img class="declaration-access" alt="private" src="/assets/icons/nodes/c_private.svg"><#t>
-  <#elseif Modifier.isProtected(modifiers)>
-    <img class="declaration-access" alt="protected" src="/assets/icons/nodes/c_protected.svg"><#t>
-  <#elseif Modifier.isPublic(modifiers)>
-    <img class="declaration-access" alt="public" src="/assets/icons/nodes/c_public.svg"><#t>
-  <#else>
-    <img class="declaration-access" alt="package-private" src="/assets/icons/nodes/c_plocal.svg"><#t>
+  <#if showAccess>
+    <#if Modifier.isPrivate(modifiers)>
+      <img class="declaration-access" alt="private" src="/assets/icons/nodes/c_private.svg"><#t>
+    <#elseif Modifier.isProtected(modifiers)>
+      <img class="declaration-access" alt="protected" src="/assets/icons/nodes/c_protected.svg"><#t>
+    <#elseif Modifier.isPublic(modifiers)>
+      <img class="declaration-access" alt="public" src="/assets/icons/nodes/c_public.svg"><#t>
+    <#else>
+      <img class="declaration-access" alt="package-private" src="/assets/icons/nodes/c_plocal.svg"><#t>
+    </#if>
   </#if>
 </#macro>
 <#macro type decl>
@@ -114,26 +116,27 @@
       ></a>
     </#if>
 
-    <#if node.kind == "PACKAGE">
+    <#if fullSourceFilePath??><a href="${fullSourceFilePath}#<#if node.diffResult?? && node.diffResult == "DELETION">---%20</#if>${node.binding?url}"><#t></#if>
       <@diffIcon node/>
-      <img alt="package" src="/assets/icons/nodes/package.svg">
-      <span class="declaration-name">${(parentBinding == "")?then(node.binding, node.binding[parentBinding?length+1..])}</span>
-    <#else>
-      <a href="${fullSourceFilePath}#<#if node.diffResult?? && node.diffResult == "DELETION">---%20</#if>${node.binding?url}"><#t>
-        <@diffIcon node/>
-        <#if node.kind == "TYPE">
-          <@type node/>
-        <#elseif node.kind == "LAMBDA">
-          <@lambda node/>
-        <#elseif node.kind == "INITIALIZER">
-          <@initializer node/>
-        <#elseif node.kind == "METHOD">
-          <@method node/>
-        <#elseif node.kind == "FIELD">
-          <@field node/>
-        </#if>
-      </a>
-    </#if>
+      <#if node.kind == "TYPE">
+        <@type node/>
+      <#elseif node.kind == "LAMBDA">
+        <@lambda node/>
+      <#elseif node.kind == "INITIALIZER">
+        <@initializer node/>
+      <#elseif node.kind == "METHOD">
+        <@method node/>
+      <#elseif node.kind == "FIELD">
+        <@field node/>
+      <#elseif node.kind == "PACKAGE">
+        <@decoratedIcon node.modifiers false>
+          <img alt="package" src="/assets/icons/nodes/package.svg">
+        </@decoratedIcon>
+        <span class="declaration-name<#if node.deprecated> deprecated</#if>">
+          ${(parentBinding == "")?then(node.binding, node.binding[parentBinding?length+1..])}<#t>
+        </span>
+      </#if>
+    <#if fullSourceFilePath??></a></#if>
   </span>
 
   <#if node.children?has_content>

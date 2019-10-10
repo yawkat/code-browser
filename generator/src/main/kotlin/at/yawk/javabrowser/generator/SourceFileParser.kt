@@ -73,7 +73,12 @@ class SourceFileParser(
                 (comment as ASTNode).accept(styleVisitor)
             }
             ast.accept(styleVisitor)
-            val bindingVisitor = BindingVisitor(ast, annotatedSourceFile)
+            val sourceFileType = when {
+                sourceFilePath.endsWith("package-info.java") -> BindingVisitor.SourceFileType.PACKAGE_INFO
+                sourceFilePath.endsWith("module-info.java") -> BindingVisitor.SourceFileType.MODULE_INFO
+                else -> BindingVisitor.SourceFileType.REGULAR
+            }
+            val bindingVisitor = BindingVisitor(sourceFileType, ast, annotatedSourceFile)
             try {
                 ast.accept(bindingVisitor)
             } catch (e: Exception) {

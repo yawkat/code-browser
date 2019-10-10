@@ -3,6 +3,6 @@
 
 <ul>
   <@ConservativeLoopBlock iterator=children; package>
-    <li><@declarationNode.declarationNode package "" diffArtifactId/></li>
+    <li><@declarationNode.declarationNode node=package fullSourceFilePath="" parentBinding=parentBinding diffArtifactId=diffArtifactId/></li>
   </@ConservativeLoopBlock>
 </ul>

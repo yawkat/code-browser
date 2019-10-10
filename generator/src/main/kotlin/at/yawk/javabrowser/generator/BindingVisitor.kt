@@ -29,6 +29,7 @@ import org.eclipse.jdt.core.dom.FieldAccess
 import org.eclipse.jdt.core.dom.FieldDeclaration
 import org.eclipse.jdt.core.dom.IBinding
 import org.eclipse.jdt.core.dom.IMethodBinding
+import org.eclipse.jdt.core.dom.IPackageBinding
 import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
 import org.eclipse.jdt.core.dom.ImportDeclaration
@@ -48,6 +49,7 @@ import org.eclipse.jdt.core.dom.Modifier
 import org.eclipse.jdt.core.dom.Name
 import org.eclipse.jdt.core.dom.NameQualifiedType
 import org.eclipse.jdt.core.dom.NormalAnnotation
+import org.eclipse.jdt.core.dom.PackageDeclaration
 import org.eclipse.jdt.core.dom.ParameterizedType
 import org.eclipse.jdt.core.dom.PostfixExpression
 import org.eclipse.jdt.core.dom.PrefixExpression
@@ -61,6 +63,7 @@ import org.eclipse.jdt.core.dom.SuperConstructorInvocation
 import org.eclipse.jdt.core.dom.SuperFieldAccess
 import org.eclipse.jdt.core.dom.SuperMethodInvocation
 import org.eclipse.jdt.core.dom.SuperMethodReference
+import org.eclipse.jdt.core.dom.TagElement
 import org.eclipse.jdt.core.dom.ThisExpression
 import org.eclipse.jdt.core.dom.Type
 import org.eclipse.jdt.core.dom.TypeDeclaration
@@ -78,9 +81,16 @@ import org.eclipse.jdt.internal.compiler.lookup.MethodBinding
 import java.lang.Long
 
 internal class BindingVisitor(
+        private val sourceFileType: SourceFileType,
         private val ast: CompilationUnit,
         private val annotatedSourceFile: AnnotatedSourceFile
 ) : ASTVisitor(true) {
+    enum class SourceFileType {
+        REGULAR,
+        MODULE_INFO,
+        PACKAGE_INFO,
+    }
+
     private var refIdCounter = 0
     private var initializerCounter = 0
     private var inJavadoc = false
@@ -677,7 +687,8 @@ internal class BindingVisitor(
                 node.locationInParent != SuperMethodInvocation.QUALIFIER_PROPERTY &&
                 node.locationInParent != SuperMethodReference.QUALIFIER_PROPERTY &&
                 node.locationInParent != ThisExpression.QUALIFIER_PROPERTY &&
-                node.locationInParent != MemberValuePair.NAME_PROPERTY) {
+                node.locationInParent != MemberValuePair.NAME_PROPERTY &&
+                node.locationInParent != PackageDeclaration.NAME_PROPERTY) {
             visitName0(node, null)
         }
     }
@@ -708,6 +719,10 @@ internal class BindingVisitor(
             if (s != null) annotatedSourceFile.annotate(node, makeBindingRef(refType ?: BindingRefType.UNCLASSIFIED, s))
         }
         if (binding is IMethodBinding) {
+            val s = Bindings.toString(binding)
+            if (s != null) annotatedSourceFile.annotate(node, makeBindingRef(refType ?: BindingRefType.UNCLASSIFIED, s))
+        }
+        if (binding is IPackageBinding) {
             val s = Bindings.toString(binding)
             if (s != null) annotatedSourceFile.annotate(node, makeBindingRef(refType ?: BindingRefType.UNCLASSIFIED, s))
         }
@@ -744,7 +759,7 @@ internal class BindingVisitor(
     }
 
     override fun visit(node: ImportDeclaration): Boolean {
-        visitName0(node.name, BindingRefType.IMPORT)
+        visitName0(node.name, if (node.isOnDemand) BindingRefType.ON_DEMAND_IMPORT else BindingRefType.IMPORT)
         return false
     }
 
@@ -901,6 +916,36 @@ internal class BindingVisitor(
     override fun visit(node: ThisExpression): Boolean {
         if (node.qualifier != null) {
             visitName0(node.qualifier, BindingRefType.THIS_REFERENCE_QUALIFIER)
+        }
+        return true
+    }
+
+    override fun visit(node: PackageDeclaration): Boolean {
+        if (sourceFileType == SourceFileType.PACKAGE_INFO) {
+            val b = Bindings.toString(node.resolveBinding())
+            if (b != null) {
+                var modifiers = getModifiers(node.resolveBinding())
+                if (node.annotations().any {
+                            (it as Annotation).resolveAnnotationBinding()?.annotationType?.qualifiedName == "java.lang.Deprecated"
+                        } or
+                        (node.javadoc?.tags() ?: emptyList<Any>()).any {
+                            (it as TagElement).tagName == TagElement.TAG_DEPRECATED
+                        }) {
+                    modifiers = modifiers or BindingDecl.MODIFIER_DEPRECATED
+                }
+                val javadoc = node.javadoc
+                if (javadoc != null) {
+                    javadoc.tags()
+                }
+                annotatedSourceFile.annotate(node.name, BindingDecl(
+                        binding = b,
+                        parent = null,
+                        description = BindingDecl.Description.Package,
+                        modifiers = modifiers
+                ))
+            }
+        } else {
+            visitName0(node.name, BindingRefType.PACKAGE_DECLARATION)
         }
         return true
     }
