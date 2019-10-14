@@ -40,6 +40,15 @@ artifacts:
     - name: GPLv2 + Classpath Exception
       url: https://openjdk.java.net/legal/gplv2+ce.html
     url: https://openjdk.java.net/
+- type: java
+  baseDir: "/usr/lib/jvm/java-13-openjdk"
+  version: 13
+  metadata:
+    logoUrl: https://openjdk.java.net/images/openjdk.png
+    licenses:
+    - name: GPLv2 + Classpath Exception
+      url: https://openjdk.java.net/legal/gplv2+ce.html
+    url: https://openjdk.java.net/
 - type: android
   version: android-9.0.0_r35
   repos:
