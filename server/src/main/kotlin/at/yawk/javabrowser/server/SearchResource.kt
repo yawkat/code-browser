@@ -2,8 +2,10 @@ package at.yawk.javabrowser.server
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
+import com.google.common.net.MediaType
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
+import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
@@ -99,6 +101,7 @@ class SearchResource(private val dbi: DBI,
             Result(it.key, it.entry.name.string, it.entry.value, componentLengths, it.match)
         }.asIterable())
 
+        exchange.responseHeaders.put(Headers.CONTENT_TYPE, MediaType.JSON_UTF_8.toString())
         objectMapper.writeValue(exchange.outputStream, response)
     }
 

@@ -2,8 +2,10 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.BindingRefType
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.common.net.MediaType
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
+import io.undertow.util.Headers
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 
@@ -31,6 +33,7 @@ class ReferenceResource(private val dbi: DBI, private val objectMapper: ObjectMa
             }
         }
 
+        exchange.responseHeaders.put(Headers.CONTENT_TYPE, MediaType.JSON_UTF_8.toString())
         objectMapper.writeValue(exchange.outputStream, data)
     }
 

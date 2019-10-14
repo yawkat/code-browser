@@ -36,8 +36,8 @@ fun main(args: Array<String>) {
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
 
     val exceptions: (ExceptionHandler) -> Unit = {
-        it.addExceptionHandler(Throwable::class.java) {
-            var exception = it.getAttachment(ExceptionHandler.THROWABLE)
+        it.addExceptionHandler(Throwable::class.java) { exc ->
+            var exception = exc.getAttachment(ExceptionHandler.THROWABLE)
             if (exception is CallbackFailedException) {
                 exception = exception.cause
                 if (exception is TransactionFailedException && exception.cause != null) {
@@ -45,13 +45,13 @@ fun main(args: Array<String>) {
                 }
             }
             if (exception is HttpException) {
-                it.statusCode = exception.status
-                it.responseHeaders.put(Headers.CONTENT_TYPE, "text/plain")
-                it.responseSender.send(exception.message)
+                exc.statusCode = exception.status
+                exc.responseHeaders.put(Headers.CONTENT_TYPE, "text/plain")
+                exc.responseSender.send(exception.message)
             } else {
-                log.error("Failed processing request", it.getAttachment(ExceptionHandler.THROWABLE))
-                if (!it.isResponseStarted) {
-                    it.statusCode = StatusCodes.INTERNAL_SERVER_ERROR
+                log.error("Failed processing request", exc.getAttachment(ExceptionHandler.THROWABLE))
+                if (!exc.isResponseStarted) {
+                    exc.statusCode = StatusCodes.INTERNAL_SERVER_ERROR
                 }
             }
         }
@@ -73,6 +73,7 @@ fun main(args: Array<String>) {
         it.add(ImageCache.PATTERN, imageCache.handler)
         it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl))
         it.add(DeclarationTreeHandler.PATTERN, packageTreeHandler)
+        it.add(JavabotSearchResource.PATTERN, JavabotSearchResource(dbi, objectMapper))
     }
 
     handler = ExceptionHandler(handler).also(exceptions)
