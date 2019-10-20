@@ -4,6 +4,7 @@ import at.yawk.javabrowser.DbConfig
 import at.yawk.javabrowser.DbMigration
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import org.eclipse.collections.impl.factory.Bags
 import org.slf4j.LoggerFactory
 import java.io.File
 
@@ -15,6 +16,14 @@ private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.Generat
 fun main(args: Array<String>) {
 
     val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
+
+    val duplicateArtifactBag = Bags.mutable.withAll(config.artifacts)
+    config.artifacts.forEach { duplicateArtifactBag.remove(it) }
+    if (duplicateArtifactBag.isNotEmpty()) {
+        log.error("Duplicate artifacts: $duplicateArtifactBag")
+        return
+    }
+
     val dbi = config.database.start(mode = DbConfig.Mode.GENERATOR)
 
     dbi.inTransaction { conn, _ ->
