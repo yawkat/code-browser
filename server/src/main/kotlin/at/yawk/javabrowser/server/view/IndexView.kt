@@ -7,5 +7,6 @@ import at.yawk.javabrowser.server.artifact.ArtifactNode
  */
 @Suppress("unused")
 class IndexView(
-        val artifactId: ArtifactNode
+        val artifactId: ArtifactNode,
+        val siteStatistics: SiteStatistics
 ) : View("index.ftl")

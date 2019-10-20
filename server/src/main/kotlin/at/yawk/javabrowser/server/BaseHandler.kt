@@ -28,7 +28,8 @@ class BaseHandler(private val dbi: DBI,
                   private val bindingResolver: BindingResolver,
                   private val objectMapper: ObjectMapper,
                   private val artifactIndex: ArtifactIndex,
-                  private val declarationTreeHandler: DeclarationTreeHandler) : HttpHandler {
+                  private val declarationTreeHandler: DeclarationTreeHandler,
+                  private val siteStatisticsService: SiteStatisticsService) : HttpHandler {
     private sealed class ParsedPath(val artifact: ArtifactNode) {
         class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact)
         class LeafArtifact(artifact: ArtifactNode) : ParsedPath(artifact)
@@ -65,7 +66,7 @@ class BaseHandler(private val dbi: DBI,
             val view = when (path) {
                 is ParsedPath.SourceFile -> sourceFile(exchange, conn, path)
                 is ParsedPath.LeafArtifact -> typeSearch(exchange, conn, path)
-                is ParsedPath.Group -> IndexView(path.artifact)
+                is ParsedPath.Group -> IndexView(path.artifact, siteStatisticsService.statistics)
             }
             ftl.render(exchange, view)
         }

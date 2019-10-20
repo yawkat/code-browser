@@ -28,7 +28,7 @@ class BindingResolver(
 
     init {
         // too hard to just invalidate relevant bindings
-        artifactUpdater.addArtifactUpdateListener { cache.invalidateAll() }
+        artifactUpdater.addInvalidationListener(runAtStart = false) { cache.invalidateAll() }
     }
 
     private fun resolveBinding0(binding: String): List<BindingLocation> {

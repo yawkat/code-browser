@@ -16,7 +16,7 @@ class ArtifactIndex(
         private set
 
     init {
-        artifactUpdater.addArtifactUpdateListener { rootArtifact = fetch() }
+        artifactUpdater.addInvalidationListener(runAtStart = false) { rootArtifact = fetch() }
     }
 
     private fun fetch(): ArtifactNode {

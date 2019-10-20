@@ -14,7 +14,8 @@ class ArtifactUpdater(dbi: DBI) {
         private val log = LoggerFactory.getLogger(ArtifactUpdater::class.java)
     }
 
-    private val listeners = ArrayList<(String) -> Unit>()
+    private val artifactListeners = ArrayList<(String) -> Unit>()
+    private val invalidationListeners = ArrayList<() -> Unit>()
 
     private val pool: Executor
 
@@ -25,13 +26,28 @@ class ArtifactUpdater(dbi: DBI) {
 
     @Synchronized
     fun addArtifactUpdateListener(listener: (String) -> Unit) {
-        listeners.add(listener)
+        artifactListeners.add(listener)
+    }
+
+    @Synchronized
+    fun addInvalidationListener(runAtStart: Boolean = false, listener: () -> Unit) {
+        invalidationListeners.add(listener)
+        if (runAtStart) {
+            pool.execute(listener)
+        }
     }
 
     @Synchronized
     private fun onUpdate(artifactId: String) {
-        for (listener in listeners) {
+        for (listener in artifactListeners) {
             pool.execute { listener(artifactId) }
+        }
+    }
+
+    @Synchronized
+    private fun onInvalidate() {
+        for (listener in invalidationListeners) {
+            pool.execute(listener)
         }
     }
 
@@ -44,6 +60,7 @@ class ArtifactUpdater(dbi: DBI) {
 
                         while (true) {
                             val notifications = it.connection.unwrap(PGConnection::class.java).getNotifications(0)
+                            var invalidate = false
                             for (notification in notifications) {
                                 if (notification.name != "artifacts") {
                                     log.error("Received notification of name we did not listen to: {}",
@@ -52,6 +69,10 @@ class ArtifactUpdater(dbi: DBI) {
                                 }
 
                                 onUpdate(notification.parameter)
+                                invalidate = true
+                            }
+                            if (invalidate) {
+                                onInvalidate()
                             }
                         }
                     }

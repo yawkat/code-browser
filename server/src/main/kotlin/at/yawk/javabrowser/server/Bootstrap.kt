@@ -60,12 +60,13 @@ fun main(args: Array<String>) {
     val updater = ArtifactUpdater(dbi)
 
     val bindingResolver = BindingResolver(updater, dbi)
+    val siteStatisticsService = SiteStatisticsService(dbi, updater)
     val imageCache = ImageCache()
     val ftl = Ftl()
     ftl.putDirective("imageCache", imageCache.directive)
     val artifactIndex = ArtifactIndex(updater, dbi)
     val packageTreeHandler = DeclarationTreeHandler(dbi, ftl, objectMapper)
-    val baseHandler = BaseHandler(dbi, ftl, bindingResolver, objectMapper, artifactIndex, packageTreeHandler)
+    val baseHandler = BaseHandler(dbi, ftl, bindingResolver, objectMapper, artifactIndex, packageTreeHandler, siteStatisticsService)
     val searchResource = SearchResource(dbi, objectMapper, updater)
     var handler: HttpHandler = PathTemplateHandler(baseHandler).also {
         it.add(SearchResource.PATTERN, searchResource)
