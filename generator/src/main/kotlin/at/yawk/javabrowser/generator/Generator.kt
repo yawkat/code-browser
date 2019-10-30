@@ -18,8 +18,7 @@ fun main(args: Array<String>) {
     val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
 
     val duplicateArtifactBag = Bags.mutable.withAll(config.artifacts)
-    config.artifacts.forEach { duplicateArtifactBag.remove(it) }
-    if (duplicateArtifactBag.isNotEmpty()) {
+    if (duplicateArtifactBag.toMapOfItemToCount().values.any { it > 1 }) {
         log.error("Duplicate artifacts: $duplicateArtifactBag")
         return
     }

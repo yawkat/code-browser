@@ -1,6 +1,11 @@
 -- NOTE: these tables do not have schema information, this script may be run in different schemas on the same db.
 
--- ARTIFACTS
+-- so we can do ifs
+do
+$$
+    begin
+
+        -- ARTIFACTS
 
 create table if not exists artifacts
 (
@@ -12,11 +17,24 @@ alter table artifacts
 
 -- SOURCE FILES
 
+-- https://stackoverflow.com/a/28274121/1116343
+if not exists(select 1 from pg_type where lower(typname) = 'lexemeswithoffsets' and pg_type_is_visible(oid)) then
+    create type LexemesWithOffsets as (
+        lexemes tsvector,
+        starts int4[],
+        lengths int4[]
+        );
+end if;
+
 create table if not exists sourceFiles
 (
-    artifactId varchar references artifacts,
-    path       varchar not null,
-    json       bytea   not null,
+    artifactId                  varchar references artifacts,
+    path                        varchar  not null,
+    json                        bytea    not null, -- TODO: remove
+    text                        bytea    not null,
+    annotations                 bytea    not null,
+    textLexemes          LexemesWithOffsets not null,
+    textLexemesNoSymbols LexemesWithOffsets not null,
     primary key (artifactId, path)
 );
 
@@ -111,3 +129,6 @@ from types_and_packages as outer_
          inner join types_and_packages as inner_
                     on outer_.artifactId = inner_.artifactId and (outer_.name is null or inner_.name like outer_.name || '.%')
 group by outer_.artifactId, outer_.name, count_dots(inner_.name);
+
+    end
+$$;

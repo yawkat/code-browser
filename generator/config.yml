@@ -951,10 +951,6 @@ artifacts:
   version: 8.2.0
 - type: maven
   groupId: org.apache.lucene
-  artifactId: lucene-sandbox
-  version: 8.2.0
-- type: maven
-  groupId: org.apache.lucene
   artifactId: lucene-expressions
   version: 8.2.0
 - type: maven

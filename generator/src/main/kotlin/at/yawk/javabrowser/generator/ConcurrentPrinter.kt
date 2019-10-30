@@ -1,12 +1,13 @@
 package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.Tokenizer
 import java.util.concurrent.ArrayBlockingQueue
 
 /**
  * @author yawkat
  */
-class ConcurrentPrinter(private val delegate: PrinterWithDependencies) : PrinterWithDependencies {
+class ConcurrentPrinter : PrinterWithDependencies {
     private val queue = ArrayBlockingQueue<Action>(16)
     @Volatile
     private var done = false
@@ -15,8 +16,8 @@ class ConcurrentPrinter(private val delegate: PrinterWithDependencies) : Printer
         queue.put(Action.AddDependency(dependency))
     }
 
-    override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
-        queue.put(Action.AddSourceFile(path, sourceFile))
+    override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile, tokens: List<Tokenizer.Token>) {
+        queue.put(Action.AddSourceFile(path, sourceFile, tokens))
     }
 
     fun finish() {
@@ -29,7 +30,7 @@ class ConcurrentPrinter(private val delegate: PrinterWithDependencies) : Printer
             val item = queue.take()
             when (item) {
                 is Action.AddDependency -> delegate.addDependency(item.dependency)
-                is Action.AddSourceFile -> delegate.addSourceFile(item.path, item.sourceFile)
+                is Action.AddSourceFile -> delegate.addSourceFile(item.path, item.sourceFile, item.tokens)
                 is Action.End -> {}
             }
         }
@@ -37,7 +38,9 @@ class ConcurrentPrinter(private val delegate: PrinterWithDependencies) : Printer
 
     private sealed class Action {
         data class AddDependency(val dependency: String) : Action()
-        data class AddSourceFile(val path: String, val sourceFile: AnnotatedSourceFile) : Action()
+        data class AddSourceFile(val path: String,
+                                 val sourceFile: AnnotatedSourceFile,
+                                 val tokens: List<Tokenizer.Token>) : Action()
         object End : Action()
     }
 }

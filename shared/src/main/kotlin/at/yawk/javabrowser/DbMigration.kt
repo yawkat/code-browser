@@ -11,27 +11,19 @@ import org.slf4j.LoggerFactory
 private val log = LoggerFactory.getLogger(DbMigration::class.java)
 
 object DbMigration {
-    private fun Script.executeNoParameters(conn: Handle) {
-        for (s in statements) {
-            val stmt = conn.createStatement(s)
-            stmt.setStatementRewriter(NoOpStatementRewriter())
-            stmt.execute()
-        }
-    }
-
     fun initDataSchema(conn: Handle) {
         log.info("Initializing DB")
-        conn.createScript("at/yawk/javabrowser/InitDataSchema.sql").executeNoParameters(conn)
+        val statement = conn.createStatement(
+                DbMigration::class.java.getResourceAsStream("/at/yawk/javabrowser/InitDataSchema.sql")
+                        .readBytes().toString(Charsets.UTF_8)
+        )
+        statement.setStatementRewriter(NoOpStatementRewriter())
+        statement.execute()
     }
 
     fun initInteractiveSchema(conn: Handle) {
         log.info("Initializing DB")
         conn.createScript("at/yawk/javabrowser/InitInteractiveSchema.sql").execute()
-    }
-
-    fun dropIndicesForUpdate(conn: Handle) {
-        log.info("Dropping indices for DB update")
-        conn.createScript("at/yawk/javabrowser/DropIndices.sql").execute()
     }
 
     fun createIndices(conn: Handle) {

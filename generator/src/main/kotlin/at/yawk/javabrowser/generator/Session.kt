@@ -5,6 +5,7 @@ import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.DbMigration
+import at.yawk.javabrowser.Tokenizer
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
@@ -36,8 +37,7 @@ class Session(
             val present = conn.select("select id from artifacts").map { it["id"] as String }
             val updating = ourTasks.map { it.artifactId }
             val mode = when {
-                present.all { it in updating } -> UpdateMode.FULL
-                updating.size > present.size * 0.6 -> UpdateMode.MAJOR
+                updating.size > present.size * 0.6 -> UpdateMode.FULL
                 else -> UpdateMode.MINOR
             }
 
@@ -66,10 +66,6 @@ class Session(
          * Create a new schema and start from the ground up.
          */
         FULL,
-        /**
-         * Create a new schema and start from the ground up.
-         */
-        MAJOR,
         MINOR,
     }
 
@@ -84,9 +80,6 @@ class Session(
         private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?)")
 
         fun run() {
-            if (mode == UpdateMode.MAJOR) {
-                DbMigration.dropIndicesForUpdate(conn)
-            }
 
             fun delete(inParam: String, args: Array<String>) {
                 conn.update("delete from bindings where artifactId $inParam", *args)
@@ -101,12 +94,6 @@ class Session(
 
             // check exception
             when (mode) {
-                UpdateMode.MAJOR -> {
-                    val inParam = List(artifactIds.size) { "?" }.joinToString(separator = ",",
-                            prefix = "in (",
-                            postfix = ")")
-                    delete(inParam, artifactIds.toTypedArray())
-                }
                 UpdateMode.MINOR -> {
                     for (artifactId in artifactIds) {
                         delete("= ?", arrayOf(artifactId))
@@ -126,7 +113,7 @@ class Session(
                         task.artifactId, Compiler.VERSION, objectMapper.writeValueAsBytes(task.metadata))
 
                 val printerImpl = PrinterImpl(task.artifactId)
-                val concurrentPrinter = ConcurrentPrinter(printerImpl)
+                val concurrentPrinter = ConcurrentPrinter()
                 val future = executor.submit {
                     try {
                         task.closure(concurrentPrinter)
@@ -167,13 +154,25 @@ class Session(
                         dependency)
             }
 
-            override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile) {
+            override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile, tokens: List<Tokenizer.Token>) {
                 hasFiles = true
+                val tokensNoSymbols = tokens.filter { !it.symbol }
                 conn.insert(
-                        "insert into sourceFiles (artifactId, path, json) VALUES (?, ?, ?)",
+                        """insert into sourceFiles (artifactId, path, json, text, annotations, textLexemes, textLexemesNoSymbols) 
+                            values (?, ?, ?, ?, ?, row(array_to_tsvector(?), ?, ?), row(array_to_tsvector(?), ?, ?))
+                            """,
                         artifactId,
                         path,
-                        objectMapper.writeValueAsBytes(sourceFile))
+                        objectMapper.writeValueAsBytes(sourceFile), // TODO: remove
+                        sourceFile.text.toByteArray(Charsets.UTF_8),
+                        objectMapper.writeValueAsBytes(sourceFile.entries),
+                        tokens.map { it.text }.toTypedArray(),
+                        tokens.map { it.start }.toIntArray(),
+                        tokens.map { it.length }.toIntArray(),
+                        tokensNoSymbols.map { it.text }.toTypedArray(),
+                        tokensNoSymbols.map { it.start }.toIntArray(),
+                        tokensNoSymbols.map { it.length }.toIntArray()
+                )
 
                 val lineNumberTable = LineNumberTable(sourceFile.text)
 
