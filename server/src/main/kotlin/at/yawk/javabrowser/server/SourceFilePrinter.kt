@@ -37,17 +37,11 @@ object SourceFilePrinter {
 
     private class SplitSourceFile(val sourceFile: ServerSourceFile) : Sequence() {
         /**
-         * Offset in the text for each independent text fragment. Text fragments are uninterrupted by newlines or
-         * annotations.
-         */
-        val fragments: IntList
-        /**
          * Offset for the start of each line.
          */
         val lines: IntList
 
         init {
-            val fragments = IntLists.mutable.empty()
             val lines = IntLists.mutable.empty()
 
             var textIndex = 0
@@ -56,7 +50,6 @@ object SourceFilePrinter {
             fun consumeText(until: Int) {
                 while (textIndex < until) {
                     val nextLine = sourceFile.text.indexOf('\n', textIndex)
-                    fragments.add(textIndex)
                     textIndex = if (nextLine != -1 && nextLine < until) {
                         lines.add(nextLine + 1) // line starts after this fragment
                         // includes the \n
@@ -88,7 +81,6 @@ object SourceFilePrinter {
             consumeUntil(sourceFile.text.length)
 
             this.lines = lines
-            this.fragments = fragments
         }
 
         fun lineStartTextIndex(line: Int) = lines[line]
@@ -124,17 +116,15 @@ object SourceFilePrinter {
         private val openEntriesMemory = ArrayList<M?>()
 
         var line = 0
-        private var fragment = 0
 
         private val entry: PositionedAnnotation
             get() = iterator.peek()
 
-        private val fragmentTextStart: Int
-            get() = sourceFile.fragments[fragment]
+        private var fragmentTextStart = 0
 
         fun advanceLine(scope: Scope, emitter: Emitter<M>?) {
             val untilText = sourceFile.lineEndTextIndex(line)
-            while (fragment < sourceFile.fragments.size() && fragmentTextStart < untilText) {
+            while (fragmentTextStart < untilText) {
                 while (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end == fragmentTextStart) {
                     emitter?.endAnnotation(scope, openEntriesAnnotations.last().annotation,
                             openEntriesMemory.last()!!)
@@ -157,13 +147,20 @@ object SourceFilePrinter {
                 }
 
                 val start = fragmentTextStart
-                fragment++
-                if (emitter != null) {
-                    val end =
-                            if (fragment == sourceFile.fragments.size()) sourceFile.sourceFile.text.length
-                            else fragmentTextStart
-                    emitter.text(sourceFile.sourceFile.text, start, end)
+
+                // at best, proceed to end
+                var nextFragmentStart = untilText
+                // ... but no further than the next annotation start
+                if (iterator.hasNext() && entry.start < nextFragmentStart) {
+                    nextFragmentStart = entry.start
                 }
+                // ... or further than the next annotation end.
+                if (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end < nextFragmentStart) {
+                    nextFragmentStart = openEntriesAnnotations.last().end
+                }
+                fragmentTextStart = nextFragmentStart
+
+                emitter?.text(sourceFile.sourceFile.text, start, fragmentTextStart)
             }
             line++
         }
