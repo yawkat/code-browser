@@ -10,21 +10,22 @@ import java.nio.charset.StandardCharsets
 /**
  * @author yawkat
  */
-class ServerSourceFile(
-        objectMapper: ObjectMapper,
-        textBytes: ByteArray,
-        annotationBytes: ByteArray
-) {
-    val text: String = textBytes.toString(StandardCharsets.UTF_8)
-    var annotations: Sequence<PositionedAnnotation> = lazyParseAnnotations(objectMapper, annotationBytes)
+class ServerSourceFile(val text: String, annotations: Sequence<PositionedAnnotation>) {
+    var annotations: Sequence<PositionedAnnotation> = annotations
         private set
     val declarations: Iterator<BindingDecl>
         get() = annotations.mapNotNull { it.annotation as? BindingDecl }.iterator()
 
+    constructor(
+            objectMapper: ObjectMapper,
+            textBytes: ByteArray,
+            annotationBytes: ByteArray
+    ) : this(textBytes.toString(StandardCharsets.UTF_8), lazyParseAnnotations(objectMapper, annotationBytes))
+
     @Deprecated("try to use #entries instead")
     val annotationList by lazy(LazyThreadSafetyMode.NONE) {
         val l = annotations.toList()
-        annotations = l.asSequence()
+        this.annotations = l.asSequence()
         l
     }
 

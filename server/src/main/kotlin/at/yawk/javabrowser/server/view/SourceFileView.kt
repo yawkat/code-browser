@@ -159,12 +159,52 @@ class SourceFileView(
             }
         }
 
-        override fun html(@Language("HTML") s: String) {
+        fun html(@Language("HTML") s: String) {
             writer.write(s)
         }
 
         override fun text(s: String, start: Int, end: Int) {
             Escaper.HTML.escape(writer, s, start, end)
+        }
+
+        override fun beginInsertion() {
+            html("<span class='insertion'>")
+        }
+        override fun beginDeletion() {
+            html("<span class='deletion'>")
+        }
+        override fun endInsertion() {
+            html("</span>")
+        }
+        override fun endDeletion() {
+            html("</span>")
+        }
+
+        override fun diffLineMarker(newLine: Int?, oldLine: Int?) {
+            if (oldLine != null) {
+                val id = "--- ${oldLine + 1}"
+                html("<a href='#$id' id='$id' class='line line-diff' data-line='${oldLine + 1}'></a>")
+            } else {
+                html("<a class='line line-diff'></a>")
+            }
+            if (newLine != null) {
+                val id = (newLine + 1).toString()
+                html("<a href='#$id' id='$id' class='line line-diff' data-line='${newLine + 1}'></a>")
+            } else {
+                html("<a class='line line-diff'></a>")
+            }
+            html("<span class='diff-marker'>")
+            when {
+                newLine == null -> html("-")
+                oldLine == null -> html("+")
+                else -> html(" ")
+            }
+            html("</span>")
+        }
+
+        override fun normalLineMarker(line: Int) {
+            val id = (line + 1).toString()
+            html("<a href='#$id' id='$id' class='line' data-line='${line + 1}'></a>")
         }
     }
 }

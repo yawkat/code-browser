@@ -25,8 +25,15 @@ object SourceFilePrinter {
         fun startAnnotation(scope: Scope, annotation: SourceAnnotation, memory: M)
         fun endAnnotation(scope: Scope, annotation: SourceAnnotation, memory: M)
 
-        fun html(@Language("HTML") s: String)
         fun text(s: String, start: Int, end: Int)
+
+        fun beginInsertion()
+        fun beginDeletion()
+        fun endInsertion()
+        fun endDeletion()
+
+        fun diffLineMarker(newLine: Int?, oldLine: Int?)
+        fun normalLineMarker(line: Int)
     }
 
     private class SplitSourceFile(val sourceFile: ServerSourceFile) : Sequence() {
@@ -117,33 +124,6 @@ object SourceFilePrinter {
                     b.sourceFile.text.substring(b.lineStartTextIndex(bi), b.lineEndTextIndex(bi))
         }
 
-    }
-
-    private fun Emitter<*>.diffLineMarker(newLine: Int?, oldLine: Int?) {
-        if (oldLine != null) {
-            val id = "--- ${oldLine + 1}"
-            html("<a href='#$id' id='$id' class='line line-diff' data-line='${oldLine + 1}'></a>")
-        } else {
-            html("<a class='line line-diff'></a>")
-        }
-        if (newLine != null) {
-            val id = (newLine + 1).toString()
-            html("<a href='#$id' id='$id' class='line line-diff' data-line='${newLine + 1}'></a>")
-        } else {
-            html("<a class='line line-diff'></a>")
-        }
-        html("<span class='diff-marker'>")
-        when {
-            newLine == null -> html("-")
-            oldLine == null -> html("+")
-            else -> html(" ")
-        }
-        html("</span>")
-    }
-
-    private fun Emitter<*>.normalLineMarker(line: Int) {
-        val id = (line + 1).toString()
-        html("<a href='#$id' id='$id' class='line' data-line='${line + 1}'></a>")
     }
 
     private class Cursor<M : Any>(val sourceFile: SplitSourceFile) {
@@ -273,25 +253,25 @@ object SourceFilePrinter {
                 }
                 if (type == Edit.Type.DELETE || type == Edit.Type.REPLACE) {
                     // render deletion
-                    emitter.html("<span class='deletion'>")
+                    emitter.beginDeletion()
                     cursorOld.emitStack(Scope.OLD, emitter)
                     while (cursorOld.line < edit.endA) {
                         emitter.diffLineMarker(null, cursorOld.line)
                         cursorOld.advanceLine(Scope.OLD, emitter)
                     }
                     cursorOld.rewindStack(Scope.OLD, emitter)
-                    emitter.html("</span>")
+                    emitter.endDeletion()
                 }
                 if (type == Edit.Type.INSERT || type == Edit.Type.REPLACE) {
                     // render insertion
-                    emitter.html("<span class='insertion'>")
+                    emitter.beginInsertion()
                     cursorNew.emitStack(Scope.NEW, emitter)
                     while (cursorNew.line < edit.endB) {
                         emitter.diffLineMarker(cursorNew.line, null)
                         cursorNew.advanceLine(Scope.NEW, emitter)
                     }
                     cursorNew.rewindStack(Scope.NEW, emitter)
-                    emitter.html("</span>")
+                    emitter.endInsertion()
                 }
             }
             renderNoChangeRegion(new.lines.size())
