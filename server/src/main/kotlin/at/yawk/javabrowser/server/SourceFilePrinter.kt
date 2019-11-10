@@ -45,40 +45,18 @@ object SourceFilePrinter {
             val lines = IntLists.mutable.empty()
 
             var textIndex = 0
-            var entryIndex = 0
-
-            fun consumeText(until: Int) {
-                while (textIndex < until) {
-                    val nextLine = sourceFile.text.indexOf('\n', textIndex)
-                    textIndex = if (nextLine != -1 && nextLine < until) {
-                        lines.add(nextLine + 1) // line starts after this fragment
-                        // includes the \n
-                        nextLine + 1
-                    } else {
-                        until
-                    }
-                }
-            }
-
-            fun consumeUntil(until: Int) {
-                while (textIndex < until) {
-                    if (sourceFile.annotationList.size > entryIndex &&
-                            sourceFile.annotationList[entryIndex].start < until) {
-                        val nextEntry = sourceFile.annotationList[entryIndex++]
-                        consumeText(nextEntry.start) // advances textIndex
-
-                        if (nextEntry.start + nextEntry.length > until) throw AssertionError(sourceFile.annotations)
-
-                        consumeUntil(nextEntry.start + nextEntry.length)
-                    } else {
-                        consumeText(until)
-                        textIndex = until
-                    }
-                }
-            }
 
             lines.add(0) // first line starts at 0
-            consumeUntil(sourceFile.text.length)
+            while (textIndex < sourceFile.text.length) {
+                val nextLine = sourceFile.text.indexOf('\n', textIndex)
+                textIndex = if (nextLine != -1 && nextLine < sourceFile.text.length) {
+                    lines.add(nextLine + 1) // line starts after this fragment
+                    // includes the \n
+                    nextLine + 1
+                } else {
+                    sourceFile.text.length
+                }
+            }
 
             this.lines = lines
         }
