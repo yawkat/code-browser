@@ -109,8 +109,8 @@ object SourceFilePrinter {
 
     }
 
-    private class Cursor<M : Any>(val sourceFile: SplitSourceFile) {
-        private val iterator = Iterators.peekingIterator(sourceFile.sourceFile.annotations.iterator())
+    private class Cursor<M : Any>(val sourceFile: ServerSourceFile) {
+        private val iterator = Iterators.peekingIterator(sourceFile.annotations.iterator())
 
         private val openEntriesAnnotations = ArrayList<PositionedAnnotation>()
         private val openEntriesMemory = ArrayList<M?>()
@@ -122,8 +122,16 @@ object SourceFilePrinter {
 
         private var fragmentTextStart = 0
 
+        val endOfFile: Boolean
+            get() = fragmentTextStart >= sourceFile.text.length
+
         fun advanceLine(scope: Scope, emitter: Emitter<M>?) {
-            val untilText = sourceFile.lineEndTextIndex(line)
+            var untilText = sourceFile.text.indexOf('\n', fragmentTextStart)
+            if (untilText == -1) {
+                untilText = sourceFile.text.length
+            } else {
+                untilText++ // include \n
+            }
             while (fragmentTextStart < untilText) {
                 while (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end == fragmentTextStart) {
                     emitter?.endAnnotation(scope, openEntriesAnnotations.last().annotation,
@@ -160,7 +168,7 @@ object SourceFilePrinter {
                 }
                 fragmentTextStart = nextFragmentStart
 
-                emitter?.text(sourceFile.sourceFile.text, start, fragmentTextStart)
+                emitter?.text(sourceFile.text, start, fragmentTextStart)
             }
             line++
         }
@@ -190,9 +198,8 @@ object SourceFilePrinter {
     }
 
     fun <M : Any> toHtmlSingle(emitter: Emitter<M>, sourceFile: ServerSourceFile) {
-        val split = SplitSourceFile(sourceFile)
-        val cursor = Cursor<M>(split)
-        while (cursor.line < split.lines.size()) {
+        val cursor = Cursor<M>(sourceFile)
+        while (!cursor.endOfFile) {
             emitter.normalLineMarker(cursor.line)
             cursor.advanceLine(SourceFilePrinter.Scope.NORMAL, emitter)
         }
@@ -214,8 +221,8 @@ object SourceFilePrinter {
             get() = diff.sumBy { it.endA - it.beginA }
 
         fun <M : Any> toHtml(emitter: Emitter<M>) {
-            val cursorNew = Cursor<M>(new)
-            val cursorOld = Cursor<M>(old)
+            val cursorNew = Cursor<M>(new.sourceFile)
+            val cursorOld = Cursor<M>(old.sourceFile)
 
             fun renderNoChangeRegion(endLineNew: Int) {
                 if (cursorNew.line < endLineNew) {
