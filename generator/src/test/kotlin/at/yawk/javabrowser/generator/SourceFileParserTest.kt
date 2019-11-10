@@ -1,10 +1,10 @@
 package at.yawk.javabrowser.generator
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableRef
+import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
 import com.google.common.io.MoreFiles
 import org.hamcrest.BaseMatcher
@@ -50,7 +50,7 @@ class SourceFileParserTest {
     private fun annotate(code: String,
                          annotation: SourceAnnotation,
                          word: String,
-                         index: Int = 0): AnnotatedSourceFile.Entry {
+                         index: Int = 0): PositionedAnnotation {
         var i = index
         var j = -1
         while (i-- >= 0) {
@@ -58,10 +58,10 @@ class SourceFileParserTest {
             if (j == -1) throw NoSuchElementException()
         }
 
-        return AnnotatedSourceFile.Entry(j, word.length, annotation)
+        return PositionedAnnotation(j, word.length, annotation)
     }
 
-    private fun compile(): Map<String, AnnotatedSourceFile> {
+    private fun compile(): Map<String, GeneratorSourceFile> {
         val printer = Printer.SimplePrinter()
         val parser = SourceFileParser(src, printer)
         parser.compile()
@@ -164,7 +164,7 @@ class SourceFileParserTest {
         write("A.java", "class A<T extends A> {}")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_CONSTRAINT
                 })
@@ -176,7 +176,7 @@ class SourceFileParserTest {
         write("A.java", "class A { <T extends A> void x() {} }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_CONSTRAINT
                 })
@@ -188,7 +188,7 @@ class SourceFileParserTest {
         write("A.java", "class A { { if (A.class instanceof A) {} } }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.INSTANCE_OF
                 })
@@ -200,7 +200,7 @@ class SourceFileParserTest {
         write("A.java", "class A { { System.out.println((A) A.class); } }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CAST
                 })
@@ -212,7 +212,7 @@ class SourceFileParserTest {
         write("A.java", "import java.lang.String; class A {}")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.IMPORT &&
                             annotation.binding == "java.lang.String"
@@ -225,7 +225,7 @@ class SourceFileParserTest {
         write("A.java", "import static java.lang.String.valueOf; class A {}")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.IMPORT &&
                             annotation.binding == "java.lang.String#valueOf(char[],int,int)"
@@ -238,7 +238,7 @@ class SourceFileParserTest {
         write("A.java", "import static java.lang.String.*; class A {}")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.ON_DEMAND_IMPORT &&
                             annotation.binding == "java.lang.String"
@@ -251,7 +251,7 @@ class SourceFileParserTest {
         write("A.java", "import static java.lang.*; class A {}")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.ON_DEMAND_IMPORT &&
                             annotation.binding == "java.lang"
@@ -264,7 +264,7 @@ class SourceFileParserTest {
         write("A.java", "class A { @Override public int hashCode() { return 5; } }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.ANNOTATION_TYPE &&
                             annotation.binding == "java.lang.Override"
@@ -277,7 +277,7 @@ class SourceFileParserTest {
         write("A.java", "class A { A a; }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_TYPE &&
                             annotation.binding == "A"
@@ -290,7 +290,7 @@ class SourceFileParserTest {
         write("A.java", "class A { A() {}  A(String s) { this(); } }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
                             annotation.binding == "A()"
@@ -303,7 +303,7 @@ class SourceFileParserTest {
         write("A.java", "class A { <T> A() {}  A(String s) { <String> /* this */ this(); } }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
                             annotation.binding == "A()"
@@ -316,7 +316,7 @@ class SourceFileParserTest {
         write("A.java", "class A { { new A(); } }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
                             annotation.binding == "A"
@@ -329,7 +329,7 @@ class SourceFileParserTest {
         write("A.java", "class A { void x() throws Exception {} }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.THROWS_DECLARATION &&
                             annotation.binding == "java.lang.Exception"
@@ -342,7 +342,7 @@ class SourceFileParserTest {
         write("A.java", "class A { { String.valueOf(5); } }")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
                             annotation.binding == "java.lang.String"
@@ -355,7 +355,7 @@ class SourceFileParserTest {
         write("A.java", "/** {@link java.util.concurrent.atomic.AtomicIntegerArray#compareAndSet(int, int, int)}  */ class A {}")
         MatcherAssert.assertThat(
                 compileOne().entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.JAVADOC &&
                             annotation.binding == "java.util.concurrent.atomic.AtomicIntegerArray#compareAndSet(int,int,int)"
@@ -369,7 +369,7 @@ class SourceFileParserTest {
         write("B.java", "class B {}")
         MatcherAssert.assertThat(
                 compile()["A.java"]!!.entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.LOCAL_VARIABLE_TYPE &&
                             annotation.binding == "B"
@@ -384,7 +384,7 @@ class SourceFileParserTest {
         val entries = compile()["A.java"]!!.entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_METHOD &&
                             annotation.binding == "java.lang.Runnable#run()" &&
@@ -393,7 +393,7 @@ class SourceFileParserTest {
         )
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
                             annotation.binding == "B"
@@ -408,7 +408,7 @@ class SourceFileParserTest {
         val entries = compile()["A.java"]!!.entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.PARAMETER_TYPE &&
                             annotation.binding == "B"
@@ -423,7 +423,7 @@ class SourceFileParserTest {
         val entries = compile()["A.java"]!!.entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.PARAMETER_TYPE &&
                             annotation.binding == "B"
@@ -438,7 +438,7 @@ class SourceFileParserTest {
         val entries = compile()["A.java"]!!.entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_METHOD &&
                             annotation.binding == "java.lang.Runnable#run()" &&
@@ -448,7 +448,7 @@ class SourceFileParserTest {
         )
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.METHOD_CALL &&
                             annotation.binding == "B#test()" &&
@@ -458,7 +458,7 @@ class SourceFileParserTest {
         )
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
                             annotation.binding == "B" &&
@@ -468,7 +468,7 @@ class SourceFileParserTest {
         )
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.METHOD_REFERENCE_RECEIVER_TYPE &&
                             annotation.binding == "B" &&
@@ -485,7 +485,7 @@ class SourceFileParserTest {
         val entries = compile()["A.java"]!!.entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
                             annotation.binding == "B"
@@ -500,7 +500,7 @@ class SourceFileParserTest {
         val entries = compile()["A.java"]!!.entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
                             annotation.binding == "B(java.lang.String)"
@@ -514,7 +514,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
                             annotation.binding == "java.lang.String"
@@ -528,7 +528,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.WILDCARD_BOUND &&
                             annotation.binding == "java.lang.String"
@@ -542,7 +542,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
                             annotation.binding == "java.lang.String"
@@ -556,7 +556,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
                             annotation.binding == "java.lang.String"
@@ -570,7 +570,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.not(Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.not(Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.UNCLASSIFIED
                 }))
@@ -583,7 +583,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
                             annotation.binding == "java.lang.System"
@@ -598,7 +598,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("B.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ &&
                             annotation.binding == "A#object"
@@ -606,7 +606,7 @@ class SourceFileParserTest {
         )
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_WRITE &&
                             annotation.binding == "A#object"
@@ -620,7 +620,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.METHOD_REFERENCE_RECEIVER_TYPE &&
                             annotation.binding == "java.lang.String"
@@ -634,7 +634,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.RETURN_TYPE &&
                             annotation.binding == "java.lang.String"
@@ -642,7 +642,7 @@ class SourceFileParserTest {
         )
         MatcherAssert.assertThat(
                 entries,
-                Matchers.not(Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.not(Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.UNCLASSIFIED
                 }))
@@ -655,7 +655,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
                             annotation.binding == "java.lang.String"
@@ -669,7 +669,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.THIS_REFERENCE_QUALIFIER &&
                             annotation.binding == "A"
@@ -683,7 +683,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_REFERENCE_QUALIFIER &&
                             annotation.binding == "java.lang.Object"
@@ -697,7 +697,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.ANNOTATION_MEMBER_VALUE &&
                             annotation.binding == "A#x()"
@@ -712,7 +712,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("B.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.NESTED_CLASS_QUALIFIER &&
                             annotation.binding == "A"
@@ -720,7 +720,7 @@ class SourceFileParserTest {
         )
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
                             annotation.binding == "A.C" && it.length == 1
@@ -734,7 +734,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
                             annotation.binding == "java.lang.String"
@@ -749,7 +749,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("B.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
                             annotation.binding == "java.lang.String"
@@ -763,7 +763,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ_WRITE &&
                             annotation.binding == "A#i"
@@ -777,7 +777,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ_WRITE &&
                             annotation.binding == "A#i"
@@ -791,7 +791,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Field &&
@@ -809,7 +809,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Method &&
@@ -838,7 +838,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
@@ -854,7 +854,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Initializer &&
@@ -869,7 +869,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
@@ -885,7 +885,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
@@ -903,7 +903,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Lambda &&
@@ -919,7 +919,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
@@ -935,7 +935,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
@@ -951,7 +951,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Field &&
@@ -960,7 +960,7 @@ class SourceFileParserTest {
         )
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Field &&
@@ -975,7 +975,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.PACKAGE_DECLARATION &&
                             annotation.binding == "java.lang"
@@ -989,7 +989,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("package-info.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingDecl && annotation.description is BindingDecl.Description.Package
                 })
@@ -1002,7 +1002,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("package-info.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingDecl && annotation.description is BindingDecl.Description.Package &&
                             annotation.modifiers == BindingDecl.MODIFIER_DEPRECATED
@@ -1016,7 +1016,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingDecl && annotation.description is BindingDecl.Description.Type &&
                             annotation.modifiers == BindingDecl.MODIFIER_DEPRECATED
@@ -1030,7 +1030,7 @@ class SourceFileParserTest {
         val entries = compile().getValue("package-info.java").entries
         MatcherAssert.assertThat(
                 entries,
-                Matchers.hasItem(matches<AnnotatedSourceFile.Entry> {
+                Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingDecl && annotation.description is BindingDecl.Description.Package &&
                             annotation.modifiers == BindingDecl.MODIFIER_DEPRECATED

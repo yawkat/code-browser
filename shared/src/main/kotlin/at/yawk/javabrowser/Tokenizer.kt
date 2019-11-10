@@ -26,6 +26,42 @@ object Tokenizer {
     private fun isAsciiTextChar(c: Char) = c in 'a'..'z' || c in 'A'..'Z'
     private fun isAsciiDigit(c: Char) = c in '0'..'9'
 
+    private class ShiftTracker {
+        // ordered list. top 32 bits are the index in the string produced by this reader, bottom 32 bits are how far
+        // behind we are from the raw source at that position.
+        private val shiftLog = LongLists.mutable.empty()
+        var position = 0
+        private var totalShift = 0
+
+        fun recordShiftBy(delta: Int) {
+            totalShift += delta
+            val outputPosition = position - totalShift
+            if (!shiftLog.isEmpty && (shiftLog.last shr 32).toInt() == outputPosition) {
+                shiftLog.removeAtIndex(shiftLog.size() - 1)
+            }
+            shiftLog.add((outputPosition.toLong() shl 32) or (Integer.toUnsignedLong(totalShift)))
+        }
+
+        fun translatePosition(outputPosition: Int): Int {
+            val i = shiftLog.binarySearch(outputPosition.toLong() shl 32)
+            val shift = if (i >= 0) {
+                shiftLog[i].toInt()
+            } else {
+                val insertionPoint = i.inv()
+                if (insertionPoint < shiftLog.size() && shiftLog[insertionPoint] shr 32 <= outputPosition) {
+                    shiftLog[insertionPoint].toInt()
+                } else {
+                    if (insertionPoint == 0) {
+                        0
+                    } else {
+                        shiftLog[insertionPoint - 1].toInt()
+                    }
+                }
+            }
+            return outputPosition + shift
+        }
+    }
+
     /**
      * This reader has multiple jobs:
      *
@@ -54,119 +90,111 @@ object Tokenizer {
             }
         }
 
-        // ordered list. top 32 bits are the index in the string produced by this reader, bottom 32 bits are how far
-        // behind we are from the raw source at that position.
-        private val shiftLog = LongLists.mutable.empty()
-        private var position = 0
-        private var totalShift = 0
-        private var emittedLeadingSpace = false
+        private val unescapeTracker = ShiftTracker()
 
-        private fun hasMore(n: Int = 1) = position + n <= rawSource.size
+        private fun takeAndUnescapeCharacter(): Int {
+            fun hasMore(n: Int = 1) = (unescapeTracker.position + n) <= rawSource.size
 
-        private fun recordShiftBy(delta: Int) {
-            totalShift += delta
-            val outputPosition = position - totalShift
-            if (!shiftLog.isEmpty && (shiftLog.last shr 32).toInt() == outputPosition) {
-                shiftLog.removeAtIndex(shiftLog.size() - 1)
-            }
-            shiftLog.add((outputPosition.toLong() shl 32) or (Integer.toUnsignedLong(totalShift)))
-        }
+            if (!hasMore()) return -1
 
-        override fun read(): Int {
-            if (position >= rawSource.size) {
-                return -1
-            }
-
-            // if we're at a position where the previous char is uppercase, the current char is uppercase and the next
-            // char is lowercase, emit a space first.
-            // URLEncoder -> URL Encoder
-            if (!emittedLeadingSpace && position > 0 && position + 1 < rawSource.size &&
-                    isAsciiTextChar(rawSource[position - 1]) &&
-                    Ascii.isUpperCase(rawSource[position]) &&
-                    Ascii.isLowerCase(rawSource[position + 1])) {
-                emittedLeadingSpace = true
-                recordShiftBy(-1)
-                return ' '.toInt()
-            }
-            // emit space before numbers in names
-            if (!emittedLeadingSpace && position > 0 &&
-                    isAsciiTextChar(rawSource[position - 1]) &&
-                    isAsciiDigit(rawSource[position])) {
-                emittedLeadingSpace = true
-                recordShiftBy(-1)
-                return ' '.toInt()
-            }
-            // emit space after numbers in names
-            if (!emittedLeadingSpace && position > 0 &&
-                    isAsciiDigit(rawSource[position - 1]) &&
-                    isAsciiTextChar(rawSource[position])) {
-                emittedLeadingSpace = true
-                recordShiftBy(-1)
-                return ' '.toInt()
-            }
-            emittedLeadingSpace = false
-
-            if (rawSource[position] == '\\') {
-                val escapeStart = position++
+            if (rawSource[unescapeTracker.position] == '\\') {
+                val escapeStart = unescapeTracker.position++
                 if (!hasMore()) throw EOFException()
-                val first = rawSource[position++]
+                val first = rawSource[unescapeTracker.position++]
                 val escapeValue = when {
-                    first == '\\' -> '\\'.toInt()
-                    stringLiteral && SINGLE_CHAR_ESCAPES.containsKey(first) -> SINGLE_CHAR_ESCAPES[first].toInt()
+                    first == '\\' -> '\\'
+                    stringLiteral && SINGLE_CHAR_ESCAPES.containsKey(first) -> SINGLE_CHAR_ESCAPES[first]
                     isOctalDigit(first) -> {
                         var v = first - '0'
                         if (hasMore() && isOctalDigit(
-                                        rawSource[position])) {
-                            v = (v shl 3) + (rawSource[position++] - '0')
+                                        rawSource[unescapeTracker.position])) {
+                            v = (v shl 3) + (rawSource[unescapeTracker.position++] - '0')
                             if (hasMore() && isOctalDigit(
-                                            rawSource[position]) && v < 0x20) {
-                                v = (v shl 3) + (rawSource[position++] - '0')
+                                            rawSource[unescapeTracker.position]) && v < 0x20) {
+                                v = (v shl 3) + (rawSource[unescapeTracker.position++] - '0')
                             }
                         }
-                        v
+                        v.toChar()
                     }
                     // technically we can't do this in one step. unicode escapes could again be part of string escape
                     // sequences.
                     first == 'u' -> {
-                        while (hasMore() && rawSource[position] == 'u') {
-                            position++
+                        while (hasMore() && rawSource[unescapeTracker.position] == 'u') {
+                            unescapeTracker.position++
                         }
                         if (!hasMore(4)) throw EOFException()
 
-                        ((fromHex(rawSource[position++]) shl 12) or
-                                (fromHex(rawSource[position++]) shl 8) or
-                                (fromHex(rawSource[position++]) shl 4) or
-                                fromHex(rawSource[position++]))
+                        ((fromHex(rawSource[unescapeTracker.position++]) shl 12) or
+                                (fromHex(rawSource[unescapeTracker.position++]) shl 8) or
+                                (fromHex(rawSource[unescapeTracker.position++]) shl 4) or
+                                fromHex(rawSource[unescapeTracker.position++])).toChar()
                     }
                     else -> {
                         if (stringLiteral) throw IllegalArgumentException("Illegal escape sequence")
                         else {
                             // comments can have all the escapes they want
-                            position -= 2 // backtrack
+                            unescapeTracker.position -= 2 // backtrack
                             null
                         }
                     }
                 }
                 if (escapeValue != null) {
-                    val escapeEnd = position
-                    if (escapeValue == 0) {
+                    val escapeEnd = unescapeTracker.position
+                    if (escapeValue == '\u0000') {
                         // skip NUL byte
-                        recordShiftBy(escapeEnd - escapeStart)
-                        if (position >= rawSource.size) return -1
+                        unescapeTracker.recordShiftBy(escapeEnd - escapeStart)
+                        if (unescapeTracker.position >= rawSource.size) return -1
                     } else {
-                        recordShiftBy(escapeEnd - escapeStart - 1)
-                        return escapeValue
+                        unescapeTracker.recordShiftBy(escapeEnd - escapeStart - 1)
+                        return escapeValue.toInt()
                     }
                 }
             }
-            return rawSource[position++].toInt()
+            return rawSource[unescapeTracker.position++].toInt()
+        }
+
+        private val splitTracker = ShiftTracker()
+        private val splitLookahead = StringBuilder(3)
+
+        override fun read(): Int {
+            while (splitLookahead.length < 3) {
+                val c = takeAndUnescapeCharacter()
+                if (c == -1) break
+                splitLookahead.append(c.toChar())
+            }
+            if (splitLookahead.isEmpty()) return -1
+
+            var splitAfter = false
+            // if we're at a position where the previous char is uppercase, the current char is uppercase and the next
+            // char is lowercase, split.
+            // URLEncoder -> URL Encoder
+            if (isAsciiTextChar(splitLookahead[0]) && splitLookahead.length >= 3 && Ascii.isUpperCase(splitLookahead[1])
+                    && Ascii.isLowerCase(splitLookahead[2])) {
+                splitAfter = true
+            }
+            // split around numbers in names.
+            if (splitLookahead.length >= 2) {
+                if (isAsciiTextChar(splitLookahead[0]) && isAsciiDigit(splitLookahead[1])) splitAfter = true
+                if (isAsciiDigit(splitLookahead[0]) && isAsciiTextChar(splitLookahead[1])) splitAfter = true
+            }
+
+            val ret = splitLookahead[0]
+
+            if (splitAfter) {
+                splitTracker.recordShiftBy(-1)
+                splitLookahead[0] = ' ' // insert space to force split
+            } else {
+                splitTracker.position++
+                splitLookahead.deleteCharAt(0)
+            }
+
+            return ret.toInt()
         }
 
         override fun read(cbuf: CharArray, off: Int, len: Int): Int {
-            if (!hasMore()) return -1
             for (i in off until off + len) {
                 val v = read()
-                if (v == -1) return i - off
+                if (v == -1) return if (i - off == 0) -1 else i - off
                 cbuf[i] = v.toChar()
             }
             return len
@@ -175,31 +203,15 @@ object Tokenizer {
         override fun close() {
         }
 
-        fun translateOutputToRawPosition(outputPosition: Int): Int {
-            val i = shiftLog.binarySearch(outputPosition.toLong() shl 32)
-            val shift = if (i >= 0) {
-                shiftLog[i].toInt()
-            } else {
-                val insertionPoint = i.inv()
-                if (insertionPoint < shiftLog.size() && shiftLog[insertionPoint] shr 32 <= outputPosition) {
-                    shiftLog[insertionPoint].toInt()
-                } else {
-                    if (insertionPoint == 0) {
-                        0
-                    } else {
-                        shiftLog[insertionPoint - 1].toInt()
-                    }
-                }
-            }
-            return outputPosition + shift
-        }
+        fun translateOutputToRawPosition(outputPosition: Int) =
+                unescapeTracker.translatePosition(splitTracker.translatePosition(outputPosition))
     }
 
     // our reader doesn't block.
     @Suppress("BlockingMethodInNonBlockingContext")
     internal suspend fun SequenceScope<Token>.tokenizeEnglish(offset: Int,
-                                                                                            rawSource: CharArray,
-                                                                                            stringLiteral: Boolean = true) {
+                                                              rawSource: CharArray,
+                                                              stringLiteral: Boolean = true) {
         val analyzer = EnglishAnalyzer()
         val unescapingReader = UnescapingSplittingReader(rawSource, stringLiteral)
         val tokenStream = analyzer.tokenStream(null, unescapingReader)
@@ -207,7 +219,7 @@ object Tokenizer {
         while (tokenStream.incrementToken()) {
             val offsetAttribute = tokenStream.getAttribute(OffsetAttribute::class.java)
             val start = unescapingReader.translateOutputToRawPosition(offsetAttribute.startOffset())
-            val end = unescapingReader.translateOutputToRawPosition(offsetAttribute.endOffset())
+            val end = unescapingReader.translateOutputToRawPosition(offsetAttribute.endOffset() - 1) + 1
             yield(Token(
                     text = tokenStream.getAttribute(CharTermAttribute::class.java).toString(),
                     start = offset + start,
@@ -245,7 +257,7 @@ object Tokenizer {
                             text = text,
                             start = start,
                             length = end - start,
-                            symbol = text.any { isAsciiTextChar(it) }
+                            symbol = text.none { isAsciiTextChar(it) }
                     ))
                 }
             }

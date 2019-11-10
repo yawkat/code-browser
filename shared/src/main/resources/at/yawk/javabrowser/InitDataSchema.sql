@@ -17,15 +17,6 @@ alter table artifacts
 
 -- SOURCE FILES
 
--- https://stackoverflow.com/a/28274121/1116343
-if not exists(select 1 from pg_type where lower(typname) = 'lexemeswithoffsets' and pg_type_is_visible(oid)) then
-    create type LexemesWithOffsets as (
-        lexemes tsvector,
-        starts int4[],
-        lengths int4[]
-        );
-end if;
-
 create table if not exists sourceFiles
 (
     artifactId                  varchar references artifacts,
@@ -33,10 +24,23 @@ create table if not exists sourceFiles
     json                        bytea    not null, -- TODO: remove
     text                        bytea    not null,
     annotations                 bytea    not null,
-    textLexemes          LexemesWithOffsets not null,
-    textLexemesNoSymbols LexemesWithOffsets not null,
     primary key (artifactId, path)
 );
+
+-- own table because for large source files there may be multiple of these (tsvector is limited to 16k positions)
+create table if not exists sourceFileLexemesBase
+(
+    artifactId      varchar  not null,
+    sourceFile      varchar  not null,
+    lexemes         tsvector not null,
+    starts          int4[]   not null,
+    lengths         int4[]   not null,
+    foreign key (artifactId, sourceFile) references sourceFiles
+);
+
+-- separate tables for the separate indices
+create table if not exists sourceFileLexemes () inherits (sourceFileLexemesBase);
+create table if not exists sourceFileLexemesNoSymbols () inherits (sourceFileLexemesBase);
 
 -- BINDINGS
 

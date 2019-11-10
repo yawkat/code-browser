@@ -1,6 +1,6 @@
 package at.yawk.javabrowser.generator
 
-import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.IntRangeSet
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import com.google.common.collect.Range
@@ -20,14 +20,14 @@ import org.eclipse.jdt.core.dom.SimpleName
 import org.eclipse.jdt.core.dom.StringLiteral
 import org.eclipse.jdt.core.dom.TagElement
 
-fun AnnotatedSourceFile.annotate(node: ASTNode, annotation: SourceAnnotation) =
+fun GeneratorSourceFile.annotate(node: ASTNode, annotation: SourceAnnotation) =
         annotate(node.startPosition, node.length, annotation)
 
 /**
  * @author yawkat
  */
-class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVisitor(true) {
-    val noKeywordRanges = TreeRangeSet.create<Int>()!!
+class StyleVisitor(private val annotatedSourceFile: GeneratorSourceFile) : ASTVisitor(true) {
+    val noKeywordRanges = IntRangeSet()
 
     override fun visit(node: SimpleName): Boolean {
         val classes = HashSet<String>()
@@ -79,7 +79,7 @@ class StyleVisitor(private val annotatedSourceFile: AnnotatedSourceFile) : ASTVi
     }
 
     private fun disableKeywords(node: ASTNode) {
-        noKeywordRanges.add(Range.closedOpen(node.startPosition, node.startPosition + node.length))
+        noKeywordRanges.add(node.startPosition, node.startPosition + node.length)
     }
 
     override fun visit(node: NumberLiteral): Boolean {

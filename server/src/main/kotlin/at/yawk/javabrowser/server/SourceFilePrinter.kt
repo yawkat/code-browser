@@ -1,6 +1,6 @@
 package at.yawk.javabrowser.server
 
-import at.yawk.javabrowser.AnnotatedSourceFile
+import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
 import org.eclipse.collections.api.list.primitive.IntList
 import org.eclipse.collections.impl.factory.primitive.IntLists
@@ -28,7 +28,7 @@ object SourceFilePrinter {
         fun text(s: String, start: Int, end: Int)
     }
 
-    private class SplitSourceFile(val sourceFile: AnnotatedSourceFile) : Sequence() {
+    private class SplitSourceFile(val sourceFile: ServerSourceFile) : Sequence() {
         /**
          * Offset in the text for each independent text fragment. Text fragments are uninterrupted by newlines or
          * annotations.
@@ -62,11 +62,12 @@ object SourceFilePrinter {
 
             fun consumeUntil(until: Int) {
                 while (textIndex < until) {
-                    if (sourceFile.entries.size > entryIndex && sourceFile.entries[entryIndex].start < until) {
-                        val nextEntry = sourceFile.entries[entryIndex++]
+                    if (sourceFile.annotationList.size > entryIndex &&
+                            sourceFile.annotationList[entryIndex].start < until) {
+                        val nextEntry = sourceFile.annotationList[entryIndex++]
                         consumeText(nextEntry.start) // advances textIndex
 
-                        if (nextEntry.start + nextEntry.length > until) throw AssertionError(sourceFile.entries)
+                        if (nextEntry.start + nextEntry.length > until) throw AssertionError(sourceFile.annotations)
 
                         consumeUntil(nextEntry.start + nextEntry.length)
                     } else {
@@ -152,8 +153,8 @@ object SourceFilePrinter {
         private var fragment = 0
         private var entryIndex = 0
 
-        private val entry: AnnotatedSourceFile.Entry
-            get() = sourceFile.sourceFile.entries[entryIndex]
+        private val entry: PositionedAnnotation
+            get() = sourceFile.sourceFile.annotationList[entryIndex]
 
         private val fragmentTextStart: Int
             get() = sourceFile.fragments[fragment]
@@ -164,15 +165,15 @@ object SourceFilePrinter {
                     else sourceFile.lines[line + 1]
             while (fragment < untilFragment) {
                 while (!openEntries.isEmpty
-                        && sourceFile.sourceFile.entries[openEntries.last].end == fragmentTextStart) {
-                    emitter?.endAnnotation(scope, sourceFile.sourceFile.entries[openEntries.last].annotation,
+                        && sourceFile.sourceFile.annotationList[openEntries.last].end == fragmentTextStart) {
+                    emitter?.endAnnotation(scope, sourceFile.sourceFile.annotationList[openEntries.last].annotation,
                             openEntriesMemory.last()!!)
                     // pop
                     openEntries.removeAtIndex(openEntries.size() - 1)
                     openEntriesMemory.removeAt(openEntriesMemory.size - 1)
                 }
 
-                while (entryIndex < sourceFile.sourceFile.entries.size
+                while (entryIndex < sourceFile.sourceFile.annotationList.size
                         && entry.start == fragmentTextStart) {
                     val memory: M? = emitter?.computeMemory(scope, entry.annotation)
                     emitter?.startAnnotation(scope, entry.annotation, memory!!)
@@ -200,7 +201,7 @@ object SourceFilePrinter {
 
         fun emitStack(scope: Scope, emitter: Emitter<M>) {
             for (i in 0 until openEntries.size()) {
-                val entry = sourceFile.sourceFile.entries[openEntries[i]]
+                val entry = sourceFile.sourceFile.annotationList[openEntries[i]]
                 if (entry.start + entry.length <= fragmentTextStart) {
                     throw AssertionError()
                 }
@@ -213,7 +214,7 @@ object SourceFilePrinter {
 
         fun rewindStack(scope: Scope, emitter: Emitter<M>) {
             for (i in openEntries.size() - 1 downTo 0) {
-                val entry = sourceFile.sourceFile.entries[openEntries[i]]
+                val entry = sourceFile.sourceFile.annotationList[openEntries[i]]
                 if (entry.start + entry.length <= fragmentTextStart) {
                     throw AssertionError()
                 }
@@ -222,7 +223,7 @@ object SourceFilePrinter {
         }
     }
 
-    fun <M : Any> toHtmlSingle(emitter: Emitter<M>, sourceFile: AnnotatedSourceFile) {
+    fun <M : Any> toHtmlSingle(emitter: Emitter<M>, sourceFile: ServerSourceFile) {
         val split = SplitSourceFile(sourceFile)
         val cursor = Cursor<M>(split)
         while (cursor.line < split.lines.size()) {
@@ -231,7 +232,7 @@ object SourceFilePrinter {
         }
     }
 
-    class Diff(sourceFile: AnnotatedSourceFile, diffWithOld: AnnotatedSourceFile) {
+    class Diff(sourceFile: ServerSourceFile, diffWithOld: ServerSourceFile) {
         private val new = SplitSourceFile(sourceFile)
         private val old = SplitSourceFile(diffWithOld)
         private val diff: EditList

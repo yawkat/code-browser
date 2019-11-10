@@ -460,6 +460,36 @@ artifacts:
   metadata:
     logoUrl: https://spring.io/img/spring-by-pivotal-9066b55828deb3c10e27e609af322c40.png
 - type: maven
+  groupId: org.springframework
+  artifactId: spring-web
+  version: 5.1.5.RELEASE
+  metadata:
+    logoUrl: https://spring.io/img/spring-by-pivotal-9066b55828deb3c10e27e609af322c40.png
+- type: maven
+  groupId: org.springframework
+  artifactId: spring-webmvc
+  version: 5.1.5.RELEASE
+  metadata:
+    logoUrl: https://spring.io/img/spring-by-pivotal-9066b55828deb3c10e27e609af322c40.png
+- type: maven
+  groupId: org.springframework
+  artifactId: spring-orm
+  version: 5.1.5.RELEASE
+  metadata:
+    logoUrl: https://spring.io/img/spring-by-pivotal-9066b55828deb3c10e27e609af322c40.png
+- type: maven
+  groupId: org.springframework
+  artifactId: spring-jdbc
+  version: 5.1.5.RELEASE
+  metadata:
+    logoUrl: https://spring.io/img/spring-by-pivotal-9066b55828deb3c10e27e609af322c40.png
+- type: maven
+  groupId: org.springframework
+  artifactId: spring-tx
+  version: 5.1.5.RELEASE
+  metadata:
+    logoUrl: https://spring.io/img/spring-by-pivotal-9066b55828deb3c10e27e609af322c40.png
+- type: maven
   groupId: org.projectlombok
   artifactId: lombok
   version: 1.18.6

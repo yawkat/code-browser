@@ -1,6 +1,5 @@
 package at.yawk.javabrowser.generator
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.Tokenizer
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST
@@ -67,7 +66,7 @@ class SourceFileParser(
             val relativePath = pathPrefix + root.relativize(Paths.get(sourceFilePath))
 
             val text = Files.readAllBytes(Paths.get(sourceFilePath)).toString(Charsets.UTF_8)
-            val annotatedSourceFile = AnnotatedSourceFile(text)
+            val annotatedSourceFile = GeneratorSourceFile(text)
             val styleVisitor = StyleVisitor(annotatedSourceFile)
             for (comment in ast.commentList) {
                 (comment as ASTNode).accept(styleVisitor)

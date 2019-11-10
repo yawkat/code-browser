@@ -1,21 +1,25 @@
-package at.yawk.javabrowser
+package at.yawk.javabrowser.generator
+
+import at.yawk.javabrowser.BindingRef
+import at.yawk.javabrowser.BindingRefType
+import at.yawk.javabrowser.PositionedAnnotation
+import at.yawk.javabrowser.SourceAnnotation
+import at.yawk.javabrowser.Style
 
 /**
  * @author yawkat
  */
-data class AnnotatedSourceFile(
+class GeneratorSourceFile(
         val text: String,
-        @Suppress("MemberVisibilityCanBePrivate") val entries: MutableList<Entry> = ArrayList()) {
-    val declarations: Iterator<BindingDecl>
-        get() = entries.asSequence().mapNotNull { it.annotation as? BindingDecl }.iterator()
-
+        @Suppress("MemberVisibilityCanBePrivate") val entries: MutableList<PositionedAnnotation> = ArrayList()
+) {
     fun annotate(start: Int, length: Int, annotation: SourceAnnotation) {
-        entries.add(Entry(start, length, annotation))
+        entries.add(PositionedAnnotation(start, length, annotation))
     }
 
     fun bake() {
         entries.sortWith(Comparator
-                .comparingInt { it: Entry -> it.start }
+                .comparingInt { it: PositionedAnnotation -> it.start }
                 // first 0-length items, then the longest items
                 // this avoids unnecessary nesting
                 .thenComparingInt { it -> if (it.length == 0) Int.MIN_VALUE else it.length.inv() })
@@ -53,14 +57,5 @@ data class AnnotatedSourceFile(
             throw RuntimeException("Duplicate ref: $a / $b")
         }
         return null
-    }
-
-    data class Entry(
-            val start: Int,
-            val length: Int,
-            val annotation: SourceAnnotation
-    ) {
-        val end: Int
-            get() = start + length
     }
 }

@@ -1,6 +1,5 @@
 package at.yawk.javabrowser.generator
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.Tokenizer
 import java.util.concurrent.ArrayBlockingQueue
 
@@ -16,7 +15,7 @@ class ConcurrentPrinter : PrinterWithDependencies {
         queue.put(Action.AddDependency(dependency))
     }
 
-    override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile, tokens: List<Tokenizer.Token>) {
+    override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
         queue.put(Action.AddSourceFile(path, sourceFile, tokens))
     }
 
@@ -39,7 +38,7 @@ class ConcurrentPrinter : PrinterWithDependencies {
     private sealed class Action {
         data class AddDependency(val dependency: String) : Action()
         data class AddSourceFile(val path: String,
-                                 val sourceFile: AnnotatedSourceFile,
+                                 val sourceFile: GeneratorSourceFile,
                                  val tokens: List<Tokenizer.Token>) : Action()
         object End : Action()
     }

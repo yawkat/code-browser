@@ -1,7 +1,7 @@
 package at.yawk.javabrowser.server
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.server.view.DeclarationNode
 import at.yawk.javabrowser.server.view.DeclarationNodeView
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -27,13 +27,13 @@ class DeclarationTreeHandler(
     }
 
     private data class SourceFileResult(
-            val sourceFile: AnnotatedSourceFile,
+            val annotations: Sequence<PositionedAnnotation>,
             val path: String
     )
 
     private fun getSourceFile(conn: Handle, artifactId: String, binding: String): SourceFileResult? {
         val result = conn.select(
-                "select description, path, json from bindings " +
+                "select description, path, annotations from bindings " +
                         "left join sourceFiles on sourceFiles.artifactId = bindings.artifactId and sourceFiles.path = bindings.sourceFile " +
                         "where bindings.artifactId = ? and bindings.binding = ?",
                 artifactId,
@@ -48,9 +48,7 @@ class DeclarationTreeHandler(
                 return null // list as package instead
             } else {
                 return SourceFileResult(
-                        sourceFile = objectMapper.readValue(
-                                result.single()["json"] as ByteArray,
-                                AnnotatedSourceFile::class.java),
+                        annotations = ServerSourceFile.lazyParseAnnotations(objectMapper, result.single()["annotations"] as ByteArray),
                         path = "/$artifactId/${result.single()["path"]}"
                 )
             }
@@ -72,7 +70,7 @@ class DeclarationTreeHandler(
                 val tree: Iterator<DeclarationNode>
 
                 if (diffArtifactId == null) {
-                    tree = sourceDeclarationTree(artifactId, new!!.sourceFile, fullSourceFilePath = new.path)
+                    tree = sourceDeclarationTree(artifactId, new!!.annotations, fullSourceFilePath = new.path)
                 } else {
                     val fullPath =
                             when {
@@ -84,10 +82,10 @@ class DeclarationTreeHandler(
                     tree = DeclarationTreeDiff.diffUnordered(
                             new =
                             if (new == null) Collections.emptyIterator()
-                            else sourceDeclarationTree(artifactId, new.sourceFile, fullSourceFilePath = fullPath),
+                            else sourceDeclarationTree(artifactId, new.annotations, fullSourceFilePath = fullPath),
                             old =
                             if (oldFile == null) Collections.emptyIterator()
-                            else sourceDeclarationTree(artifactId, oldFile.sourceFile, fullSourceFilePath = fullPath)
+                            else sourceDeclarationTree(artifactId, oldFile.annotations, fullSourceFilePath = fullPath)
                     )
                 }
                 for (topLevelType in tree) {
@@ -226,10 +224,10 @@ class DeclarationTreeHandler(
 
     fun sourceDeclarationTree(
             artifactId: String,
-            sourceFile: AnnotatedSourceFile,
+            annotations: Sequence<PositionedAnnotation>,
             fullSourceFilePath: String? = null
     ): Iterator<DeclarationNode> {
-        val flat = Iterators.peekingIterator(sourceFile.declarations)
+        val flat = Iterators.peekingIterator(annotations.mapNotNull { it.annotation as?BindingDecl }.iterator())
 
         return SourceDeclarationTreeItr(flat, fullSourceFilePath, artifactId, null)
     }

@@ -1,12 +1,13 @@
 package at.yawk.javabrowser.generator
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.DbMigration
 import at.yawk.javabrowser.Tokenizer
+import at.yawk.javabrowser.TsVector
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.eclipse.collections.impl.factory.primitive.IntLists
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
@@ -154,25 +155,57 @@ class Session(
                         dependency)
             }
 
-            override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile, tokens: List<Tokenizer.Token>) {
+            private fun storeTokens(table: String,
+                                    artifactId: String,
+                                    sourceFile: String,
+                                    tokens: List<Tokenizer.Token>) {
+                val lexemes = TsVector()
+                val start = IntLists.mutable.empty()
+                val length = IntLists.mutable.empty()
+
+                fun flush() {
+                    if (start.isEmpty) return
+
+                    conn.update(
+                            "insert into $table (artifactId, sourceFile, lexemes, starts, lengths) values (?, ?, ?::tsvector, ?, ?)",
+                            artifactId,
+                            sourceFile,
+                            lexemes.toSql(),
+                            start.toArray(),
+                            length.toArray()
+                    )
+
+                    lexemes.clear()
+                    start.clear()
+                    length.clear()
+                }
+
+                var i = 0
+                for (token in tokens) {
+                    lexemes.add(token.text, i++)
+                    start.add(token.start)
+                    length.add(token.length)
+                    if (i >= TsVector.POSITION_LIMIT) {
+                        flush()
+                        i = 0
+                    }
+                }
+                flush()
+            }
+
+            override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
                 hasFiles = true
-                val tokensNoSymbols = tokens.filter { !it.symbol }
                 conn.insert(
-                        """insert into sourceFiles (artifactId, path, json, text, annotations, textLexemes, textLexemesNoSymbols) 
-                            values (?, ?, ?, ?, ?, row(array_to_tsvector(?), ?, ?), row(array_to_tsvector(?), ?, ?))
-                            """,
+                        "insert into sourceFiles (artifactId, path, json, text, annotations) values (?, ?, ?, ?, ?)",
                         artifactId,
                         path,
                         objectMapper.writeValueAsBytes(sourceFile), // TODO: remove
                         sourceFile.text.toByteArray(Charsets.UTF_8),
-                        objectMapper.writeValueAsBytes(sourceFile.entries),
-                        tokens.map { it.text }.toTypedArray(),
-                        tokens.map { it.start }.toIntArray(),
-                        tokens.map { it.length }.toIntArray(),
-                        tokensNoSymbols.map { it.text }.toTypedArray(),
-                        tokensNoSymbols.map { it.start }.toIntArray(),
-                        tokensNoSymbols.map { it.length }.toIntArray()
+                        objectMapper.writeValueAsBytes(sourceFile.entries)
                 )
+
+                storeTokens("sourceFileLexemes", artifactId, path, tokens)
+                storeTokens("sourceFileLexemesNoSymbols", artifactId, path, tokens.filter { !it.symbol })
 
                 val lineNumberTable = LineNumberTable(sourceFile.text)
 

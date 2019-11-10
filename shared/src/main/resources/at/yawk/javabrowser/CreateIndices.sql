@@ -1,7 +1,7 @@
 -- SOURCE FILES
 create index if not exists source_file_index on sourceFiles (artifactId, path);
-create index if not exists source_file_text_lexemes_index on sourceFiles using gin (((textLexemes).lexemes));
-create index if not exists source_file_text_lexemes_no_symbols_index on sourceFiles using gin (((textLexemesNoSymbols).lexemes));
+create index sourceFileLexemes_lexemes on sourceFileLexemes using gin(lexemes);
+create index sourceFileLexemesNoSymbols_lexemes on sourceFileLexemesNoSymbols using gin(lexemes);
 
 -- BINDINGS
 create index if not exists binding_index on bindings (binding);

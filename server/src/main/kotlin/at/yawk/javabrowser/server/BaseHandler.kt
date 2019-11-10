@@ -1,6 +1,5 @@
 package at.yawk.javabrowser.server
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import at.yawk.javabrowser.server.view.DeclarationNode
@@ -128,13 +127,17 @@ class BaseHandler(private val dbi: DBI,
         return TypeSearchView.Dependency(null, it)
     }
 
-    private fun requestSourceFile(conn: Handle, parsedPath: ParsedPath.SourceFile): AnnotatedSourceFile {
-        val result = conn.select("select json from sourceFiles where artifactId = ? and path = ?",
+    private fun requestSourceFile(conn: Handle, parsedPath: ParsedPath.SourceFile): ServerSourceFile {
+        val result = conn.select("select text, annotations from sourceFiles where artifactId = ? and path = ?",
                 parsedPath.artifact.id, parsedPath.sourceFilePath)
         if (result.isEmpty()) {
             throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
         }
-        return objectMapper.readValue(result.single()["json"] as ByteArray, AnnotatedSourceFile::class.java)
+        val sourceFile = ServerSourceFile(objectMapper,
+                result.single()["text"] as ByteArray,
+                result.single()["annotations"] as ByteArray)
+        sourceFile.bakeAnnotations() // need two passes - one for the side bar, one for the actual code.
+        return sourceFile
     }
 
     private fun sourceFile(exchange: HttpServerExchange,
@@ -201,7 +204,7 @@ class BaseHandler(private val dbi: DBI,
         val oldInfo: SourceFileView.FileInfo?
         if (diffWith == null) {
             oldInfo = null
-            declarations = declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile)
+            declarations = declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile.annotations)
         } else {
             @Suppress("USELESS_CAST")
             oldInfo = SourceFileView.FileInfo(
@@ -211,8 +214,8 @@ class BaseHandler(private val dbi: DBI,
                     sourceFilePath = diffWith.sourceFilePath
             )
             declarations = DeclarationTreeDiff.diffUnordered(
-                    declarationTreeHandler.sourceDeclarationTree(diffWith.artifact.id, oldInfo.sourceFile),
-                    declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile)
+                    declarationTreeHandler.sourceDeclarationTree(diffWith.artifact.id, oldInfo.sourceFile.annotations),
+                    declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile.annotations)
             )
         }
 

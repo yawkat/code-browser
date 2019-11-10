@@ -1,18 +1,17 @@
 package at.yawk.javabrowser.generator
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.Tokenizer
 
 /**
  * @author yawkat
  */
 interface Printer {
-    fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile, tokens: List<Tokenizer.Token>)
+    fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>)
 
     class SimplePrinter : Printer {
-        val sourceFiles: MutableMap<String, AnnotatedSourceFile> = HashMap()
+        val sourceFiles: MutableMap<String, GeneratorSourceFile> = HashMap()
 
-        override fun addSourceFile(path: String, sourceFile: AnnotatedSourceFile, tokens: List<Tokenizer.Token>) {
+        override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
             sourceFiles[path] = sourceFile
         }
     }

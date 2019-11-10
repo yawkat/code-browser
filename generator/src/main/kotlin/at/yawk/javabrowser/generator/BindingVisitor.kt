@@ -1,6 +1,5 @@
 package at.yawk.javabrowser.generator
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
@@ -83,7 +82,7 @@ import java.lang.Long
 internal class BindingVisitor(
         private val sourceFileType: SourceFileType,
         private val ast: CompilationUnit,
-        private val annotatedSourceFile: AnnotatedSourceFile
+        private val annotatedSourceFile: GeneratorSourceFile
 ) : ASTVisitor(true) {
     enum class SourceFileType {
         REGULAR,

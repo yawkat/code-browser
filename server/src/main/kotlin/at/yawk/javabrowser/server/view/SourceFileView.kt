@@ -1,6 +1,5 @@
 package at.yawk.javabrowser.server.view
 
-import at.yawk.javabrowser.AnnotatedSourceFile
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
@@ -9,6 +8,7 @@ import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.Escaper
+import at.yawk.javabrowser.server.ServerSourceFile
 import at.yawk.javabrowser.server.SourceFilePrinter
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import freemarker.core.Environment
@@ -33,7 +33,7 @@ class SourceFileView(
 ) : View("source-file.ftl") {
     class FileInfo(
             val artifactId: ArtifactNode,
-            val sourceFile: AnnotatedSourceFile,
+            val sourceFile: ServerSourceFile,
             val classpath: Set<String>,
             sourceFilePath: String
     ) {
