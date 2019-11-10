@@ -10,7 +10,6 @@ import org.eclipse.jgit.diff.Edit
 import org.eclipse.jgit.diff.EditList
 import org.eclipse.jgit.diff.Sequence
 import org.eclipse.jgit.diff.SequenceComparator
-import org.intellij.lang.annotations.Language
 
 /**
  * @author yawkat
@@ -43,7 +42,7 @@ object SourceFilePrinter {
          */
         val fragments: IntList
         /**
-         * Offset in [fragments] for the start of each line.
+         * Offset for the start of each line.
          */
         val lines: IntList
 
@@ -59,7 +58,7 @@ object SourceFilePrinter {
                     val nextLine = sourceFile.text.indexOf('\n', textIndex)
                     fragments.add(textIndex)
                     textIndex = if (nextLine != -1 && nextLine < until) {
-                        lines.add(fragments.size()) // line starts after this fragment
+                        lines.add(nextLine + 1) // line starts after this fragment
                         // includes the \n
                         nextLine + 1
                     } else {
@@ -92,15 +91,7 @@ object SourceFilePrinter {
             this.fragments = fragments
         }
 
-        fun lineStartTextIndex(line: Int): Int {
-            val fi = lines[line]
-            if (fi == fragments.size()) {
-                // last empty line
-                return sourceFile.text.length
-            } else {
-                return fragments[fi]
-            }
-        }
+        fun lineStartTextIndex(line: Int) = lines[line]
 
         fun lineEndTextIndex(line: Int): Int {
             if (line == lines.size() - 1) {
@@ -142,10 +133,8 @@ object SourceFilePrinter {
             get() = sourceFile.fragments[fragment]
 
         fun advanceLine(scope: Scope, emitter: Emitter<M>?) {
-            val untilFragment =
-                    if (line == sourceFile.lines.size() - 1) sourceFile.fragments.size()
-                    else sourceFile.lines[line + 1]
-            while (fragment < untilFragment) {
+            val untilText = sourceFile.lineEndTextIndex(line)
+            while (fragment < sourceFile.fragments.size() && fragmentTextStart < untilText) {
                 while (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end == fragmentTextStart) {
                     emitter?.endAnnotation(scope, openEntriesAnnotations.last().annotation,
                             openEntriesMemory.last()!!)
