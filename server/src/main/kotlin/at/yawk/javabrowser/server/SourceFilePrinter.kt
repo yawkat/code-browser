@@ -2,6 +2,7 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
+import com.google.common.collect.Iterators
 import org.eclipse.collections.api.list.primitive.IntList
 import org.eclipse.collections.impl.factory.primitive.IntLists
 import org.eclipse.jgit.diff.DiffAlgorithm
@@ -146,15 +147,16 @@ object SourceFilePrinter {
     }
 
     private class Cursor<M : Any>(val sourceFile: SplitSourceFile) {
-        // offsets in sourceFile.entries
-        private val openEntries = IntLists.mutable.empty()
+        private val iterator = Iterators.peekingIterator(sourceFile.sourceFile.annotations.iterator())
+
+        private val openEntriesAnnotations = ArrayList<PositionedAnnotation>()
         private val openEntriesMemory = ArrayList<M?>()
+
         var line = 0
         private var fragment = 0
-        private var entryIndex = 0
 
         private val entry: PositionedAnnotation
-            get() = sourceFile.sourceFile.annotationList[entryIndex]
+            get() = iterator.peek()
 
         private val fragmentTextStart: Int
             get() = sourceFile.fragments[fragment]
@@ -164,27 +166,25 @@ object SourceFilePrinter {
                     if (line == sourceFile.lines.size() - 1) sourceFile.fragments.size()
                     else sourceFile.lines[line + 1]
             while (fragment < untilFragment) {
-                while (!openEntries.isEmpty
-                        && sourceFile.sourceFile.annotationList[openEntries.last].end == fragmentTextStart) {
-                    emitter?.endAnnotation(scope, sourceFile.sourceFile.annotationList[openEntries.last].annotation,
+                while (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end == fragmentTextStart) {
+                    emitter?.endAnnotation(scope, openEntriesAnnotations.last().annotation,
                             openEntriesMemory.last()!!)
                     // pop
-                    openEntries.removeAtIndex(openEntries.size() - 1)
+                    openEntriesAnnotations.removeAt(openEntriesAnnotations.size - 1)
                     openEntriesMemory.removeAt(openEntriesMemory.size - 1)
                 }
 
-                while (entryIndex < sourceFile.sourceFile.annotationList.size
-                        && entry.start == fragmentTextStart) {
+                while (iterator.hasNext() && entry.start == fragmentTextStart) {
                     val memory: M? = emitter?.computeMemory(scope, entry.annotation)
                     emitter?.startAnnotation(scope, entry.annotation, memory!!)
                     if (entry.length == 0) {
                         emitter?.endAnnotation(scope, entry.annotation, memory!!)
                     } else {
                         // push
-                        openEntries.add(entryIndex)
+                        openEntriesAnnotations.add(entry)
                         openEntriesMemory.add(memory)
                     }
-                    entryIndex++
+                    iterator.next()
                 }
 
                 val start = fragmentTextStart
@@ -200,8 +200,8 @@ object SourceFilePrinter {
         }
 
         fun emitStack(scope: Scope, emitter: Emitter<M>) {
-            for (i in 0 until openEntries.size()) {
-                val entry = sourceFile.sourceFile.annotationList[openEntries[i]]
+            for (i in openEntriesAnnotations.indices) {
+                val entry = openEntriesAnnotations[i]
                 if (entry.start + entry.length <= fragmentTextStart) {
                     throw AssertionError()
                 }
@@ -213,8 +213,8 @@ object SourceFilePrinter {
         }
 
         fun rewindStack(scope: Scope, emitter: Emitter<M>) {
-            for (i in openEntries.size() - 1 downTo 0) {
-                val entry = sourceFile.sourceFile.annotationList[openEntries[i]]
+            for (i in openEntriesAnnotations.size - 1 downTo 0) {
+                val entry = openEntriesAnnotations[i]
                 if (entry.start + entry.length <= fragmentTextStart) {
                     throw AssertionError()
                 }
