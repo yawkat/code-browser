@@ -69,6 +69,16 @@ class SourceFilePrinterTest {
 +++
 [tag2]<1 null>xe[/tag2]f/+++
 """
+            ),
+            arrayOf<Any>(
+                    "ab[tag1]c[/tag1]\ndef",
+                    "ab[tag2]c[/tag2]\nxef",
+                    """<0 0>ab[tag2]c[/tag2]
+---
+<null 1>def/---
++++
+<1 null>xef/+++
+"""
             )
     )
 

@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.IntRangeSet
 import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
 import com.google.common.collect.Iterators
@@ -87,7 +88,10 @@ object SourceFilePrinter {
 
     }
 
-    private class Cursor<M : Any>(val sourceFile: ServerSourceFile) {
+    private class Cursor<M : Any>(
+            val sourceFile: ServerSourceFile,
+            val textFilter: IntRangeSet? = null
+    ) {
         private val iterator = Iterators.peekingIterator(sourceFile.annotations.iterator())
 
         private val openEntriesAnnotations = ArrayList<PositionedAnnotation>()
@@ -103,6 +107,33 @@ object SourceFilePrinter {
         val endOfFile: Boolean
             get() = fragmentTextStart >= sourceFile.text.length
 
+        private fun popDoneAnnotations(scope: Scope, emitter: Emitter<M>?) {
+            while (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end <= fragmentTextStart) {
+                emitter?.endAnnotation(scope, openEntriesAnnotations.last().annotation,
+                        openEntriesMemory.last()!!)
+                // pop
+                openEntriesAnnotations.removeAt(openEntriesAnnotations.size - 1)
+                openEntriesMemory.removeAt(openEntriesMemory.size - 1)
+            }
+        }
+
+        private fun pushNewAnnotations(scope: Scope, emitter: Emitter<M>?) {
+            while (iterator.hasNext() && entry.start <= fragmentTextStart) {
+                if (textFilter == null || textFilter.intersects(entry.start, entry.end)) {
+                    val memory: M? = emitter?.computeMemory(scope, entry.annotation)
+                    emitter?.startAnnotation(scope, entry.annotation, memory!!)
+                    if (entry.end <= fragmentTextStart) {
+                        emitter?.endAnnotation(scope, entry.annotation, memory!!)
+                    } else {
+                        // push
+                        openEntriesAnnotations.add(entry)
+                        openEntriesMemory.add(memory)
+                    }
+                }
+                iterator.next()
+            }
+        }
+
         fun advanceLine(scope: Scope, emitter: Emitter<M>?) {
             var untilText = sourceFile.text.indexOf('\n', fragmentTextStart)
             if (untilText == -1) {
@@ -110,43 +141,32 @@ object SourceFilePrinter {
             } else {
                 untilText++ // include \n
             }
-            while (fragmentTextStart < untilText) {
-                while (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end == fragmentTextStart) {
-                    emitter?.endAnnotation(scope, openEntriesAnnotations.last().annotation,
-                            openEntriesMemory.last()!!)
-                    // pop
-                    openEntriesAnnotations.removeAt(openEntriesAnnotations.size - 1)
-                    openEntriesMemory.removeAt(openEntriesMemory.size - 1)
-                }
+            if (emitter == null) {
+                // shortcut
+                fragmentTextStart = untilText
+                popDoneAnnotations(scope, emitter)
+                pushNewAnnotations(scope, emitter)
+            } else {
+                while (fragmentTextStart < untilText) {
+                    popDoneAnnotations(scope, emitter)
+                    pushNewAnnotations(scope, emitter)
 
-                while (iterator.hasNext() && entry.start == fragmentTextStart) {
-                    val memory: M? = emitter?.computeMemory(scope, entry.annotation)
-                    emitter?.startAnnotation(scope, entry.annotation, memory!!)
-                    if (entry.length == 0) {
-                        emitter?.endAnnotation(scope, entry.annotation, memory!!)
-                    } else {
-                        // push
-                        openEntriesAnnotations.add(entry)
-                        openEntriesMemory.add(memory)
+                    val start = fragmentTextStart
+
+                    // at best, proceed to end
+                    var nextFragmentStart = untilText
+                    // ... but no further than the next annotation start
+                    if (iterator.hasNext() && entry.start < nextFragmentStart) {
+                        nextFragmentStart = entry.start
                     }
-                    iterator.next()
-                }
+                    // ... or further than the next annotation end.
+                    if (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end < nextFragmentStart) {
+                        nextFragmentStart = openEntriesAnnotations.last().end
+                    }
+                    fragmentTextStart = nextFragmentStart
 
-                val start = fragmentTextStart
-
-                // at best, proceed to end
-                var nextFragmentStart = untilText
-                // ... but no further than the next annotation start
-                if (iterator.hasNext() && entry.start < nextFragmentStart) {
-                    nextFragmentStart = entry.start
+                    emitter.text(sourceFile.text, start, fragmentTextStart)
                 }
-                // ... or further than the next annotation end.
-                if (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end < nextFragmentStart) {
-                    nextFragmentStart = openEntriesAnnotations.last().end
-                }
-                fragmentTextStart = nextFragmentStart
-
-                emitter?.text(sourceFile.text, start, fragmentTextStart)
             }
             line++
         }
@@ -154,7 +174,7 @@ object SourceFilePrinter {
         fun emitStack(scope: Scope, emitter: Emitter<M>) {
             for (i in openEntriesAnnotations.indices) {
                 val entry = openEntriesAnnotations[i]
-                if (entry.start + entry.length <= fragmentTextStart) {
+                if (entry.end <= fragmentTextStart) {
                     throw AssertionError()
                 }
                 if (openEntriesMemory[i] == null) {
@@ -199,8 +219,19 @@ object SourceFilePrinter {
             get() = diff.sumBy { it.endA - it.beginA }
 
         fun <M : Any> toHtml(emitter: Emitter<M>) {
+            // avoid unnecessary work for the cursor that only provides the deletions
+            val oldTextFilter = IntRangeSet()
+            for (edit in diff) {
+                if (edit.type == Edit.Type.DELETE || edit.type == Edit.Type.REPLACE) {
+                    oldTextFilter.add(
+                            old.lineStartTextIndex(edit.beginA),
+                            old.lineEndTextIndex(edit.endA - 1)
+                    )
+                }
+            }
+
             val cursorNew = Cursor<M>(new.sourceFile)
-            val cursorOld = Cursor<M>(old.sourceFile)
+            val cursorOld = Cursor<M>(old.sourceFile, oldTextFilter)
 
             fun renderNoChangeRegion(endLineNew: Int) {
                 if (cursorNew.line < endLineNew) {
