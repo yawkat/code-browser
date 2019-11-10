@@ -102,7 +102,8 @@ object SourceFilePrinter {
         private val entry: PositionedAnnotation
             get() = iterator.peek()
 
-        private var fragmentTextStart = 0
+        var fragmentTextStart = 0
+            private set
 
         val endOfFile: Boolean
             get() = fragmentTextStart >= sourceFile.text.length
@@ -277,6 +278,80 @@ object SourceFilePrinter {
                 }
             }
             renderNoChangeRegion(new.lines.size())
+        }
+    }
+
+    class Partial<M : Any>(private val emitter: Emitter<M>, private val sourceFile: ServerSourceFile) {
+        private val textFilter = IntRangeSet()
+        private lateinit var cursor: Cursor<M>
+
+        private var itr: Iterator<IntRange>? = null
+
+        fun addInterest(start: Int, end: Int) {
+            if (itr != null) throw IllegalStateException()
+
+            textFilter.add(start, end)
+        }
+
+        fun expandDisplayToLines(contextBefore: Int, contextAfter: Int) {
+            if (itr != null) throw IllegalStateException()
+
+            var lineStart = 0
+            val backlog = IntLists.mutable.empty()
+            var contextLead = 0
+            while (lineStart < sourceFile.text.length) {
+                var lineEnd = sourceFile.text.indexOf('\n', lineStart)
+                if (lineEnd == -1) lineEnd = sourceFile.text.length
+                else lineEnd++ // include \n
+
+                when {
+                    // check if line contains a highlight
+                    textFilter.intersects(lineStart, lineEnd) -> {
+                        textFilter.add(if (backlog.isEmpty) lineStart else backlog[0], lineEnd)
+                        backlog.clear()
+                        contextLead = contextAfter
+                    }
+                    // is this line just after a highlight?
+                    contextLead > 0 -> {
+                        textFilter.add(lineStart, lineEnd)
+                        contextLead--
+                    }
+                    // else, add it to the backlog - a highlight below might still include it.
+                    else -> {
+                        if (backlog.size() >= contextBefore) backlog.removeAtIndex(0)
+                        backlog.add(lineStart)
+                    }
+                }
+
+                lineStart = lineEnd
+            }
+
+            cursor = Cursor(sourceFile, textFilter)
+            itr = textFilter.iterator()
+        }
+
+        fun renderNextRegion() {
+            if (itr == null) throw IllegalStateException()
+            val region = itr!!.next()
+            if (cursor.fragmentTextStart >= region.first && region.first != 0) {
+                throw AssertionError("already at region start?")
+            }
+            while (cursor.fragmentTextStart < region.first) {
+                cursor.advanceLine(SourceFilePrinter.Scope.NORMAL, null)
+            }
+            if (cursor.fragmentTextStart != region.first) throw AssertionError("not line-aligned")
+            cursor.emitStack(SourceFilePrinter.Scope.NORMAL, emitter)
+            while (cursor.fragmentTextStart < region.last) {
+                emitter.normalLineMarker(cursor.line)
+                cursor.advanceLine(SourceFilePrinter.Scope.NORMAL, emitter)
+            }
+            cursor.rewindStack(SourceFilePrinter.Scope.NORMAL, emitter)
+            if (cursor.fragmentTextStart != region.last + 1) throw AssertionError("not line-aligned")
+        }
+
+        fun hasMore(): Boolean {
+            if (itr == null) throw IllegalStateException()
+            return itr!!.hasNext()
         }
     }
 }

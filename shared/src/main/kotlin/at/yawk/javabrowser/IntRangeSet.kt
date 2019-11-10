@@ -1,11 +1,12 @@
 package at.yawk.javabrowser
 
 import org.eclipse.collections.impl.factory.primitive.LongLists
+import kotlin.math.max
 
 /**
  * @author yawkat
  */
-class IntRangeSet {
+class IntRangeSet : Iterable<IntRange> {
     private val ranges = LongLists.mutable.empty()
 
     private fun encode(startInclusive: Int, endExclusive: Int) =
@@ -19,7 +20,7 @@ class IntRangeSet {
             val hereEnd = decodeEnd(ranges[i])
             val nextStart = decodeStart(ranges[i + 1])
             if (hereEnd >= nextStart) {
-                ranges[i] = encode(decodeStart(ranges[i]), decodeEnd(ranges[i + 1]))
+                ranges[i] = encode(decodeStart(ranges[i]), max(hereEnd, decodeEnd(ranges[i + 1])))
                 ranges.removeAtIndex(i + 1)
             } else {
                 break // done!
@@ -94,6 +95,18 @@ class IntRangeSet {
 
     fun forEachRange(f: (Int, Int) -> Unit) {
         forEachRange0(f)
+    }
+
+    override fun iterator() = object : Iterator<IntRange> {
+        var i = 0
+
+        override fun hasNext() = i < ranges.size()
+
+        override fun next(): IntRange {
+            val range = decodeStart(ranges[i]) until decodeEnd(ranges[i])
+            i++
+            return range
+        }
     }
 
     override fun toString(): String {

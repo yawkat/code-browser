@@ -54,6 +54,17 @@ class IntRangeSetTest {
     }
 
     @Test
+    fun `expand`() {
+        val set = IntRangeSet()
+        set.add(5, 8)
+        set.add(0, 9)
+        Assert.assertEquals(
+                set.toString(),
+                "{[0,9)}"
+        )
+    }
+
+    @Test
     fun `coalesce smaller`() {
         val set = IntRangeSet()
         set.add(5, 10)

@@ -67,39 +67,9 @@ class FullTextSearchResource(
                     arrayOffset += lexemeVector.size
                 }
 
-                expandDisplayToLines()
+                // TODO
             }
 
-            fun expandDisplayToLines() {
-                var lineStart = 0
-                val backlog = IntLists.mutable.empty()
-                var contextLead = 0
-                while (lineStart < sourceFile.text.length) {
-                    var lineEnd = sourceFile.text.indexOf('\n', lineStart)
-                    if (lineEnd == -1) lineEnd = sourceFile.text.length
-
-                    when {
-                        // check if line contains a highlight
-                        displaySet.intersects(lineStart, lineEnd) -> {
-                            displaySet.add(if (backlog.isEmpty) lineStart else backlog[0], lineEnd)
-                            backlog.clear()
-                            contextLead = CONTEXT_LINES
-                        }
-                        // is this line just after a highlight?
-                        contextLead > 0 -> {
-                            displaySet.add(lineStart, lineEnd)
-                            contextLead--
-                        }
-                        // else, add it to the backlog - a highlight below might still include it.
-                        else -> {
-                            if (backlog.size() > CONTEXT_LINES) backlog.removeAtIndex(0)
-                            backlog.add(lineStart)
-                        }
-                    }
-
-                    lineStart = lineEnd
-                }
-            }
         }
 
         dbi.inTransaction { conn: Handle, _ ->

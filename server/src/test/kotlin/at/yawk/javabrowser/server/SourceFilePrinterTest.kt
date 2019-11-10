@@ -92,6 +92,63 @@ class SourceFilePrinterTest {
                 expect
         )
     }
+    @DataProvider
+    fun dataPartial(): Array<Array<Any>> = arrayOf(
+            arrayOf<Any>(
+                    "abc",
+                    ""
+            ),
+            arrayOf<Any>(
+                    "ab[tag]c\nd(e)[/tag]f",
+                    "<0>ab[tag]c\n<1>d(e)[/tag]f---\n"
+            ),
+            arrayOf<Any>(
+                    """abc
+def
+g[tag1][tag2]h[/tag2]i
+j[/tag1]kl
+m(n)o
+pqr
+stu""",
+                    """[tag1]<3>j[/tag1]kl
+<4>m(n)o
+<5>pqr
+---
+"""
+            )
+    )
+
+    @Test(dataProvider = "dataPartial")
+    fun testPartial(markup: String, expect: String) {
+        val emitter = MockEmitter()
+        val sourceFile = parseSourceFile(markup)
+        val partial = SourceFilePrinter.Partial(emitter, sourceFile)
+
+        // regions in (parentheses) are highlighted
+        var i = 0
+        while (true) {
+            val start = sourceFile.text.indexOf('(', i)
+            if (start == -1) {
+                break
+            }
+            val end = sourceFile.text.indexOf(')', start)
+            partial.addInterest(start, end + 1)
+            i = end
+        }
+
+        // context of 1 line
+        partial.expandDisplayToLines(1, 1)
+
+        while (partial.hasMore()) {
+            partial.renderNextRegion()
+            emitter.output.appendln("---")
+        }
+
+        Assert.assertEquals(
+                emitter.output.toString(),
+                expect
+        )
+    }
 
     private fun parseSourceFile(markup: String): ServerSourceFile {
         val tags = ArrayList<PositionedAnnotation>()
