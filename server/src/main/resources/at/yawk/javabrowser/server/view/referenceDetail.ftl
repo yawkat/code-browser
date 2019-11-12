@@ -9,13 +9,12 @@
 </#assign>
 <#assign head>
   References to ${targetBinding}
-  <#if sourceArtifactId??>from <a href="/${sourceArtifactId}">${sourceArtifactId}</a></#if>
   <#if type??>of type '${type.displayName}'</#if>
 </#assign>
 <#assign additionalMenu>
   <#if sourceArtifactId?? || type??><a href="${baseUri}">Show all results</a></#if>
 </#assign>
-<@page.page title=title artifactId="" additionalTitle=head additionalMenu=additionalMenu>
+<@page.page title=title artifactId=sourceArtifactId!"" additionalTitle=head additionalMenu=additionalMenu>
   <div id="noncode">
     <div class="reference-detail-table">
       <table>

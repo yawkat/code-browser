@@ -3,6 +3,7 @@ package at.yawk.javabrowser.server.view
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.VersionComparator
+import at.yawk.javabrowser.server.artifact.ArtifactNode
 import com.google.common.collect.Table
 import java.net.URI
 
@@ -13,7 +14,7 @@ data class ReferenceDetailView(
         val targetBinding: String,
         val baseUri: URI,
         val type: BindingRefType?,
-        val sourceArtifactId: String?,
+        val sourceArtifactId: ArtifactNode?,
 
         val countTable: Table<String, BindingRefType, Int>,
         val countsByType: Map<BindingRefType, Int>,

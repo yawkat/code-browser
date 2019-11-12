@@ -4,7 +4,7 @@
 <#import "declarationNode.ftl" as declarationNode>
 
 <#assign additionalTitle>
-  &nbsp;<span class="source-file-dir">${newInfo.sourceFilePathDir}</span>${newInfo.sourceFilePathFile}
+  <span class="source-file-dir">${newInfo.sourceFilePathDir}</span>${newInfo.sourceFilePathFile}
 </#assign>
 <#assign additionalMenu>
   <a id="alt-versions" href="javascript:showAlternativeSourceFiles([

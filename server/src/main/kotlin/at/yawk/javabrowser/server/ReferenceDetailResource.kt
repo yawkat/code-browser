@@ -10,14 +10,15 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import java.net.URI
 import java.net.URLEncoder
-import kotlin.coroutines.experimental.buildIterator
 
 /**
  * @author yawkat
  */
 class ReferenceDetailResource(
         private val dbi: DBI,
-        private val ftl: Ftl) : HttpHandler {
+        private val ftl: Ftl,
+        private val artifactIndex: ArtifactIndex
+) : HttpHandler {
     companion object {
         const val PATTERN = "/references/{targetBinding}"
     }
@@ -32,7 +33,11 @@ class ReferenceDetailResource(
                 throw HttpException(400, "Unknown type")
             }
         }
-        val sourceArtifactId = exchange.queryParameters["fromArtifact"]?.peekFirst()
+        val sourceArtifactId = exchange.queryParameters["fromArtifact"]?.peekFirst()?.let {
+            val parsed = artifactIndex.parse(it)
+            if (parsed.remainingPath != null) throw HttpException(404, "No such artifact")
+            parsed.node
+        }
         val limitString = exchange.queryParameters["limit"]?.peekFirst()
         val limit: Int?
         if (limitString == null) {
@@ -57,8 +62,8 @@ class ReferenceDetailResource(
                         ?: continue
                 countTable.put(row["sourceArtifactId"] as String, type, (row["count"] as Number).toInt())
             }
-            val countsByType = countTable.columnKeySet().associate { it to countTable.column(it).values.sum() }
-            val countsByArtifact = countTable.rowKeySet().associate { it to countTable.row(it).values.sum() }
+            val countsByType = countTable.columnKeySet().associateWith { countTable.column(it).values.sum() }
+            val countsByArtifact = countTable.rowKeySet().associateWith { countTable.row(it).values.sum() }
 
             val totalCount = countsByType.values.sum()
 
@@ -66,13 +71,13 @@ class ReferenceDetailResource(
             val totalCountInSelection: Int
             if (type != null) {
                 if (sourceArtifactId != null) {
-                    totalCountInSelection = countTable.get(sourceArtifactId, type) ?: 0
+                    totalCountInSelection = countTable.get(sourceArtifactId.id, type) ?: 0
                 } else {
                     totalCountInSelection = countsByType[type] ?: 0
                 }
             } else {
                 if (sourceArtifactId != null) {
-                    totalCountInSelection = countsByArtifact[sourceArtifactId] ?: 0
+                    totalCountInSelection = countsByArtifact[sourceArtifactId.id] ?: 0
                 } else {
                     totalCountInSelection = totalCount
                 }
@@ -98,7 +103,7 @@ class ReferenceDetailResource(
             }
             query.bind("targetBinding", targetBinding)
             if (type != null) query.bind("type", type.id)
-            if (sourceArtifactId != null) query.bind("sourceArtifactId", sourceArtifactId)
+            if (sourceArtifactId != null) query.bind("sourceArtifactId", sourceArtifactId.id)
             if (hitResultLimit) query.bind("limit", limit)
             query.setFetchSize(500)
             val view = ReferenceDetailView(

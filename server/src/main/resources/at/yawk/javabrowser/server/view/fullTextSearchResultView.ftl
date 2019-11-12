@@ -1,8 +1,7 @@
 <#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.FullTextSearchResultView" -->
 <#import "page.ftl" as page>
 <#import "fullTextSearchForm.ftl" as ftsf>
-<#assign additionalTitle>&nbsp;Full Text Search</#assign>
-<@page.page title="Full Text Search" artifactId=searchArtifact!'' additionalTitle=additionalTitle hasSearch=false>
+<@page.page title="Full Text Search" artifactId=searchArtifact!'' additionalTitle="Full Text Search" hasSearch=false>
   <div id="noncode">
     <@ftsf.fullTextSearchForm query=query searchArtifact=searchArtifact!'' />
 

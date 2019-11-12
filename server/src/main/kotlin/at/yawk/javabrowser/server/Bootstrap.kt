@@ -72,7 +72,7 @@ fun main(args: Array<String>) {
         it.add(SearchResource.PATTERN, searchResource)
         it.add(ReferenceResource.PATTERN, ReferenceResource(dbi, objectMapper))
         it.add(ImageCache.PATTERN, imageCache.handler)
-        it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl))
+        it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl, artifactIndex))
         it.add(DeclarationTreeHandler.PATTERN, packageTreeHandler)
         it.add(JavabotSearchResource.PATTERN, JavabotSearchResource(dbi, objectMapper))
         it.add(FullTextSearchResource.PATTERN, FullTextSearchResource(dbi, objectMapper, ftl, bindingResolver, artifactIndex))

@@ -25,7 +25,7 @@
     <div id="header">
       <div>
         <h1><a href="/"><i class="ij ij-home"></i> /</a>&nbsp;</h1>
-        <#if artifactId?has_content><h1 class="shrink" style="flex-shrink: 1"><span><@path.showNode artifactId/></span></h1></#if>
+        <#if artifactId?has_content><h1 class="shrink" style="flex-shrink: 1"><span><@path.showNode artifactId/></span></h1>&nbsp;</#if>
         <h1 class="shrink" style="flex-shrink: 2"><span>${additionalTitle}</span></h1>
 
         ${additionalMenu}

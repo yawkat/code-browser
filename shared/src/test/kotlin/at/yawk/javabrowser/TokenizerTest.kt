@@ -143,4 +143,11 @@ class TokenizerTest {
         val tokens = Tokenizer.tokenize(text)
         Assert.assertEquals(tokens.toList().map { it.text }, listOf("java", "util", "collect"))
     }
+
+    @Test
+    fun `java comments`() {
+        val text = "/* abc def */"
+        val tokens = Tokenizer.tokenize(text)
+        Assert.assertEquals(tokens.toList().map { it.text }, listOf("abc", "def"))
+    }
 }
