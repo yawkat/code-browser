@@ -205,6 +205,8 @@ object SourceFilePrinter {
 
                     emitter.text(sourceFile.text, start, fragmentTextStart)
                 }
+                // in case an annotation ends exactly at the newline
+                popDoneAnnotations(scope, emitter)
             }
             line++
         }
@@ -225,7 +227,7 @@ object SourceFilePrinter {
         fun rewindStack(scope: Scope, emitter: Emitter<M>) {
             for (i in openEntriesAnnotations.size - 1 downTo 0) {
                 val entry = openEntriesAnnotations[i]
-                if (entry.start + entry.length <= fragmentTextStart) {
+                if (entry.end <= fragmentTextStart) {
                     throw AssertionError()
                 }
                 emitter.endAnnotation(scope, entry.annotation, openEntriesMemory[i]!!)
