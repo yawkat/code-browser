@@ -8,13 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
-import org.postgresql.PGStatement
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
-import org.skife.jdbi.v2.StatementContext
-import org.skife.jdbi.v2.TransactionStatus
-import org.skife.jdbi.v2.tweak.StatementCustomizer
-import java.sql.PreparedStatement
 
 /**
  * @author yawkat
@@ -110,6 +105,7 @@ group by sourceFiles.artifactId, sourceFiles.path
             )
                     // prepare immediately so that int arrays are transmitted as binary
                     .addStatementCustomizer(PrepareStatementImmediately)
+                    .setFetchSize(50)
                     .bind("query", tsQuery.toString())
                     .bind("searchArtifact", searchArtifact?.id)
                     .map { _, r, _ ->
