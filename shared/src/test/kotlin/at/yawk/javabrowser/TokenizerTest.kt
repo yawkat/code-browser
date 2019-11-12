@@ -136,4 +136,11 @@ class TokenizerTest {
                 Tokenizer.Token("abcdef", 1, 6, false)
         ))
     }
+
+    @Test
+    fun `java qualified name in string`() {
+        val text = "\"java.util.Collection\""
+        val tokens = Tokenizer.tokenize(text)
+        Assert.assertEquals(tokens.toList().map { it.text }, listOf("java", "util", "collect"))
+    }
 }

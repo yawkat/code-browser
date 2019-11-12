@@ -75,6 +75,7 @@ fun main(args: Array<String>) {
         it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl))
         it.add(DeclarationTreeHandler.PATTERN, packageTreeHandler)
         it.add(JavabotSearchResource.PATTERN, JavabotSearchResource(dbi, objectMapper))
+        it.add(FullTextSearchResource.PATTERN, FullTextSearchResource(dbi, objectMapper, ftl, bindingResolver, artifactIndex))
     }
 
     handler = ExceptionHandler(handler).also(exceptions)

@@ -1,13 +1,7 @@
 package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.ArtifactMetadata
-import at.yawk.javabrowser.BindingDecl
-import at.yawk.javabrowser.BindingRef
-import at.yawk.javabrowser.LocalVariableRef
-import at.yawk.javabrowser.SourceAnnotation
-import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
-import at.yawk.javabrowser.server.Escaper
 import at.yawk.javabrowser.server.ServerSourceFile
 import at.yawk.javabrowser.server.SourceFilePrinter
 import at.yawk.javabrowser.server.artifact.ArtifactNode
@@ -15,8 +9,6 @@ import freemarker.core.Environment
 import freemarker.template.TemplateDirectiveBody
 import freemarker.template.TemplateDirectiveModel
 import freemarker.template.TemplateModel
-import org.intellij.lang.annotations.Language
-import java.io.Writer
 
 /**
  * @author yawkat
@@ -62,149 +54,23 @@ class SourceFileView(
                              params: MutableMap<Any?, Any?>,
                              loopVars: Array<TemplateModel?>,
                              body: TemplateDirectiveBody?) {
-            val emitter = EmitterImpl(env.out)
+            val emitter = HtmlEmitter(
+                    bindingResolver,
+                    if (oldInfo != null)
+                        mapOf(SourceFilePrinter.Scope.OLD to oldInfo.classpath,
+                                SourceFilePrinter.Scope.NEW to newInfo.classpath)
+                    else
+                        mapOf(SourceFilePrinter.Scope.NORMAL to newInfo.classpath),
+                    env.out,
+
+                    hasOverlay = true,
+                    referenceThisUrl = true
+            )
             if (diff != null) {
                 diff.toHtml(emitter)
             } else {
                 SourceFilePrinter.toHtmlSingle(emitter, newInfo.sourceFile)
             }
-        }
-    }
-
-    private sealed class EmitterImplMemory {
-        object None : EmitterImplMemory()
-        class ResolvedBinding(val uri: String?) : EmitterImplMemory()
-        class Decl(val superBindingUris: List<String?>) : EmitterImplMemory()
-    }
-
-    private inner class EmitterImpl(private val writer: Writer) : SourceFilePrinter.Emitter<EmitterImplMemory> {
-        private val SourceFilePrinter.Scope.prefix: String
-            get() = if (this == SourceFilePrinter.Scope.OLD) "--- " else ""
-
-        override fun computeMemory(scope: SourceFilePrinter.Scope, annotation: SourceAnnotation): EmitterImplMemory {
-            val cp = if (scope == SourceFilePrinter.Scope.OLD) oldInfo!!.classpath else newInfo.classpath
-            return when (annotation) {
-                is BindingRef -> EmitterImplMemory.ResolvedBinding(
-                        bindingResolver.resolveBinding(cp, annotation.binding).firstOrNull()?.toASCIIString())
-                is BindingDecl -> EmitterImplMemory.Decl(
-                        annotation.superBindings.map {
-                            bindingResolver.resolveBinding(cp, it.binding).firstOrNull()?.toASCIIString()
-                        })
-                else -> EmitterImplMemory.None
-            }
-        }
-
-        private fun linkBindingStart(scope: SourceFilePrinter.Scope, uri: String?, refId: Int?) =
-                if (uri != null) {
-                    "<a href='${Escaper.HTML.escape(uri)}'" +
-                            (if (refId != null) " id='${scope.prefix}ref-$refId'" else "") +
-                            ">"
-                } else {
-                    ""
-                }
-
-        private fun linkBindingEnd(uri: String?): String =
-                if (uri != null) {
-                    "</a>"
-                } else {
-                    ""
-                }
-
-        override fun startAnnotation(scope: SourceFilePrinter.Scope,
-                                     annotation: SourceAnnotation,
-                                     memory: EmitterImplMemory) {
-            when (annotation) {
-                is BindingRef -> html(linkBindingStart(
-                        scope,
-                        (memory as EmitterImplMemory.ResolvedBinding).uri,
-                        annotation.id))
-                is BindingDecl -> {
-                    val showDeclaration = when (annotation.description) {
-                        is BindingDecl.Description.Initializer -> false
-                        else -> true
-                    }
-
-                    if (showDeclaration) {
-                        val superUris = (memory as EmitterImplMemory.Decl).superBindingUris
-                        val superHtml = if (!annotation.superBindings.isEmpty()) {
-                            "<ul>" +
-                                    annotation.superBindings.withIndex().joinToString { (i, binding) ->
-                                        "<li>" +
-                                                linkBindingStart(scope, superUris[i], refId = null) +
-                                                Escaper.HTML.escape(binding.name) +
-                                                "</li>"
-                                    } +
-                                    "</ul>"
-                        } else {
-                            ""
-                        }
-                        html("<a class='show-refs' href='javascript:;' onclick='showReferences(this); return false' data-binding='${Escaper.HTML.escape(annotation.binding)}' data-super-html='${Escaper.HTML.escape(superHtml)}'></a>")
-                    }
-
-                    val id = scope.prefix + annotation.binding
-                    html("<a id='$id' href='${BindingResolver.bindingHash(id)}'>")
-                }
-                is Style -> html("<span class='${annotation.styleClass.joinToString(" ")}'>")
-                is LocalVariableRef -> html("<span class='local-variable' data-local-variable='${annotation.id}'>")
-            }
-        }
-
-        override fun endAnnotation(scope: SourceFilePrinter.Scope,
-                                   annotation: SourceAnnotation,
-                                   memory: EmitterImplMemory) {
-            when (annotation) {
-                is BindingRef -> html(linkBindingEnd((memory as EmitterImplMemory.ResolvedBinding).uri))
-                is BindingDecl -> html("</a>")
-                is Style, is LocalVariableRef -> html("</span>")
-            }
-        }
-
-        fun html(@Language("HTML") s: String) {
-            writer.write(s)
-        }
-
-        override fun text(s: String, start: Int, end: Int) {
-            Escaper.HTML.escape(writer, s, start, end)
-        }
-
-        override fun beginInsertion() {
-            html("<span class='insertion'>")
-        }
-        override fun beginDeletion() {
-            html("<span class='deletion'>")
-        }
-        override fun endInsertion() {
-            html("</span>")
-        }
-        override fun endDeletion() {
-            html("</span>")
-        }
-
-        override fun diffLineMarker(newLine: Int?, oldLine: Int?) {
-            if (oldLine != null) {
-                val id = "--- ${oldLine + 1}"
-                html("<a href='#$id' id='$id' class='line line-diff' data-line='${oldLine + 1}'></a>")
-            } else {
-                html("<a class='line line-diff'></a>")
-            }
-            if (newLine != null) {
-                val id = (newLine + 1).toString()
-                html("<a href='#$id' id='$id' class='line line-diff' data-line='${newLine + 1}'></a>")
-            } else {
-                html("<a class='line line-diff'></a>")
-            }
-            html("<span class='diff-marker'>")
-            when {
-                newLine == null -> html("-")
-                oldLine == null -> html("+")
-                else -> html(" ")
-            }
-            html("</span>")
-        }
-
-        override fun normalLineMarker(line: Int) {
-            val id = (line + 1).toString()
-            html("<a href='#$id' id='$id' class='line' data-line='${line + 1}'></a>")
         }
     }
 }

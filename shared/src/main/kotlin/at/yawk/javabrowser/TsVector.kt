@@ -13,7 +13,9 @@ import java.util.BitSet
  */
 class TsVector {
     companion object {
-        const val POSITION_LIMIT = 16383
+        private const val POSITION_LIMIT = 16383
+        private const val BY_LEXEME_LIMIT = 256
+
         val DEFAULT_WEIGHT = TsQuery.Weight.D
     }
 
@@ -30,11 +32,16 @@ class TsVector {
 
     /**
      * @param position 0-indexed
+     * @return `true` iff this lexeme was added successfully. `false` iff postgres bounds would have been exceeded.
      */
-    fun add(lexeme: String, position: Int, weight: TsQuery.Weight = DEFAULT_WEIGHT) {
-        if (position < 0 || position >= POSITION_LIMIT) throw IndexOutOfBoundsException()
-        list(lexeme).add(encode(position, weight))
+    fun add(lexeme: String, position: Int, weight: TsQuery.Weight = DEFAULT_WEIGHT): Boolean {
+        if (position < 0) throw IndexOutOfBoundsException()
+        if (position >= POSITION_LIMIT) return false
+        val l = list(lexeme)
+        if (l.size() >= BY_LEXEME_LIMIT) return false
+        l.add(encode(position, weight))
         size++
+        return true
     }
 
     fun addFromSql(s: CharSequence) {
@@ -212,7 +219,7 @@ class TsVector {
 
                 fun flatten(phrase: TsQuery.Phrase) {
                     for ((i, operand) in phrase.operands.withIndex()) {
-                        if (i != 0) totalDistance += phrase.distance
+                        if (i != 0) totalDistance += phrase.distance + 1
                         when (operand) {
                             is TsQuery.Phrase -> flatten(operand)
                             is TsQuery.Negation -> {
@@ -268,6 +275,7 @@ class TsVector {
                             val expectedPosition = distances[i] - anchorDistanceFromStart + anchorPosition
                             var termMatch = false // has this term been found?
                             forMatchingPositions(term, negative = negative[i]) { pos ->
+                                // todo: could binary search, and short-circuit
                                 termMatch = termMatch or (pos == expectedPosition)
                             }
                             termMatch
@@ -303,6 +311,8 @@ class TsVector {
         }
         return output
     }
+
+    override fun toString() = toSql()
 
     override fun equals(other: Any?) = other is TsVector && other.map == this.map
     override fun hashCode() = map.hashCode()

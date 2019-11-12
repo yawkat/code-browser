@@ -46,7 +46,7 @@ class TsVectorTest {
 
     private infix fun TsQuery.and(other: TsQuery) = TsQuery.Conjunction(listOf(this, other))
     private infix fun TsQuery.or(other: TsQuery) = TsQuery.Disjunction(listOf(this, other))
-    private infix fun TsQuery.then(other: TsQuery) = this.then(1, other)
+    private infix fun TsQuery.then(other: TsQuery) = this.then(0, other)
     private fun TsQuery.then(distance: Int, other: TsQuery) = TsQuery.Phrase(listOf(this, other), distance)
     private operator fun TsQuery.not() = TsQuery.Negation(this)
 
@@ -71,5 +71,20 @@ class TsVectorTest {
                 simpleVector(vector).findMatchPositions(query),
                 result
         )
+    }
+
+    @Test
+    fun bugTest() {
+        val sqlVector = "'compos':14 'number':9 'len':56,60,64,84,91 'doesn''if':40,50,59,63,80 '11':34 'byte':66,69,92 'integ':81 'memori':88 'singl':67,73,78 'except':29,46 'max_valu':82 'valu':57,74 'out':87 'throw':26,42,85 'maximum':99 'return':6,12,52,62,75 'argument':28,45 'coder':79 'zero':3,25 'neg':32,48 'exceed':98 'new':43,68,76,86 'count':2,8,18,24,31,39,41,47,49,51,61,70,83,94 'this':53 'fill':72 'final':54,65 'produc':96 'sinc':33 'code':17,30 'string':1,5,13,15,21,22,36,77,93,97 'arrai':71 'error':89 'public':35 'param':7 'repeat':11,16,37,90 'length':58 'int':38,55 'illeg':27,44 'time':10,19,95 'empti':1,4,20,23 'size':100"
+        val query = TsQuery.Phrase(listOf(
+                TsQuery.Term("produc"),
+                TsQuery.Term("string"),
+                TsQuery.Term("exceed"),
+                TsQuery.Term("maximum"),
+                TsQuery.Term("size")))
+        val vector = TsVector()
+        vector.addFromSql(sqlVector)
+
+        Assert.assertEquals(vector.findMatchPositions(query), IntSets.immutable.of(95, 96, 97, 98, 99))
     }
 }

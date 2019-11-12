@@ -36,25 +36,15 @@ class BaseHandler(private val dbi: DBI,
     }
 
     private fun parsePath(rawPath: String): ParsedPath {
-        val path = rawPath.removePrefix("/").removeSuffix("/")
-        val pathParts = if (path.isEmpty()) emptyList() else path.split('/')
-
-        var node = artifactIndex.rootArtifact
-        for ((i, pathPart) in pathParts.withIndex()) {
-            val child = node.children[pathPart]
-            if (child != null) {
-                node = child
-            } else {
-                val sourceFileParts = pathParts.subList(i, pathParts.size)
-                val sourceFilePath = sourceFileParts.joinToString("/")
-                return ParsedPath.SourceFile(node, sourceFilePath)
-            }
-        }
-        if (node.children.isEmpty()) {
-            // artifact overview
-            return ParsedPath.LeafArtifact(node)
-        } else {
-            return ParsedPath.Group(node)
+        val parsed = artifactIndex.parse(rawPath)
+        when {
+            parsed.remainingPath != null ->
+                return ParsedPath.SourceFile(parsed.node, parsed.remainingPath)
+            parsed.node.children.isEmpty() ->
+                // artifact overview
+                return ParsedPath.LeafArtifact(parsed.node)
+            else ->
+                return ParsedPath.Group(parsed.node)
         }
     }
 
@@ -97,7 +87,7 @@ class BaseHandler(private val dbi: DBI,
                 path.artifact,
                 diffWith?.artifact,
                 getArtifactMetadata(conn, path.artifact),
-                listDependencies(conn, path.artifact.id).map {
+                conn.attach(DependencyDao::class.java).getDependencies(path.artifact.id).map {
                     buildDependencyInfo(conn, it)
                 },
                 topLevelPackages,
@@ -148,7 +138,7 @@ class BaseHandler(private val dbi: DBI,
             throw HttpException(StatusCodes.BAD_REQUEST, "Can't diff with that")
         }
 
-        val dependencies = listDependencies(conn, parsedPath.artifact.id)
+        val dependencies = conn.attach(DependencyDao::class.java).getDependencies(parsedPath.artifact.id)
 
         val sourceFile = requestSourceFile(conn, parsedPath)
 
@@ -210,7 +200,7 @@ class BaseHandler(private val dbi: DBI,
             oldInfo = SourceFileView.FileInfo(
                     artifactId = diffWith.artifact,
                     sourceFile = requestSourceFile(conn, diffWith as ParsedPath.SourceFile),
-                    classpath = listDependencies(conn, diffWith.artifact.id).toSet() + diffWith.artifact.id,
+                    classpath = conn.attach(DependencyDao::class.java).getDependencies(diffWith.artifact.id).toSet() + diffWith.artifact.id,
                     sourceFilePath = diffWith.sourceFilePath
             )
             declarations = DeclarationTreeDiff.diffUnordered(
@@ -232,12 +222,5 @@ class BaseHandler(private val dbi: DBI,
                 declarations = declarations,
                 bindingResolver = bindingResolver
         )
-    }
-
-    private fun listDependencies(conn: Handle, artifactId: String): List<String> {
-        return conn.createQuery("select toArtifactId from dependencies where fromArtifactId = ?")
-                .bind(0, artifactId)
-                .map(SingleColumnResultSetMapper.STRING)
-                .toList()
     }
 }

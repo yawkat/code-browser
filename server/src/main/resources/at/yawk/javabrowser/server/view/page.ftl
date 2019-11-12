@@ -48,6 +48,7 @@
     <#if hasSearch>
       <#include "search-dialog.ftl">
     </#if>
+  </div>
   </body>
   </html>
 </#macro>

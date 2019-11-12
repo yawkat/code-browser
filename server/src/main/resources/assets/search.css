@@ -1,16 +1,16 @@
 /* search */
-.search-box {
+.search-box, .fts-form {
     max-width: 60em;
     font-family: "DejaVu Sans", sans-serif;
+    margin: 1em 0;
 }
 .search-dialog {
     margin: 0 auto;
 }
 
-.search-box input {
+.search-box input, .fts-form input[type=text] {
     width: 100%;
     height: 2em;
-    margin: 1em 0;
 }
 
 .search-box li {
@@ -42,4 +42,13 @@
 
 .search-dialog > * {
     box-sizing: border-box;
+}
+
+.fts-result:first-child {
+    border: 0;
+}
+.fts-result {
+    width: auto;
+    border-top: 1px solid #ccc;
+    padding: 1em 0;
 }

@@ -11,6 +11,8 @@ import org.eclipse.jgit.diff.Edit
 import org.eclipse.jgit.diff.EditList
 import org.eclipse.jgit.diff.Sequence
 import org.eclipse.jgit.diff.SequenceComparator
+import java.util.Collections
+import kotlin.math.min
 
 /**
  * @author yawkat
@@ -29,8 +31,10 @@ object SourceFilePrinter {
 
         fun beginInsertion()
         fun beginDeletion()
+        fun beginHighlight()
         fun endInsertion()
         fun endDeletion()
+        fun endHighlight()
 
         fun diffLineMarker(newLine: Int?, oldLine: Int?)
         fun normalLineMarker(line: Int)
@@ -90,17 +94,19 @@ object SourceFilePrinter {
 
     private class Cursor<M : Any>(
             val sourceFile: ServerSourceFile,
-            val textFilter: IntRangeSet? = null
+            val textFilter: IntRangeSet? = null,
+            highlight: IntRangeSet? = null
     ) {
-        private val iterator = Iterators.peekingIterator(sourceFile.annotations.iterator())
+        private val annotations = Iterators.peekingIterator(sourceFile.annotations.iterator())
+        private val highlightIterator = Iterators.peekingIterator(highlight?.iterator() ?: Collections.emptyIterator())
 
         private val openEntriesAnnotations = ArrayList<PositionedAnnotation>()
         private val openEntriesMemory = ArrayList<M?>()
 
         var line = 0
 
-        private val entry: PositionedAnnotation
-            get() = iterator.peek()
+        private val annotation: PositionedAnnotation
+            get() = annotations.peek()
 
         var fragmentTextStart = 0
             private set
@@ -108,8 +114,17 @@ object SourceFilePrinter {
         val endOfFile: Boolean
             get() = fragmentTextStart >= sourceFile.text.length
 
+        private var highlightEmitted = false
+        private val inHighlight: Boolean
+            get() = highlightIterator.hasNext() && fragmentTextStart in highlightIterator.peek()
+
         private fun popDoneAnnotations(scope: Scope, emitter: Emitter<M>?) {
             while (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end <= fragmentTextStart) {
+                if (highlightEmitted) {
+                    emitter?.endHighlight()
+                    highlightEmitted = false
+                }
+
                 emitter?.endAnnotation(scope, openEntriesAnnotations.last().annotation,
                         openEntriesMemory.last()!!)
                 // pop
@@ -119,19 +134,19 @@ object SourceFilePrinter {
         }
 
         private fun pushNewAnnotations(scope: Scope, emitter: Emitter<M>?) {
-            while (iterator.hasNext() && entry.start <= fragmentTextStart) {
-                if (textFilter == null || textFilter.intersects(entry.start, entry.end)) {
-                    val memory: M? = emitter?.computeMemory(scope, entry.annotation)
-                    emitter?.startAnnotation(scope, entry.annotation, memory!!)
-                    if (entry.end <= fragmentTextStart) {
-                        emitter?.endAnnotation(scope, entry.annotation, memory!!)
+            while (annotations.hasNext() && annotation.start <= fragmentTextStart) {
+                if (textFilter == null || textFilter.intersects(annotation.start, annotation.end)) {
+                    val memory: M? = emitter?.computeMemory(scope, annotation.annotation)
+                    emitter?.startAnnotation(scope, annotation.annotation, memory!!)
+                    if (annotation.end <= fragmentTextStart) {
+                        emitter?.endAnnotation(scope, annotation.annotation, memory!!)
                     } else {
                         // push
-                        openEntriesAnnotations.add(entry)
+                        openEntriesAnnotations.add(annotation)
                         openEntriesMemory.add(memory)
                     }
                 }
-                iterator.next()
+                annotations.next()
             }
         }
 
@@ -149,20 +164,42 @@ object SourceFilePrinter {
                 pushNewAnnotations(scope, emitter)
             } else {
                 while (fragmentTextStart < untilText) {
+                    if (highlightIterator.hasNext() && highlightIterator.peek().last < fragmentTextStart) {
+                        highlightIterator.next()
+                    }
+
+                    if (highlightEmitted && !inHighlight) {
+                        emitter.endHighlight()
+                        highlightEmitted = false
+                    }
+
                     popDoneAnnotations(scope, emitter)
                     pushNewAnnotations(scope, emitter)
+
+                    if (!highlightEmitted && inHighlight) {
+                        emitter.beginHighlight()
+                        highlightEmitted = true
+                    }
 
                     val start = fragmentTextStart
 
                     // at best, proceed to end
                     var nextFragmentStart = untilText
                     // ... but no further than the next annotation start
-                    if (iterator.hasNext() && entry.start < nextFragmentStart) {
-                        nextFragmentStart = entry.start
+                    if (annotations.hasNext()) {
+                        nextFragmentStart = min(nextFragmentStart, annotation.start)
                     }
-                    // ... or further than the next annotation end.
-                    if (openEntriesAnnotations.isNotEmpty() && openEntriesAnnotations.last().end < nextFragmentStart) {
-                        nextFragmentStart = openEntriesAnnotations.last().end
+                    // ... or further than the next annotation end
+                    if (openEntriesAnnotations.isNotEmpty()) {
+                        nextFragmentStart = min(nextFragmentStart, openEntriesAnnotations.last().end)
+                    }
+                    // ... or further than the next highlight start
+                    if (highlightIterator.hasNext() && highlightIterator.peek().first > start) {
+                        nextFragmentStart = min(nextFragmentStart,highlightIterator.peek().first)
+                    }
+                    // ... or further than the current highlight end
+                    if (highlightIterator.hasNext()) {
+                        nextFragmentStart = min(nextFragmentStart, highlightIterator.peek().last + 1)
                     }
                     fragmentTextStart = nextFragmentStart
 
@@ -281,24 +318,19 @@ object SourceFilePrinter {
         }
     }
 
-    class Partial<M : Any>(private val emitter: Emitter<M>, private val sourceFile: ServerSourceFile) {
-        private val textFilter = IntRangeSet()
-        private lateinit var cursor: Cursor<M>
-
-        private var itr: Iterator<IntRange>? = null
+    class Partial(private val sourceFile: ServerSourceFile) {
+        private val interest = IntRangeSet()
 
         fun addInterest(start: Int, end: Int) {
-            if (itr != null) throw IllegalStateException()
-
-            textFilter.add(start, end)
+            interest.add(start, end)
         }
 
-        fun expandDisplayToLines(contextBefore: Int, contextAfter: Int) {
-            if (itr != null) throw IllegalStateException()
-
+        fun <M : Any> createRenderer(contextBefore: Int, contextAfter: Int): Renderer<M> {
             var lineStart = 0
             val backlog = IntLists.mutable.empty()
             var contextLead = 0
+            val lineSet = IntRangeSet()
+
             while (lineStart < sourceFile.text.length) {
                 var lineEnd = sourceFile.text.indexOf('\n', lineStart)
                 if (lineEnd == -1) lineEnd = sourceFile.text.length
@@ -306,14 +338,14 @@ object SourceFilePrinter {
 
                 when {
                     // check if line contains a highlight
-                    textFilter.intersects(lineStart, lineEnd) -> {
-                        textFilter.add(if (backlog.isEmpty) lineStart else backlog[0], lineEnd)
+                    interest.intersects(lineStart, lineEnd) -> {
+                        lineSet.add(if (backlog.isEmpty) lineStart else backlog[0], lineEnd)
                         backlog.clear()
                         contextLead = contextAfter
                     }
                     // is this line just after a highlight?
                     contextLead > 0 -> {
-                        textFilter.add(lineStart, lineEnd)
+                        lineSet.add(lineStart, lineEnd)
                         contextLead--
                     }
                     // else, add it to the backlog - a highlight below might still include it.
@@ -325,33 +357,38 @@ object SourceFilePrinter {
 
                 lineStart = lineEnd
             }
-
-            cursor = Cursor(sourceFile, textFilter)
-            itr = textFilter.iterator()
+            return Renderer(sourceFile, interest, lineSet)
         }
 
-        fun renderNextRegion() {
-            if (itr == null) throw IllegalStateException()
-            val region = itr!!.next()
-            if (cursor.fragmentTextStart >= region.first && region.first != 0) {
-                throw AssertionError("already at region start?")
-            }
-            while (cursor.fragmentTextStart < region.first) {
-                cursor.advanceLine(SourceFilePrinter.Scope.NORMAL, null)
-            }
-            if (cursor.fragmentTextStart != region.first) throw AssertionError("not line-aligned")
-            cursor.emitStack(SourceFilePrinter.Scope.NORMAL, emitter)
-            while (cursor.fragmentTextStart < region.last) {
-                emitter.normalLineMarker(cursor.line)
-                cursor.advanceLine(SourceFilePrinter.Scope.NORMAL, emitter)
-            }
-            cursor.rewindStack(SourceFilePrinter.Scope.NORMAL, emitter)
-            if (cursor.fragmentTextStart != region.last + 1) throw AssertionError("not line-aligned")
-        }
+        class Renderer<M : Any>(
+                sourceFile: ServerSourceFile,
+                highlight: IntRangeSet,
+                includeLines: IntRangeSet
+        ) {
+            private val itr = includeLines.iterator()
+            private val cursor = Cursor<M>(sourceFile, includeLines, highlight)
 
-        fun hasMore(): Boolean {
-            if (itr == null) throw IllegalStateException()
-            return itr!!.hasNext()
+            fun renderNextRegion(emitter: Emitter<M>) {
+                val region = itr.next()
+                if (cursor.fragmentTextStart >= region.first && region.first != 0) {
+                    throw AssertionError("already at region start?")
+                }
+                while (cursor.fragmentTextStart < region.first) {
+                    cursor.advanceLine(SourceFilePrinter.Scope.NORMAL, null)
+                }
+                if (cursor.fragmentTextStart != region.first) throw AssertionError("not line-aligned")
+                cursor.emitStack(SourceFilePrinter.Scope.NORMAL, emitter)
+                while (cursor.fragmentTextStart <= region.last) {
+                    emitter.normalLineMarker(cursor.line)
+                    cursor.advanceLine(SourceFilePrinter.Scope.NORMAL, emitter)
+                }
+                cursor.rewindStack(SourceFilePrinter.Scope.NORMAL, emitter)
+                if (cursor.fragmentTextStart != region.last + 1) throw AssertionError("not line-aligned")
+            }
+
+            fun hasMore(): Boolean {
+                return itr.hasNext()
+            }
         }
     }
 }

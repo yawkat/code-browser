@@ -100,7 +100,7 @@ class SourceFilePrinterTest {
             ),
             arrayOf<Any>(
                     "ab[tag]c\nd(e)[/tag]f",
-                    "<0>ab[tag]c\n<1>d(e)[/tag]f---\n"
+                    "<0>ab[tag]c\n<1>d{(e)}[/tag]f---\n"
             ),
             arrayOf<Any>(
                     """abc
@@ -111,7 +111,7 @@ m(n)o
 pqr
 stu""",
                     """[tag1]<3>j[/tag1]kl
-<4>m(n)o
+<4>m{(n)}o
 <5>pqr
 ---
 """
@@ -122,7 +122,7 @@ stu""",
     fun testPartial(markup: String, expect: String) {
         val emitter = MockEmitter()
         val sourceFile = parseSourceFile(markup)
-        val partial = SourceFilePrinter.Partial(emitter, sourceFile)
+        val partial = SourceFilePrinter.Partial(sourceFile)
 
         // regions in (parentheses) are highlighted
         var i = 0
@@ -137,10 +137,9 @@ stu""",
         }
 
         // context of 1 line
-        partial.expandDisplayToLines(1, 1)
-
-        while (partial.hasMore()) {
-            partial.renderNextRegion()
+        val renderer = partial.createRenderer<SourceAnnotation>(1, 1)
+        while (renderer.hasMore()) {
+            renderer.renderNextRegion(emitter)
             emitter.output.appendln("---")
         }
 
@@ -214,12 +213,20 @@ stu""",
             output.appendln("---")
         }
 
+        override fun beginHighlight() {
+            output.append('{')
+        }
+
         override fun endInsertion() {
             output.appendln("/+++")
         }
 
         override fun endDeletion() {
             output.appendln("/---")
+        }
+
+        override fun endHighlight() {
+            output.append('}')
         }
 
         override fun diffLineMarker(newLine: Int?, oldLine: Int?) {

@@ -1,5 +1,6 @@
 <#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.IndexView" -->
 <#import "page.ftl" as page>
+<#import "fullTextSearchForm.ftl" as ftsf>
 <@page.page title="Java Browser" artifactId=artifactId hasSearch=(artifactId.id == "")>
   <div id="noncode">
     <#if artifactId.id == "">
@@ -16,6 +17,7 @@
     </#if>
 
     <#if artifactId.id == "">
+      <@ftsf.fullTextSearchForm query='' searchArtifact=''/>
       <div class="search-box">
         <input type="text" class="search" autofocus autocomplete="off" data-target="#result-list"
                placeholder="Search for type…" data-hide-empty>

@@ -182,13 +182,14 @@ class Session(
 
                 var i = 0
                 for (token in tokens) {
-                    lexemes.add(token.text, i++)
+                    if (!lexemes.add(token.text, i++)) {
+                        flush()
+
+                        i = 0
+                        lexemes.add(token.text, i++)
+                    }
                     start.add(token.start)
                     length.add(token.length)
-                    if (i >= TsVector.POSITION_LIMIT) {
-                        flush()
-                        i = 0
-                    }
                 }
                 flush()
             }

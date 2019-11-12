@@ -2,6 +2,7 @@
 <#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.TypeSearchView" -->
 <#import "page.ftl" as page>
 <#import "declarationNode.ftl" as declarationNode>
+<#import "fullTextSearchForm.ftl" as ftsf>
 
 <#assign additionalMenu>
   <a id="alt-versions" href="javascript:showAlternativeSourceFiles([
@@ -31,6 +32,7 @@
       </#if>
 
     <#if !oldArtifactId??>
+      <@ftsf.fullTextSearchForm query='' searchArtifact=artifactId/>
       <div class="search-box">
         <input type="text" class="search" autocomplete="off" data-target="#result-list" data-hide-empty data-artifact-id="${artifactId.id}" data-include-dependencies="false" placeholder="Search for type…">
         <ul id="result-list"></ul>

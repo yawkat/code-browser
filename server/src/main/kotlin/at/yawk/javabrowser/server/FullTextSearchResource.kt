@@ -1,34 +1,43 @@
 package at.yawk.javabrowser.server
 
-import at.yawk.javabrowser.IntRangeSet
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsQuery
 import at.yawk.javabrowser.TsVector
+import at.yawk.javabrowser.server.view.FullTextSearchResultView
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
-import org.eclipse.collections.impl.factory.primitive.IntLists
+import org.postgresql.PGStatement
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
-import java.lang.AssertionError
+import org.skife.jdbi.v2.StatementContext
+import org.skife.jdbi.v2.TransactionStatus
+import org.skife.jdbi.v2.tweak.StatementCustomizer
+import java.sql.PreparedStatement
 
 /**
  * @author yawkat
  */
 class FullTextSearchResource(
         private val dbi: DBI,
-        private val objectMapper: ObjectMapper
+        private val objectMapper: ObjectMapper,
+        private val ftl: Ftl,
+        private val bindingResolver: BindingResolver,
+        private val artifactIndex: ArtifactIndex
 ) : HttpHandler {
     companion object {
-        const val PATTERN = "/fts/{query}"
-
-        private const val CONTEXT_LINES = 2
+        const val PATTERN = "/fts"
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
-        val query = (exchange.queryParameters["query"]?.peekFirst()
-                ?: throw HttpException(StatusCodes.NOT_FOUND, "Query not given"))
+        val query = exchange.queryParameters["query"]?.peekFirst()
+                ?: throw HttpException(StatusCodes.NOT_FOUND, "Query not given")
+        val searchArtifact = exchange.queryParameters["artifactId"]?.peekFirst()?.let {
+            val parsed = artifactIndex.parse(it)
+            if (parsed.remainingPath != null) throw HttpException(404, "No such artifact")
+            parsed.node
+        }
 
         var tokens = Tokenizer.tokenize(query)
         val useSymbolsParameter = exchange.queryParameters["useSymbols"]?.peekFirst()?.toBoolean()
@@ -44,54 +53,67 @@ class FullTextSearchResource(
         class FileResult(
                 val artifactId: String,
                 val path: String,
-                val lexemeVectors: List<TsVector>,
-                val starts: IntArray,
-                val lengths: IntArray,
-                val sourceFile: ServerSourceFile
+                lexemeVectors: List<TsVector>,
+                starts: IntArray,
+                lengths: IntArray,
+                sourceFile: ServerSourceFile
         ) {
-            val displaySet = IntRangeSet()
-
-            val relevantAnnotations = sourceFile.annotations.filter {
-                displaySet.intersects(it.start, it.end)
-            }
+            val partial = SourceFilePrinter.Partial(sourceFile)
 
             init {
                 var arrayOffset = 0
                 for (lexemeVector in lexemeVectors) {
                     val matchPositions = lexemeVector.findMatchPositions(tsQuery)
-                            ?: throw AssertionError("inconsistency between postgres and findMatchPositions?")
-                    for (i in 0 until matchPositions.size()) {
-                        val start = starts[i + arrayOffset]
-                        displaySet.add(start, start + lengths[i + arrayOffset])
+                            ?: throw AssertionError("inconsistency between postgres and findMatchPositions? query: $$$tsQuery$$ vector: $$$lexemeVector$$")
+                    matchPositions.forEach {
+                        val start = starts[it + arrayOffset]
+                        partial.addInterest(start, start + lengths[it + arrayOffset])
                     }
                     arrayOffset += lexemeVector.size
                 }
-
-                // TODO
             }
 
+            fun toView(conn: Handle) = FullTextSearchResultView.SourceFileResult(
+                    bindingResolver,
+                    artifactId = artifactId,
+                    path = path,
+                    classpath = conn.attach(DependencyDao::class.java).getDependencies(artifactId).toSet(),
+                    partial = partial
+            )
         }
 
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.withHandle { conn: Handle ->
+            conn.begin()
+            conn.update("""
+CREATE AGGREGATE array_accum (anyarray)
+    (
+    sfunc = array_cat,
+    stype = anyarray,
+    initcond = '{}'
+    )
+            """)
+
             val itr = conn.createQuery(
                     """
-select artifactId,
-       sourceFile,
-       array_agg(lexemes) lexemes,
-       array_agg(starts) starts,
-       array_agg(lengths) lengths,
-       (select text, annotations
-        from sourceFiles
-        where artifactId = sourceFileLexemes.artifactId
-          and sourceFile = sourceFileLexemes.sourceFile)
-from sourceFileLexemes
-where lexemes @@ :query
-group by sourceFileLexemes.artifactId, sourceFileLexemes.path
-order by max(ts_rank_cd('{1,1,1,1}', sourceFileLexemes.lexemes, :query))
+select sourceFiles.artifactId artifactId,
+       sourceFiles.path sourceFile,
+       array_agg(cast(lexemes as text)) lexemes,
+       array_accum(starts)  starts,
+       array_accum(lengths) lengths,
+       text,
+       annotations
+from $table sfl
+         left join sourceFiles on sfl.artifactId = sourceFiles.artifactId and sfl.sourceFile = sourceFiles.path
+where lexemes @@ cast(:query as tsquery) and (:searchArtifact is null or sfl.artifactId = :searchArtifact)
+group by sourceFiles.artifactId, sourceFiles.path
                     """
             )
+                    // prepare immediately so that int arrays are transmitted as binary
+                    .addStatementCustomizer(PrepareStatementImmediately)
                     .bind("query", tsQuery.toString())
+                    .bind("searchArtifact", searchArtifact?.id)
                     .map { _, r, _ ->
+                        @Suppress("UNCHECKED_CAST")
                         FileResult(
                                 r.getString("artifactId"),
                                 r.getString("sourceFile"),
@@ -100,19 +122,20 @@ order by max(ts_rank_cd('{1,1,1,1}', sourceFileLexemes.lexemes, :query))
                                     vc.addFromSql(it as String)
                                     vc
                                 },
-                                r.getArray("starts").array as IntArray,
-                                r.getArray("lengths").array as IntArray,
+                                (r.getArray("starts").array as Array<Int>).toIntArray(),
+                                (r.getArray("lengths").array as Array<Int>).toIntArray(),
                                 ServerSourceFile(
                                         objectMapper,
                                         textBytes = r.getBytes("text"),
                                         annotationBytes = r.getBytes("annotations")
                                 )
-                        )
+                        ).toView(conn)
                     }
                     .iterator()
 
+            ftl.render(exchange, FullTextSearchResultView(query, searchArtifact, itr))
 
-
+            conn.rollback() // don't persist array_accum
         }
     }
 }

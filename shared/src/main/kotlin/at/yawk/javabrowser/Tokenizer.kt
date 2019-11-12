@@ -172,10 +172,14 @@ object Tokenizer {
                     && Ascii.isLowerCase(splitLookahead[2])) {
                 splitAfter = true
             }
-            // split around numbers in names.
             if (splitLookahead.length >= 2) {
+                // split around numbers in names.
                 if (isAsciiTextChar(splitLookahead[0]) && isAsciiDigit(splitLookahead[1])) splitAfter = true
                 if (isAsciiDigit(splitLookahead[0]) && isAsciiTextChar(splitLookahead[1])) splitAfter = true
+
+                // split around dots in names
+                if ((isAsciiTextChar(splitLookahead[0]) || isAsciiDigit(splitLookahead[0])) && splitLookahead[1] == '.') splitAfter = true
+                if (splitLookahead[0] == '.' && isAsciiTextChar(splitLookahead[1])) splitAfter = true
             }
 
             val ret = splitLookahead[0]
