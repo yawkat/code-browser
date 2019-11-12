@@ -47,6 +47,11 @@
             <artifactId>eclipse-collections</artifactId>
             <version>10.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
+            <version>4.2.2</version>
+        </dependency>
 
         <dependency>
             <groupId>at.yawk.java-browser</groupId>

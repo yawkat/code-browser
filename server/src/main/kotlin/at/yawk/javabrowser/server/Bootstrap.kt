@@ -5,6 +5,8 @@ import at.yawk.javabrowser.DbMigration
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.google.inject.Guice
+import com.google.inject.Module
 import io.undertow.Undertow
 import io.undertow.server.HttpHandler
 import io.undertow.server.handlers.BlockingHandler
@@ -16,6 +18,7 @@ import io.undertow.server.handlers.resource.ClassPathResourceManager
 import io.undertow.server.handlers.resource.ResourceHandler
 import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
+import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.exceptions.CallbackFailedException
 import org.skife.jdbi.v2.exceptions.TransactionFailedException
 import org.slf4j.LoggerFactory
@@ -30,10 +33,13 @@ private val log = LoggerFactory.getLogger("at.yawk.javabrowser.server.Bootstrap"
 fun main(args: Array<String>) {
     val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
 
-    val dbi = config.database.start(mode = DbConfig.Mode.FRONTEND)
-    dbi.inTransaction { conn, _ -> DbMigration.initInteractiveSchema(conn) }
-    val objectMapper = ObjectMapper().findAndRegisterModules()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+    val guice = Guice.createInjector(Module { binder ->
+        binder.bind(DBI::class.java).toInstance(config.database.start(mode = DbConfig.Mode.FRONTEND))
+        binder.bind(ObjectMapper::class.java).toInstance(
+                ObjectMapper().findAndRegisterModules()
+                        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        )
+    })
 
     val exceptions: (ExceptionHandler) -> Unit = {
         it.addExceptionHandler(Throwable::class.java) { exc ->
@@ -57,25 +63,16 @@ fun main(args: Array<String>) {
         }
     }
 
-    val updater = ArtifactUpdater(dbi)
+    guice.getInstance(DBI::class.java).inTransaction { conn, _ -> DbMigration.initInteractiveSchema(conn) }
 
-    val bindingResolver = BindingResolver(updater, dbi)
-    val siteStatisticsService = SiteStatisticsService(dbi, updater)
-    val imageCache = ImageCache()
-    val ftl = Ftl()
-    ftl.putDirective("imageCache", imageCache.directive)
-    val artifactIndex = ArtifactIndex(updater, dbi)
-    val packageTreeHandler = DeclarationTreeHandler(dbi, ftl, objectMapper)
-    val baseHandler = BaseHandler(dbi, ftl, bindingResolver, objectMapper, artifactIndex, packageTreeHandler, siteStatisticsService)
-    val searchResource = SearchResource(dbi, objectMapper, updater)
-    var handler: HttpHandler = PathTemplateHandler(baseHandler).also {
-        it.add(SearchResource.PATTERN, searchResource)
-        it.add(ReferenceResource.PATTERN, ReferenceResource(dbi, objectMapper))
-        it.add(ImageCache.PATTERN, imageCache.handler)
-        it.add(ReferenceDetailResource.PATTERN, ReferenceDetailResource(dbi, ftl, artifactIndex))
-        it.add(DeclarationTreeHandler.PATTERN, packageTreeHandler)
-        it.add(JavabotSearchResource.PATTERN, JavabotSearchResource(dbi, objectMapper))
-        it.add(FullTextSearchResource.PATTERN, FullTextSearchResource(dbi, objectMapper, ftl, bindingResolver, artifactIndex))
+    var handler: HttpHandler = PathTemplateHandler(guice.getInstance(BaseHandler::class.java)).also {
+        it.add(SearchResource.PATTERN, guice.getInstance(SearchResource::class.java))
+        it.add(ReferenceResource.PATTERN, guice.getInstance(ReferenceResource::class.java))
+        it.add(ImageCache.PATTERN, guice.getInstance(ImageCache::class.java).handler)
+        it.add(ReferenceDetailResource.PATTERN, guice.getInstance(ReferenceDetailResource::class.java))
+        it.add(DeclarationTreeHandler.PATTERN, guice.getInstance(DeclarationTreeHandler::class.java))
+        it.add(JavabotSearchResource.PATTERN, guice.getInstance(JavabotSearchResource::class.java))
+        it.add(FullTextSearchResource.PATTERN, guice.getInstance(FullTextSearchResource::class.java))
     }
 
     handler = ExceptionHandler(handler).also(exceptions)
@@ -98,5 +95,5 @@ fun main(args: Array<String>) {
             .build()
     undertow.start()
 
-    searchResource.firstUpdate()
+    guice.getInstance(SearchResource::class.java).firstUpdate()
 }

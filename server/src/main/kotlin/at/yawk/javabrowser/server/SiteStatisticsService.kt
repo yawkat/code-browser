@@ -4,13 +4,16 @@ import at.yawk.javabrowser.server.view.SiteStatistics
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.sqlobject.SqlQuery
 import org.slf4j.LoggerFactory
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * @author yawkat
  */
 private val log = LoggerFactory.getLogger(SiteStatisticsService::class.java)
 
-class SiteStatisticsService(
+@Singleton
+class SiteStatisticsService @Inject constructor(
         private val dbi: DBI,
         artifactUpdater: ArtifactUpdater
 ) {

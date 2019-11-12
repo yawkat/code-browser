@@ -13,11 +13,14 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import java.net.URLEncoder
 import java.util.Collections
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * @author yawkat
  */
-class DeclarationTreeHandler(
+@Singleton
+class DeclarationTreeHandler @Inject constructor(
         private val dbi: DBI,
         private val ftl: Ftl,
         private val objectMapper: ObjectMapper

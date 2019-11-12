@@ -10,11 +10,12 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import java.net.URI
 import java.net.URLEncoder
+import javax.inject.Inject
 
 /**
  * @author yawkat
  */
-class ReferenceDetailResource(
+class ReferenceDetailResource @Inject constructor(
         private val dbi: DBI,
         private val ftl: Ftl,
         private val artifactIndex: ArtifactIndex

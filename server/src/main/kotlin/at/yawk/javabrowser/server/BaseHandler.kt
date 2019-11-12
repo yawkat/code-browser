@@ -18,17 +18,19 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.function.Function
+import javax.inject.Inject
 
 /**
  * @author yawkat
  */
-class BaseHandler(private val dbi: DBI,
-                  private val ftl: Ftl,
-                  private val bindingResolver: BindingResolver,
-                  private val objectMapper: ObjectMapper,
-                  private val artifactIndex: ArtifactIndex,
-                  private val declarationTreeHandler: DeclarationTreeHandler,
-                  private val siteStatisticsService: SiteStatisticsService) : HttpHandler {
+class BaseHandler @Inject constructor(
+        private val dbi: DBI,
+              private val ftl: Ftl,
+              private val bindingResolver: BindingResolver,
+              private val objectMapper: ObjectMapper,
+              private val artifactIndex: ArtifactIndex,
+              private val declarationTreeHandler: DeclarationTreeHandler,
+              private val siteStatisticsService: SiteStatisticsService) : HttpHandler {
     private sealed class ParsedPath(val artifact: ArtifactNode) {
         class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact)
         class LeafArtifact(artifact: ArtifactNode) : ParsedPath(artifact)

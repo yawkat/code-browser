@@ -10,11 +10,12 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
+import javax.inject.Inject
 
 /**
  * @author yawkat
  */
-class FullTextSearchResource(
+class FullTextSearchResource @Inject constructor(
         private val dbi: DBI,
         private val objectMapper: ObjectMapper,
         private val ftl: Ftl,

@@ -4,16 +4,18 @@ import at.yawk.javabrowser.server.artifact.ArtifactNode
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.skife.jdbi.v2.TransactionStatus
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * @author yawkat
  */
-class ArtifactIndex(
+@Singleton
+class ArtifactIndex @Inject constructor(
         artifactUpdater: ArtifactUpdater,
         private val dbi: DBI
 ) {
-    var rootArtifact = fetch()
-        private set
+    private var rootArtifact = fetch()
 
     init {
         artifactUpdater.addInvalidationListener(runAtStart = false) { rootArtifact = fetch() }

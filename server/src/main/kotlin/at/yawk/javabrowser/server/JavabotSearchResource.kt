@@ -19,12 +19,13 @@ import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper
 import org.skife.jdbi.v2.tweak.ResultSetMapper
 import java.net.URI
 import java.sql.ResultSet
+import javax.inject.Inject
 
 /**
  * @author yawkat
  */
-class JavabotSearchResource(private val dbi: DBI,
-                            private val objectMapper: ObjectMapper) : HttpHandler {
+class JavabotSearchResource @Inject constructor(private val dbi: DBI,
+                                                private val objectMapper: ObjectMapper) : HttpHandler {
     companion object {
         const val PATTERN = "/api/javabotSearch/v1"
 

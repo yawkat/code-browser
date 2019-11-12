@@ -8,11 +8,12 @@ import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
+import javax.inject.Inject
 
 /**
  * @author yawkat
  */
-class ReferenceResource(private val dbi: DBI, private val objectMapper: ObjectMapper) : HttpHandler {
+class ReferenceResource @Inject constructor(private val dbi: DBI, private val objectMapper: ObjectMapper) : HttpHandler {
     companion object {
         const val PATTERN = "/api/references/{targetBinding}"
     }

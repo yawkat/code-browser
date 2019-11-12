@@ -24,12 +24,14 @@ import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
+import javax.inject.Singleton
 import javax.xml.bind.DatatypeConverter
 import kotlin.math.roundToInt
 
 /**
  * @author yawkat
  */
+@Singleton
 class ImageCache {
     companion object {
         const val PATTERN = "/img/{id}"

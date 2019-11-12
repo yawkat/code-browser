@@ -7,11 +7,14 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import java.net.URI
 import java.net.URLEncoder
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * @author yawkat
  */
-class BindingResolver(
+@Singleton
+class BindingResolver @Inject constructor(
         artifactUpdater: ArtifactUpdater,
         private val dbi: DBI
 ) {

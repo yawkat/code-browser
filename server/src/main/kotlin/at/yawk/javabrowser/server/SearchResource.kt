@@ -11,6 +11,8 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
 import javax.annotation.concurrent.ThreadSafe
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * @author yawkat
@@ -18,9 +20,10 @@ import javax.annotation.concurrent.ThreadSafe
 private val log = LoggerFactory.getLogger(SearchResource::class.java)
 
 @ThreadSafe
-class SearchResource(private val dbi: DBI,
-                     private val objectMapper: ObjectMapper,
-                     artifactUpdater: ArtifactUpdater) : HttpHandler {
+@Singleton
+class SearchResource @Inject constructor(private val dbi: DBI,
+                                         private val objectMapper: ObjectMapper,
+                                         artifactUpdater: ArtifactUpdater) : HttpHandler {
     companion object {
         const val PATTERN = "/api/search/{query}"
     }

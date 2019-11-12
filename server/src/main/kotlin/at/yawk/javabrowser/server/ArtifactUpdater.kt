@@ -5,11 +5,14 @@ import org.skife.jdbi.v2.DBI
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * @author yawkat
  */
-class ArtifactUpdater(dbi: DBI) {
+@Singleton
+class ArtifactUpdater @Inject constructor(dbi: DBI) {
     companion object {
         private val log = LoggerFactory.getLogger(ArtifactUpdater::class.java)
     }
