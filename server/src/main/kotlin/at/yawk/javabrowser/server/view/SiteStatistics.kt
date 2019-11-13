@@ -8,5 +8,7 @@ data class SiteStatistics(
         val sourceFileCount: Long,
         val classCount: Long,
         val bindingCount: Long,
-        val referenceCount: Long
+        val referenceCount: Long,
+        val lexemeCountNoSymbols: Long,
+        val lexemeCountWithSymbols: Long
 )

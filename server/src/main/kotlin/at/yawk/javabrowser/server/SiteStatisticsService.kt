@@ -20,7 +20,7 @@ class SiteStatisticsService @Inject constructor(
     private val debouncer = Debouncer()
 
     // loading takes a while, so initialize with 0.
-    var statistics: SiteStatistics = SiteStatistics(0, 0, 0, 0, 0)
+    var statistics: SiteStatistics = SiteStatistics(0, 0, 0, 0, 0, 0, 0)
         private set
 
     init {
@@ -37,7 +37,9 @@ class SiteStatisticsService @Inject constructor(
                 bindingCount = dao.getBindingCount(),
                 classCount = dao.getClassCount(),
                 referenceCount = dao.getReferenceCount(),
-                sourceFileCount = dao.getSourceFileCount()
+                sourceFileCount = dao.getSourceFileCount(),
+                lexemeCountNoSymbols = dao.getLexemeCountNoSymbols(),
+                lexemeCountWithSymbols = dao.getLexemeCountWithSymbols()
         )
         log.info("Loaded site statistics: {}", siteStatistics)
         siteStatistics
@@ -58,5 +60,11 @@ class SiteStatisticsService @Inject constructor(
 
         @SqlQuery("select count(*) from data.binding_references")
         fun getReferenceCount(): Long
+
+        @SqlQuery("select sum(array_length(starts, 1)) from data.sourceFileLexemesNoSymbols")
+        fun getLexemeCountNoSymbols(): Long
+
+        @SqlQuery("select sum(array_length(starts, 1)) from data.sourceFileLexemes")
+        fun getLexemeCountWithSymbols(): Long
     }
 }

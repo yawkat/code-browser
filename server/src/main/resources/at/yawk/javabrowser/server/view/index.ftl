@@ -7,7 +7,7 @@
       <div class="message-box">
         <p>This site allows you to explore the source code of the OpenJDK standard library and a selected number of popular maven libraries. Either select an artifact below, or <a href="javascript:SearchDialog.instance.open()">search for a class directly</a>. <br><br>
 
-          Serving <b>${siteStatistics.artifactCount}</b> artifacts with <b>${siteStatistics.sourceFileCount}</b>&nbsp;source files containing <b>${siteStatistics.classCount}</b>&nbsp;classes, <b>${siteStatistics.bindingCount}</b>&nbsp;total bindings and <b>${siteStatistics.referenceCount}</b>&nbsp;references.
+          Serving <b>${siteStatistics.artifactCount}</b> artifacts with <b>${siteStatistics.sourceFileCount}</b>&nbsp;source files containing <b>${siteStatistics.classCount}</b>&nbsp;classes, <b>${siteStatistics.bindingCount}</b>&nbsp;total bindings, <b>${siteStatistics.referenceCount}</b>&nbsp;references, <b>${siteStatistics.lexemeCountNoSymbols}</b> words and <b>${siteStatistics.lexemeCountWithSymbols - siteStatistics.lexemeCountNoSymbols}</b> other tokens.
 
           <br><br>
 
