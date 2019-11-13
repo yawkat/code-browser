@@ -195,7 +195,7 @@ class SearchIndex<K, V> {
             val value: V
     )
 
-    internal data class SplitEntry(
+    data class SplitEntry(
             val string: String
     ) : Comparable<SplitEntry> {
         val componentsLower: Array<String> = split(string).toTypedArray()
@@ -216,7 +216,7 @@ class SearchIndex<K, V> {
         }
     }
 
-    internal data class Entry<V>(
+    data class Entry<V>(
             val value: V,
             val name: SplitEntry,
             val simpleName: SplitEntry
