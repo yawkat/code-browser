@@ -262,7 +262,7 @@ class IndexAutomaton<V : Any>(
 
             var chunks: List<Deferred<Chunk>> = Iterables.partition(values, INITIAL_CHUNK_SIZE).map { initChunk ->
                 async {
-                    Chunk.fromInput(initChunk.iterator(), components, jumps).also {
+                    Chunk.fromInput(initChunk, components, jumps).also {
                         println("Loaded chunk ${chunkCount.incrementAndGet()} with ${it.dfa.size} nodes")
                     }
                 }
@@ -294,35 +294,41 @@ class IndexAutomaton<V : Any>(
 
     private class Chunk private constructor(val dfa: Automaton, val start: Int) {
         companion object {
-            fun <V : Any> fromInput(values: Iterator<V>, components: (V) -> List<String>, jumps: Int): Chunk {
-                val nfa = Automaton()
+            fun <V : Any> fromInput(values: List<V>, components: (V) -> List<String>, jumps: Int): Chunk {
+                val valuesPadded: MutableList<Any> = values.toMutableList()
+                while (valuesPadded.size % 64 != 0) valuesPadded.add(Any())
+
+                val nfa = Automaton(valuesPadded)
                 val roots = IntLists.mutable.empty()
-                for (value in values) {
-                    roots.add(NfaBuilder(nfa, value, components(value), jumps).root)
+                for ((index, value) in values.withIndex()) {
+                    roots.add(NfaBuilder(nfa, index, components(value), jumps).root)
                 }
                 val initialState = nfa.createState()
                 roots.forEach { nfa.addTransition(initialState, EPSILON, it) }
+
+                nfa.pruneDead()
+
                 val (dfa, start) = nfa.toDfa(initialState)
                 return Chunk(dfa, start)
             }
 
             fun consolidate(chunk1: Chunk, chunk2: Chunk): Chunk {
-                val merged = Automaton()
-                val start = Automaton.or(
-                        merged,
+                val (merged, start) = Automaton.or(
                         dfa1 = chunk1.dfa,
                         dfa1Start = chunk1.start,
                         dfa2 = chunk2.dfa,
                         dfa2Start = chunk2.start
                 )
+
                 return Chunk(merged, start)
             }
+
         }
     }
 
     private class NfaBuilder(
             val nfa: Automaton,
-            val final: Any,
+            val finalIndex: Int,
             val components: List<String>,
             totalJumps: Int
     ) {
@@ -356,7 +362,8 @@ class IndexAutomaton<V : Any>(
                 var s1: Int = -1
                 var s2: Int = -1
                 var s3: Int = -1
-                if (!lastInComponent) {
+                if (!lastInComponent ||
+                        (lastComponent && request.stringIndex == components[request.componentsIndex].length - 1)) {
                     // normal step
                     s1 = getState(StateRequest(
                             componentsIndex = request.componentsIndex,
@@ -388,7 +395,7 @@ class IndexAutomaton<V : Any>(
                 if (s2 != -1) nfa.addTransition(state, components[request.componentsIndex][request.stringIndex], s2)
                 if (s3 != -1) nfa.addTransition(state, EPSILON, s3)
                 if (request.remainingJumps == 0 && !request.justJumped) {
-                    nfa.addFinal(state, final)
+                    nfa.markFinal(state, finalIndex)
                 }
             }
             return state
@@ -402,7 +409,7 @@ class IndexAutomaton<V : Any>(
         )
     }
 
-    private class Automaton {
+    private class Automaton(private val finals: List<Any>) {
         companion object {
             private const val NO_TRANSITIONS = -1
             private const val REJECT = -1
@@ -476,27 +483,29 @@ class IndexAutomaton<V : Any>(
                     }
                     transitionStates.forEachKt { trans -> to.addTransition(state, trans) }
 
-                    val final1 = if (dfa1State == REJECT) null else dfa1.finals[dfa1State]
-                    val final2 = if (dfa2State == REJECT) null else dfa2.finals[dfa2State]
-                    if (final1 != null && final2 != null) {
-                        to.finals.put(state, FinalMerged(arrayOf(final1, final2)))
-                    } else if (final1 != null) {
-                        to.finals.put(state, final1)
-                    } else if (final2 != null) {
-                        to.finals.put(state, final2)
+                    val final1 = if (dfa1State == REJECT) null else dfa1.finalsByState[dfa1State]
+                    val final2 = if (dfa2State == REJECT) null else dfa2.finalsByState[dfa2State]
+                    if (final1 != null || final2 != null) {
+                        to.finalsByState.put(state,
+                                (final1 ?: StaticBitSet(dfa1.finals.size))
+                                        .concat(final2 ?: StaticBitSet(dfa2.finals.size)))
                     }
                 }
                 return state
             }
 
-            fun or(to: Automaton, dfa1: Automaton, dfa1Start: Int, dfa2: Automaton, dfa2Start: Int): Int = orImpl(
-                    to = to,
-                    dfa1 = dfa1,
-                    dfa1State = dfa1Start,
-                    dfa2 = dfa2,
-                    dfa2State = dfa2Start,
-                    cache = LongIntMaps.mutable.empty()
-            )
+            fun or(dfa1: Automaton, dfa1Start: Int, dfa2: Automaton, dfa2Start: Int): Pair<Automaton, Int> {
+                val to = Automaton(dfa1.finals + dfa2.finals)
+                val st = orImpl(
+                        to = to,
+                        dfa1 = dfa1,
+                        dfa1State = dfa1Start,
+                        dfa2 = dfa2,
+                        dfa2State = dfa2Start,
+                        cache = LongIntMaps.mutable.empty()
+                )
+                return to to st
+            }
         }
 
         private val transitionIndices = IntLists.mutable.empty()
@@ -504,7 +513,7 @@ class IndexAutomaton<V : Any>(
 
         private var currentModifyingState = -1
 
-        private val finals = IntObjectMaps.mutable.empty<Any>()
+        private val finalsByState = IntObjectMaps.mutable.empty<StaticBitSet>()
 
         val size: Int
             get() = transitionIndices.size()
@@ -530,13 +539,10 @@ class IndexAutomaton<V : Any>(
             addTransition(from, encodeTransition(symbol, to))
         }
 
-        fun addFinal(state: Int, final: Any) {
-            val prev = finals[state]
-            if (prev == null) {
-                finals.put(state, final)
-            } else {
-                finals.put(state, FinalLinked(prev, final))
-            }
+        fun markFinal(state: Int, finalIndex: Int) {
+            val bs = StaticBitSet(finals.size)
+            bs.set(finalIndex)
+            finalsByState.put(state, bs)
         }
 
         private inline fun forTransitions(from: Int, f: (Char, Int) -> Unit) {
@@ -568,10 +574,15 @@ class IndexAutomaton<V : Any>(
                 }
                 dfaStates.put(hash, dfaState)
                 val targets = CharObjectMaps.mutable.empty<IntSetBuilder>()
-                val final = ArrayList<Any>()
+                var final: StaticBitSet? = null
                 key.forEach {
                     recordTransitions(targets, it)
-                    finals[it]?.let { f -> final.add(f) }
+                    finalsByState[it]?.let { f ->
+                        if (final == null) {
+                            final = StaticBitSet(dfa.finals.size)
+                        }
+                        final!!.orFrom(f)
+                    }
                 }
                 val dfaTargets = LongLists.mutable.empty()
                 targets.forEachKeyValue { k, v ->
@@ -580,41 +591,28 @@ class IndexAutomaton<V : Any>(
                 dfaTargets.forEachKt {
                     dfa.addTransition(dfaState, it)
                 }
-                val prev = dfa.finals.put(dfaState, FinalMerged(final.toArray()))
-                if (prev != null) throw AssertionError()
+                if (final != null) {
+                    dfa.finalsByState.put(dfaState, final)
+                }
             }
             return dfaState
         }
 
         fun toDfa(initial: Int): Pair<Automaton, Int> {
-            val dfa = Automaton()
+            val dfa = Automaton(this.finals)
             val initialState = IntSetBuilder(size)
             initialState.add(initial)
             val f = toDfa(dfa, ObjectIntMaps.mutable.empty(), initialState)
             return dfa to f
         }
 
-        private tailrec fun collectFinals(target: MutableCollection<Any>, node: Any) {
-            when (node) {
-                is FinalLinked -> {
-                    target.add(node.here)
-                    collectFinals(target, node.next)
-                }
-                is FinalMerged -> {
-                    node.members.forEach {
-                        @Suppress("NON_TAIL_RECURSIVE_CALL")
-                        collectFinals(target, it)
-                    }
-                }
-                else -> target.add(node)
-            }
-        }
-
         fun run(state: Int, s: String, index: Int = 0): Collection<Any> {
             if (index == s.length) {
-                val set = HashSet<Any>()
-                finals[state]?.let { collectFinals(set, it) }
-                return set
+                return finalsByState[state]?.let {
+                    finals.withIndex()
+                            .filter { (ix, _) -> it[ix] }
+                            .map { (_, item) -> item }
+                } ?: emptyList()
             }
             forTransitions(state) { symbol, target ->
                 if (s[index] == symbol) {
@@ -624,11 +622,55 @@ class IndexAutomaton<V : Any>(
             return emptyList()
         }
 
+        fun pruneDead() {
+            val transitionsToRemove = BitSet()
+            var start = 0
+            while (start < transitions.size()) {
+                var anyTransitionsAlive = false
+                var oldEnd = 0
+                while (oldEnd + start < transitions.size() && transitions[oldEnd + start] != TRANSITIONS_END) {
+                    val dest = decodeTransitionTarget(transitions[oldEnd + start])
+                    val destAlive = (
+                            transitionIndices[dest] != NO_TRANSITIONS &&
+                                    transitions[transitionIndices[dest]] != TRANSITIONS_END) ||
+                            finalsByState.containsKey(dest)
+                    if (destAlive) {
+                        anyTransitionsAlive = true
+                    } else {
+                        transitionsToRemove.set(oldEnd)
+                    }
+                    oldEnd++
+                }
+                if (anyTransitionsAlive) {
+                    val newEnd = oldEnd - transitionsToRemove.cardinality()
+                    if (newEnd != oldEnd) {
+                        var srcI = oldEnd - 1
+                        var destI = newEnd - 1
+                        while (destI >= 0) {
+                            if (transitionsToRemove[srcI]) {
+                                srcI--
+                            } else {
+                                transitions[start + destI] = transitions[start + srcI]
+                                srcI--
+                                destI--
+                            }
+                        }
+                        transitions[newEnd] = TRANSITIONS_END
+                    }
+                } else {
+                    transitions[start] = TRANSITIONS_END
+                }
+
+                start += oldEnd + 1
+                transitionsToRemove.clear()
+            }
+        }
+
         fun dumpDot(name: String = "automaton.dot") {
             Files.newBufferedWriter(Paths.get(name)).use { wr ->
                 wr.appendln("digraph g {")
                 for (state in 0 until transitionIndices.size()) {
-                    wr.appendln("$state [shape=${if (finals.containsKey(state)) "doublecircle" else "circle"}];")
+                    wr.appendln("$state [shape=${if (finalsByState.containsKey(state)) "doublecircle" else "circle"}];")
                     forTransitions(state) { ch, to ->
                         wr.appendln("$state -> $to [label=\"${if (ch == EPSILON) 'ε' else ch}\"];")
                     }
@@ -637,7 +679,4 @@ class IndexAutomaton<V : Any>(
             }
         }
     }
-
-    private class FinalLinked(val next: Any, val here: Any)
-    private class FinalMerged(val members: Array<Any>)
 }
