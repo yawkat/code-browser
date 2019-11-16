@@ -47,7 +47,9 @@ class IndexAutomaton<E : Any>(
         nfa.startState = root.state
 
         nfa.pruneDead()
-        nfa.nfaToDfa()
+        val dfa = nfa.nfaToDfa()
+        dfa.deduplicateFinals()
+        dfa
     }
 
     fun run(query: String): Iterator<E> = Iterators.concat(
@@ -173,6 +175,9 @@ class StaticBitSet private constructor(private val data: LongArray) {
 
         override fun hasNext() = i < list.size
     }
+
+    override fun equals(other: Any?) = other is StaticBitSet && this.data.contentEquals(other.data)
+    override fun hashCode() = data.contentHashCode()
 }
 
 private class Automaton<F : Any>(val finals: List<F>) {
@@ -340,6 +345,13 @@ private class Automaton<F : Any>(val finals: List<F>) {
 
             start += oldEnd + 1
             transitionsToRemove.clear()
+        }
+    }
+
+    fun deduplicateFinals() {
+        val cache = HashMap<StaticBitSet, StaticBitSet>()
+        finalIndices.forEachKeyValue { k, v ->
+            finalIndices.put(k, cache.getOrPut(v) { v })
         }
     }
 
