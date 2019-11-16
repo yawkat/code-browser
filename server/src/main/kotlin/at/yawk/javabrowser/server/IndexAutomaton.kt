@@ -1,681 +1,399 @@
 package at.yawk.javabrowser.server
 
 import com.google.common.collect.Iterables
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
-import org.eclipse.collections.api.IntIterable
-import org.eclipse.collections.api.block.function.Function0
-import org.eclipse.collections.api.list.primitive.IntList
-import org.eclipse.collections.api.list.primitive.LongList
+import com.google.common.collect.Iterators
 import org.eclipse.collections.api.map.primitive.MutableCharObjectMap
-import org.eclipse.collections.api.map.primitive.MutableLongIntMap
 import org.eclipse.collections.api.map.primitive.MutableObjectIntMap
+import org.eclipse.collections.api.set.primitive.IntSet
 import org.eclipse.collections.api.set.primitive.MutableIntSet
-import org.eclipse.collections.impl.factory.primitive.CharLongMaps
 import org.eclipse.collections.impl.factory.primitive.CharObjectMaps
 import org.eclipse.collections.impl.factory.primitive.IntLists
 import org.eclipse.collections.impl.factory.primitive.IntObjectMaps
 import org.eclipse.collections.impl.factory.primitive.IntSets
-import org.eclipse.collections.impl.factory.primitive.LongIntMaps
 import org.eclipse.collections.impl.factory.primitive.LongLists
 import org.eclipse.collections.impl.factory.primitive.ObjectIntMaps
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.BitSet
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.Collections
 
 /**
  * @author yawkat
  */
-private const val EPSILON = '\u0000'
-
-private fun encodeTransition(symbol: Char, to: Int): Long {
-    return (symbol.toLong() shl 32) or to.toLong()
-}
-
-private fun decodeTransitionSymbol(transition: Long): Char {
-    return (transition ushr 32).toChar()
-}
-
-private fun decodeTransitionTarget(transition: Long): Int {
-    return transition.toInt()
-}
-
-private inline fun BitSet.forEach(f: (Int) -> Unit) {
-    var i = 0
-    while (true) {
-        i = nextSetBit(i)
-        if (i == -1) return
-        f(i)
-        i++
-    }
-}
-
-private inline fun LongList.forEachKt(f: (Long) -> Unit) {
-    for (i in 0 until size()) {
-        f(this[i])
-    }
-}
-
-private inline fun IntIterable.forEachItr(f: (Int) -> Unit) {
-    val itr = intIterator()
-    while (itr.hasNext()) {
-        f(itr.next())
-    }
-}
-
-private class SipHash {
-    companion object {
-        private const val c = 2
-        private const val d = 4
-    }
-
-    var v0 = 0x736f6d6570736575
-    var v1 = 0x646f72616e646f6d
-    var v2 = 0x6c7967656e657261
-    var v3 = 0x7465646279746573L
-
-    fun sipRound(itr: Int) {
-        for (i in 0 until itr) {
-            v0 += v1
-            v2 += v3
-            v1 = java.lang.Long.rotateLeft(v1, 13)
-            v3 = java.lang.Long.rotateLeft(v3, 16)
-            v1 = v1 xor v0
-            v3 = v3 xor v2
-            v0 = java.lang.Long.rotateLeft(v0, 32)
-            v2 += v1
-            v0 += v3
-            v1 = java.lang.Long.rotateLeft(v1, 17)
-            v3 = java.lang.Long.rotateLeft(v3, 21)
-            v1 = v1 xor v2
-            v3 = v3 xor v0
-            v2 = java.lang.Long.rotateLeft(v2, 32)
-        }
-    }
-
-    fun feed(v: Long) {
-        v3 = v3 xor v
-        sipRound(c)
-        v0 = v0 xor v
-    }
-
-    fun finish1(): Long {
-        // don't include length
-
-        v2 = v2 xor 0xee // 128 bit outlen
-        sipRound(d)
-        return v0 xor v1 xor v2 xor v3
-    }
-
-    fun finish2(): Long {
-        // don't include length
-
-        v1 = v1 xor 0xdd
-        sipRound(d)
-        return v0 xor v1 xor v2 xor v3
-    }
-}
-
-private class BitSetHash private constructor(hash: SipHash) {
-    private companion object {
-        private fun hash(set: BitSet): SipHash {
-            val hash = SipHash()
-
-            var last = -1
-            var i = 0
-            while (true) {
-                i = set.nextSetBit(i)
-                if (i == -1) break
-                if (last == -1) {
-                    last = i
-                } else {
-                    hash.feed((last.toLong() shl 32) or i.toLong())
-                    last = -1
-                }
-                i++
-            }
-            if (last != -1) {
-                hash.feed(last.toLong())
-            }
-            return hash
-        }
-
-        private fun hash(set: IntIterable): SipHash {
-            val hash = SipHash()
-
-            var last = -1
-            set.forEachItr { i ->
-                if (last == -1) {
-                    last = i
-                } else {
-                    hash.feed((last.toLong() shl 32) or i.toLong())
-                    last = -1
-                }
-            }
-            if (last != -1) {
-                hash.feed(last.toLong())
-            }
-            return hash
-        }
-    }
-
-    private val r1: Long = hash.finish1()
-    private val r2: Long = hash.finish2()
-
-    constructor(set: BitSet) : this(hash(set))
-    constructor(list: IntList) : this(hash(list))
-
-    override fun equals(other: Any?) = other is BitSetHash && other.r1 == r1 && other.r2 == r2
-    override fun hashCode() = r1.toInt()
-}
-
-private class IntSetBuilder(private val max: Int) {
-    private companion object {
-        private const val NEXT_SINGLE = -1
-        private const val USING_INT_SET = -2
-        private const val USING_BIT_SET = -3
-
-        private const val HASH_THRESHOLD = 1000
-    }
-
-    private val maxIntSetSize: Int
-        get() = max / 32
-
-    var size: Int = 0
-        private set
-
-    var single: Int = NEXT_SINGLE
-    var intSet: MutableIntSet? = null
-    var bitSet: BitSet? = null
-
-    fun add(v: Int) {
-        size++
-        when (single) {
-            NEXT_SINGLE -> single = v
-            USING_INT_SET -> {
-                intSet!!.add(v)
-                if (intSet!!.size() > maxIntSetSize) {
-                    bitSet = BitSet(max)
-                    intSet!!.forEach(bitSet!!::set)
-                    intSet = null
-                    single = USING_BIT_SET
-                }
-            }
-            USING_BIT_SET -> bitSet!!.set(v)
-            else -> {
-                intSet = IntSets.mutable.of(single, v)
-                single = USING_INT_SET
-            }
-        }
-    }
-
-    inline fun forEach(crossinline f: (Int) -> Unit) {
-        when (single) {
-            NEXT_SINGLE -> {} // empty
-            USING_INT_SET -> intSet!!.forEach { f(it) }
-            USING_BIT_SET -> bitSet!!.forEach(f)
-            else -> f(single)
-        }
-    }
-
-    fun build(): Any {
-        return when (single) {
-            NEXT_SINGLE -> -1 // empty
-            USING_INT_SET -> {
-                if (intSet!!.size() > HASH_THRESHOLD) {
-                    return BitSetHash(intSet!!.toSortedList())
-                } else {
-                    return intSet!!
-                }
-            }
-            USING_BIT_SET -> BitSetHash(bitSet!!)
-            else -> single
-        }
-    }
-}
-
-private fun getBitSetHash(set: BitSet): Any {
-    if (set.length() > 8 * 500_000) {
-        return BitSetHash(set)
-    } else {
-        return set
-    }
-}
-
-private const val INITIAL_CHUNK_SIZE = 1024
-
-class IndexAutomaton<V : Any>(
-        values: Iterable<V>,
-        components: (V) -> List<String>,
+class IndexAutomaton<E : Any>(
+        entries: List<E>,
+        components: (E) -> List<String>,
         jumps: Int
 ) {
-    private val chunks: List<Chunk>
-
-    init {
-        chunks = runBlocking(context = Dispatchers.Default) {
-            println("Building initial NFAs")
-
-            val chunkCount = AtomicInteger()
-
-            var chunks: List<Deferred<Chunk>> = Iterables.partition(values, INITIAL_CHUNK_SIZE).map { initChunk ->
-                async {
-                    Chunk.fromInput(initChunk, components, jumps).also {
-                        println("Loaded chunk ${chunkCount.incrementAndGet()} with ${it.dfa.size} nodes")
-                    }
-                }
-            }
-
-            while (false && chunks.size > 1) {
-                chunks = Iterables.partition(chunks, 2).map { part ->
-                    if (part.size == 1) {
-                        part[0]
-                    } else {
-                        async {
-                            val c1 = part[0].await()
-                            val c2 = part[1].await()
-                            Chunk.consolidate(c1, c2).also {
-                                println("Consolidated chunks with ${c1.dfa.size + c2.dfa.size} -> ${it.dfa.size} (now ${chunkCount.decrementAndGet()} chunks)")
-                            }
-                        }
-                    }
-                }
-            }
-            chunks.map { it.await() }
-        }
+    private companion object {
+        private const val CHUNK_SIZE = 512
     }
 
-    fun run(s: String): List<V> {
-        @Suppress("UNCHECKED_CAST")
-        return chunks.flatMap { it.dfa.run(it.start, s) as Collection<V> }
+    private val automata = Iterables.partition(entries, CHUNK_SIZE).map { chunk ->
+        val nfa = Automaton(chunk)
+        val root = nfa.StateBuilder()
+        val cache = ObjectIntMaps.mutable.empty<StateRequest>()
+        for ((i, entry) in chunk.withIndex()) {
+            root.addTransition(Automaton.EPSILON, fromInput(
+                    nfa = nfa,
+                    cache = cache,
+                    components = components(entry),
+                    finalIndex = i,
+                    request = StateRequest(0, 0, jumps, false)
+            ))
+            cache.clear()
+        }
+        root.finish()
+        nfa.startState = root.state
+
+        nfa.pruneDead()
+        nfa.nfaToDfa()
     }
 
-    private class Chunk private constructor(val dfa: Automaton, val start: Int) {
-        companion object {
-            fun <V : Any> fromInput(values: List<V>, components: (V) -> List<String>, jumps: Int): Chunk {
-                val valuesPadded: MutableList<Any> = values.toMutableList()
-                while (valuesPadded.size % 64 != 0) valuesPadded.add(Any())
+    fun run(query: String): Iterator<E> = Iterators.concat(
+            Iterators.transform(automata.iterator()) { it!!.run(query) ?: Collections.emptyIterator<E>() })
 
-                val nfa = Automaton(valuesPadded)
-                val roots = IntLists.mutable.empty()
-                for ((index, value) in values.withIndex()) {
-                    roots.add(NfaBuilder(nfa, index, components(value), jumps).root)
-                }
-                val initialState = nfa.createState()
-                roots.forEach { nfa.addTransition(initialState, EPSILON, it) }
+    private data class StateRequest(
+            val componentsIndex: Int,
+            val stringIndex: Int,
+            val remainingJumps: Int,
+            val justJumped: Boolean
+    )
 
-                nfa.pruneDead()
+    private fun fromInput(
+            nfa: Automaton<E>,
+            cache: MutableObjectIntMap<StateRequest>,
+            components: List<String>,
+            finalIndex: Int,
+            request: StateRequest
+    ): Int {
+        cache.getIfAbsent(request, -1).let { if (it != -1) return it }
 
-                val (dfa, start) = nfa.toDfa(initialState)
-                return Chunk(dfa, start)
-            }
+        val builder = nfa.StateBuilder()
+        cache.put(request, builder.state)
 
-            fun consolidate(chunk1: Chunk, chunk2: Chunk): Chunk {
-                val (merged, start) = Automaton.or(
-                        dfa1 = chunk1.dfa,
-                        dfa1Start = chunk1.start,
-                        dfa2 = chunk2.dfa,
-                        dfa2Start = chunk2.start
-                )
+        val lastComponent = request.componentsIndex >= components.size - 1
+        val lastInComponent = request.stringIndex >= components[request.componentsIndex].length - 1
 
-                return Chunk(merged, start)
-            }
-
-        }
-    }
-
-    private class NfaBuilder(
-            val nfa: Automaton,
-            val finalIndex: Int,
-            val components: List<String>,
-            totalJumps: Int
-    ) {
-        private val cache = ObjectIntMaps.mutable.empty<StateRequest>()
-        //val root = NfaState()
-        val root = nfa.createState()
-
-        init {
-            for (componentIndex in components.indices) {
-                nfa.addTransition(
-                        root,
-                        EPSILON,
-                        getState(StateRequest(
-                                componentsIndex = componentIndex,
-                                stringIndex = 0,
-                                remainingJumps = totalJumps,
-                                justJumped = false
-                        )))
-            }
-        }
-
-        private fun getState(request: StateRequest): Int {
-            var state = cache.getIfAbsent(request, -1)
-            if (state == -1) {
-                state = nfa.createState()
-                cache.put(request, state)
-
-                val lastComponent = request.componentsIndex >= components.size - 1
-                val lastInComponent = request.stringIndex >= components[request.componentsIndex].length - 1
-
-                var s1: Int = -1
-                var s2: Int = -1
-                var s3: Int = -1
-                if (!lastInComponent ||
-                        (lastComponent && request.stringIndex == components[request.componentsIndex].length - 1)) {
-                    // normal step
-                    s1 = getState(StateRequest(
+        if (!lastInComponent ||
+                (lastComponent && request.stringIndex == components[request.componentsIndex].length - 1)) {
+            // normal step
+            builder.addTransition(components[request.componentsIndex][request.stringIndex],
+                    fromInput(nfa, cache, components, finalIndex, StateRequest(
                             componentsIndex = request.componentsIndex,
                             stringIndex = request.stringIndex + 1,
                             remainingJumps = request.remainingJumps,
                             justJumped = false
-                    ))
-                }
-                if (!lastComponent) {
-                    if (lastInComponent) {
-                        // step without jump to next component
-                        s2 = getState(StateRequest(
+                    )))
+        }
+        if (!lastComponent) {
+            if (lastInComponent) {
+                // step without jump to next component
+                builder.addTransition(components[request.componentsIndex][request.stringIndex],
+                        fromInput(nfa, cache, components, finalIndex, StateRequest(
                                 componentsIndex = request.componentsIndex + 1,
                                 stringIndex = 0,
                                 remainingJumps = request.remainingJumps,
                                 justJumped = false
-                        ))
-                    } else if (request.remainingJumps > 0) {
-                        // jump to next component
-                        s3 = getState(StateRequest(
+                        )))
+            } else if (request.remainingJumps > 0) {
+                // jump to next component
+                builder.addTransition(Automaton.EPSILON,
+                        fromInput(nfa, cache, components, finalIndex, StateRequest(
                                 componentsIndex = request.componentsIndex + 1,
                                 stringIndex = 0,
                                 remainingJumps = request.remainingJumps - 1,
                                 justJumped = true
-                        ))
-                    }
-                }
-                if (s1 != -1) nfa.addTransition(state, components[request.componentsIndex][request.stringIndex], s1)
-                if (s2 != -1) nfa.addTransition(state, components[request.componentsIndex][request.stringIndex], s2)
-                if (s3 != -1) nfa.addTransition(state, EPSILON, s3)
-                if (request.remainingJumps == 0 && !request.justJumped) {
-                    nfa.markFinal(state, finalIndex)
-                }
+                        )))
             }
-            return state
         }
+        if (request.remainingJumps == 0 && !request.justJumped) {
+            builder.setFinal(finalIndex)
+        }
+        builder.finish()
+        return builder.state
+    }
+}
 
-        private data class StateRequest(
-                val componentsIndex: Int,
-                val stringIndex: Int,
-                val remainingJumps: Int,
-                val justJumped: Boolean
-        )
+class StaticBitSet private constructor(private val data: LongArray) {
+    private companion object {
+        private const val BITS_BITS = 6 // 64 = 2**6
+
+        private fun roundToNextPower(i: Int) = (((i - 1) shr BITS_BITS) + 1) shl BITS_BITS
     }
 
-    private class Automaton(private val finals: List<Any>) {
-        companion object {
-            private const val NO_TRANSITIONS = -1
-            private const val REJECT = -1
-            private const val TRANSITIONS_END = -1L
+    constructor(capacity: Int) : this(LongArray(roundToNextPower(capacity) shr BITS_BITS))
 
-            private fun cartesian(dfa1State: Int, dfa2State: Int): Long =
-                    (dfa1State.toLong() shl 32) or (dfa2State.toLong() and 0xffffffffL)
+    private fun remainingWord(i: Int) = data[i ushr BITS_BITS] ushr i
 
-            private fun state1(cartesian: Long): Int = (cartesian shr 32).toInt()
-            private fun state2(cartesian: Long): Int = cartesian.toInt()
+    operator fun get(i: Int): Boolean {
+        // the shr implicitly does a % 64
+        return (remainingWord(i) and 1) != 0L
+    }
 
-            private fun orImpl(
-                    to: Automaton,
-                    dfa1: Automaton,
-                    dfa1State: Int,
-                    dfa2: Automaton,
-                    dfa2State: Int,
-                    cache: MutableLongIntMap
-            ): Int {
-                val key = cartesian(dfa1State, dfa2State)
-                var state = cache.getIfAbsent(key, -1)
-                if (state == -1) {
-                    state = to.createState()
-                    cache.put(key, state)
+    fun set(i: Int) {
+        val arrayIndex = i ushr BITS_BITS
+        // the shl implicitly does a % 64
+        data[arrayIndex] = data[arrayIndex] or (1L shl i)
+    }
 
-                    val transitionStates = LongLists.mutable.empty()
-                    if (dfa1State != REJECT && dfa2State != REJECT) {
-                        val transitions = CharLongMaps.mutable.empty()
-                        dfa1.forTransitions(dfa1State) { chr, dest1 ->
-                            transitions.put(chr, cartesian(dest1, REJECT))
-                        }
-                        dfa2.forTransitions(dfa2State) { chr, dest2 ->
-                            // on -1, this is exactly REJECT, so we don't need to check if the key existed.
-                            val dest1 = state1(transitions.getIfAbsent(chr, -1))
-                            transitions.put(chr, cartesian(dest1, dest2))
-                        }
-                        transitions.forEachKeyValue { chr, cartesian ->
-                            val dest1 = state1(cartesian)
-                            val dest2 = state2(cartesian)
-                            transitionStates.add(encodeTransition(chr, orImpl(
-                                    to = to,
-                                    dfa1 = dfa1,
-                                    dfa1State = dest1,
-                                    dfa2 = dfa2,
-                                    dfa2State = dest2,
-                                    cache = cache
-                            )))
-                        }
-                    } else if (dfa1State != REJECT) {
-                        dfa1.forTransitions(dfa1State) { chr, dest1 ->
-                            transitionStates.add(encodeTransition(chr, orImpl(
-                                    to = to,
-                                    dfa1 = dfa1,
-                                    dfa1State = dest1,
-                                    dfa2 = dfa2,
-                                    dfa2State = REJECT,
-                                    cache = cache
-                            )))
-                        }
-                    } else if (dfa2State != REJECT) {
-                        dfa2.forTransitions(dfa2State) { chr, dest2 ->
-                            transitionStates.add(encodeTransition(chr, orImpl(
-                                    to = to,
-                                    dfa1 = dfa1,
-                                    dfa1State = REJECT,
-                                    dfa2 = dfa2,
-                                    dfa2State = dest2,
-                                    cache = cache
-                            )))
-                        }
-                    }
-                    transitionStates.forEachKt { trans -> to.addTransition(state, trans) }
+    fun orFrom(other: StaticBitSet) {
+        if (other.data.size != this.data.size)
+            throw IllegalArgumentException()
+        for (index in data.indices) {
+            data[index] = data[index] or other.data[index]
+        }
+    }
 
-                    val final1 = if (dfa1State == REJECT) null else dfa1.finalsByState[dfa1State]
-                    val final2 = if (dfa2State == REJECT) null else dfa2.finalsByState[dfa2State]
-                    if (final1 != null || final2 != null) {
-                        to.finalsByState.put(state,
-                                (final1 ?: StaticBitSet(dfa1.finals.size))
-                                        .concat(final2 ?: StaticBitSet(dfa2.finals.size)))
-                    }
+    fun <E> filter(list: List<E>): Iterator<E> = object : Iterator<E> {
+        private var i = -1
+
+        init {
+            proceedNextBit()
+        }
+
+        private fun proceedNextBit() {
+            i++
+            while (i < list.size) {
+                val remainingWord = remainingWord(i)
+                if (remainingWord == 0L) {
+                    i = roundToNextPower(i + 1)
+                } else {
+                    i += java.lang.Long.numberOfTrailingZeros(remainingWord)
+                    break
                 }
-                return state
-            }
-
-            fun or(dfa1: Automaton, dfa1Start: Int, dfa2: Automaton, dfa2Start: Int): Pair<Automaton, Int> {
-                val to = Automaton(dfa1.finals + dfa2.finals)
-                val st = orImpl(
-                        to = to,
-                        dfa1 = dfa1,
-                        dfa1State = dfa1Start,
-                        dfa2 = dfa2,
-                        dfa2State = dfa2Start,
-                        cache = LongIntMaps.mutable.empty()
-                )
-                return to to st
             }
         }
 
-        private val transitionIndices = IntLists.mutable.empty()
-        private val transitions = LongLists.mutable.empty()
+        override fun next(): E {
+            val value = list[i]
+            proceedNextBit()
+            return value
+        }
 
-        private var currentModifyingState = -1
+        override fun hasNext() = i < list.size
+    }
+}
 
-        private val finalsByState = IntObjectMaps.mutable.empty<StaticBitSet>()
+private class Automaton<F : Any>(val finals: List<F>) {
+    companion object {
+        private const val NO_TRANSITIONS = -1
+        private const val REJECT = -1
+        private const val TRANSITIONS_END = -1L
+        const val EPSILON = '\u0000'
 
-        val size: Int
-            get() = transitionIndices.size()
-        private val createIntSetBuilder = Function0 { IntSetBuilder(size) }
+        /**
+         * Reusable to avoid allocation
+         */
+        private val createIntSet: Function0<MutableIntSet> = { IntSets.mutable.empty() }
 
-        fun createState(): Int {
+        private fun encodeTransition(symbol: Char, to: Int): Long {
+            return (symbol.toLong() shl 32) or to.toLong()
+        }
+
+        private fun decodeTransitionSymbol(transition: Long): Char {
+            return (transition ushr 32).toChar()
+        }
+
+        private fun decodeTransitionTarget(transition: Long): Int {
+            return transition.toInt()
+        }
+    }
+
+    var startState = -1
+
+    private val transitionIndices = IntLists.mutable.empty()
+    private val transitions = LongLists.mutable.empty()
+
+    private val finalIndices = IntObjectMaps.mutable.empty<StaticBitSet>()
+
+    private inline fun forTransitions(from: Int, f: (Char, Int) -> Unit) {
+        var i = transitionIndices[from]
+        if (i == NO_TRANSITIONS) return
+        while (i < transitions.size() && transitions[i] != TRANSITIONS_END) {
+            val transition = transitions[i++]
+            f(decodeTransitionSymbol(transition), decodeTransitionTarget(transition))
+        }
+    }
+
+    fun run(query: String): Iterator<F>? {
+        var state = startState
+        for (c in query) {
+            // if we sort transitions we could binary search here, but it's probably not worth it for the maybe
+            // max 50 transitions we accumulate at one state
+            var next = -1
+            forTransitions(state) { ch, to ->
+                if (ch == c) {
+                    if (next != -1) throw IllegalStateException("Not a DFA")
+                    next = to
+                }
+            }
+            if (next == -1) return null
+            state = next
+        }
+        return getFinals(state)
+    }
+
+    private fun getFinals(state: Int): Iterator<F>? {
+        val bitSet = finalIndices.get(state)
+        if (bitSet == null) {
+            return null
+        } else {
+            return bitSet.filter(finals)
+        }
+    }
+
+    private fun recordTransitions(to: MutableCharObjectMap<MutableIntSet>, from: Int) {
+        forTransitions(from) { ch, dest ->
+            if (ch == EPSILON) {
+                recordTransitions(to, dest)
+            } else {
+                to.getIfAbsentPut(ch, createIntSet).add(dest)
+            }
+        }
+    }
+
+    private fun <F : Any> nfaToDfaImpl(
+            dfa: Automaton<F>,
+            cache: MutableObjectIntMap<IntSet>,
+            key: IntSet
+    ): Int {
+        val s = cache.getIfAbsent(key, -1)
+        if (s != -1) {
+            return s
+        }
+        val builder = dfa.StateBuilder()
+        cache.put(key, builder.state)
+
+        val transitions = CharObjectMaps.mutable.empty<MutableIntSet>()
+        var finals: StaticBitSet? = null
+        val itr = key.intIterator()
+        while (itr.hasNext()) {
+            val memberState = itr.next()
+            recordTransitions(transitions, memberState)
+            val memberFinals = finalIndices[memberState]
+            if (memberFinals != null) {
+                if (finals == null) finals = StaticBitSet(this.finals.size)
+                finals.orFrom(memberFinals)
+            }
+        }
+
+        transitions.forEachKeyValue { symbol, nextKey ->
+            builder.addTransition(symbol, nfaToDfaImpl(dfa, cache, nextKey))
+        }
+
+        if (finals != null) {
+            builder.setFinals(finals)
+        }
+
+        builder.finish()
+        return builder.state
+    }
+
+    fun nfaToDfa(): Automaton<F> {
+        val automaton = Automaton(finals)
+        automaton.startState = nfaToDfaImpl(automaton, ObjectIntMaps.mutable.empty(), IntSets.immutable.of(startState))
+        return automaton
+    }
+
+    /**
+     * Remove states that have no transitions to final states. Does not change the behavior of this automaton.
+     */
+    fun pruneDead() {
+        val transitionsToRemove = BitSet()
+        var start = 0
+        while (start < transitions.size()) {
+            var anyTransitionsAlive = false
+            var oldEnd = 0
+            while (oldEnd + start < transitions.size() && transitions[oldEnd + start] != TRANSITIONS_END) {
+                val dest = decodeTransitionTarget(transitions[oldEnd + start])
+                val destAlive = (
+                        transitionIndices[dest] != NO_TRANSITIONS &&
+                                transitions[transitionIndices[dest]] != TRANSITIONS_END) ||
+                        finalIndices.containsKey(dest)
+                if (destAlive) {
+                    anyTransitionsAlive = true
+                } else {
+                    transitionsToRemove.set(oldEnd)
+                }
+                oldEnd++
+            }
+            if (anyTransitionsAlive) {
+                val newEnd = oldEnd - transitionsToRemove.cardinality()
+                if (newEnd != oldEnd) {
+                    var srcI = oldEnd - 1
+                    var destI = newEnd - 1
+                    while (destI >= 0) {
+                        if (transitionsToRemove[srcI]) {
+                            srcI--
+                        } else {
+                            transitions[start + destI] = transitions[start + srcI]
+                            srcI--
+                            destI--
+                        }
+                    }
+                    transitions[newEnd] = TRANSITIONS_END
+                }
+            } else {
+                transitions[start] = TRANSITIONS_END
+            }
+
+            start += oldEnd + 1
+            transitionsToRemove.clear()
+        }
+    }
+
+    /**
+     * For debugging
+     */
+    @Suppress("unused")
+    fun dumpDot(name: String = "automaton.dot") {
+        Files.newBufferedWriter(Paths.get(name)).use { wr ->
+            wr.appendln("digraph g {")
+            for (state in 0 until transitionIndices.size()) {
+                wr.appendln("$state [shape=${if (finalIndices.containsKey(state)) "doublecircle" else "circle"}];")
+                forTransitions(state) { ch, to ->
+                    wr.appendln("$state -> $to [label=\"${if (ch == EPSILON) 'ε' else ch}\"];")
+                }
+            }
+            wr.appendln("}")
+        }
+    }
+
+    inner class StateBuilder {
+        @Suppress("JoinDeclarationAndAssignment")
+        val state: Int
+
+        private val stateTransitions = LongLists.mutable.empty()
+
+        init {
+            state = transitionIndices.size()
             transitionIndices.add(NO_TRANSITIONS)
-            return transitionIndices.size() - 1
         }
 
-        fun addTransition(from: Int, transition: Long) {
-            if (currentModifyingState != from) {
+        fun addTransition(transition: Long) {
+            stateTransitions.add(transition)
+        }
+
+        fun addTransition(symbol: Char, target: Int) {
+            addTransition(encodeTransition(symbol, target))
+        }
+
+        fun setFinal(index: Int) {
+            val set = StaticBitSet(finals.size)
+            set.set(index)
+            setFinals(set)
+        }
+
+        fun setFinals(indices: StaticBitSet) {
+            finalIndices.put(state, indices)
+        }
+
+        fun finish() {
+            if (!stateTransitions.isEmpty) {
+                transitionIndices[state] = transitions.size()
+                transitions.addAll(stateTransitions)
                 transitions.add(TRANSITIONS_END)
-
-                currentModifyingState = from
-                if (transitionIndices[from] != NO_TRANSITIONS) throw IllegalStateException()
-                transitionIndices[from] = transitions.size()
-            }
-            transitions.add(transition)
-        }
-
-        fun addTransition(from: Int, symbol: Char, to: Int) {
-            addTransition(from, encodeTransition(symbol, to))
-        }
-
-        fun markFinal(state: Int, finalIndex: Int) {
-            val bs = StaticBitSet(finals.size)
-            bs.set(finalIndex)
-            finalsByState.put(state, bs)
-        }
-
-        private inline fun forTransitions(from: Int, f: (Char, Int) -> Unit) {
-            var i = transitionIndices[from]
-            if (i == NO_TRANSITIONS) return
-            while (i < transitions.size() && transitions[i] != TRANSITIONS_END) {
-                val transition = transitions[i++]
-                f(decodeTransitionSymbol(transition), decodeTransitionTarget(transition))
-            }
-        }
-
-        private fun recordTransitions(targets: MutableCharObjectMap<IntSetBuilder>, fromKey: Int) {
-            forTransitions(fromKey) { symbol, to ->
-                if (symbol == EPSILON) {
-                    recordTransitions(targets, to)
-                } else {
-                    targets.getIfAbsentPut(symbol, createIntSetBuilder).add(to)
-                }
-            }
-        }
-
-        private fun toDfa(dfa: Automaton, dfaStates: MutableObjectIntMap<Any>, key: IntSetBuilder): Int {
-            val hash = key.build()
-            var dfaState = dfaStates.getIfAbsent(hash, -1)
-            if (dfaState == -1) {
-                dfaState = dfa.createState()
-                if (dfa.size % 1 == 0) {
-                    //println("DFA size: ${dfa.size}")
-                }
-                dfaStates.put(hash, dfaState)
-                val targets = CharObjectMaps.mutable.empty<IntSetBuilder>()
-                var final: StaticBitSet? = null
-                key.forEach {
-                    recordTransitions(targets, it)
-                    finalsByState[it]?.let { f ->
-                        if (final == null) {
-                            final = StaticBitSet(dfa.finals.size)
-                        }
-                        final!!.orFrom(f)
-                    }
-                }
-                val dfaTargets = LongLists.mutable.empty()
-                targets.forEachKeyValue { k, v ->
-                    dfaTargets.add(encodeTransition(k, toDfa(dfa, dfaStates, v)))
-                }
-                dfaTargets.forEachKt {
-                    dfa.addTransition(dfaState, it)
-                }
-                if (final != null) {
-                    dfa.finalsByState.put(dfaState, final)
-                }
-            }
-            return dfaState
-        }
-
-        fun toDfa(initial: Int): Pair<Automaton, Int> {
-            val dfa = Automaton(this.finals)
-            val initialState = IntSetBuilder(size)
-            initialState.add(initial)
-            val f = toDfa(dfa, ObjectIntMaps.mutable.empty(), initialState)
-            return dfa to f
-        }
-
-        fun run(state: Int, s: String, index: Int = 0): Collection<Any> {
-            if (index == s.length) {
-                return finalsByState[state]?.let {
-                    finals.withIndex()
-                            .filter { (ix, _) -> it[ix] }
-                            .map { (_, item) -> item }
-                } ?: emptyList()
-            }
-            forTransitions(state) { symbol, target ->
-                if (s[index] == symbol) {
-                    return run(target, s, index + 1)
-                }
-            }
-            return emptyList()
-        }
-
-        fun pruneDead() {
-            val transitionsToRemove = BitSet()
-            var start = 0
-            while (start < transitions.size()) {
-                var anyTransitionsAlive = false
-                var oldEnd = 0
-                while (oldEnd + start < transitions.size() && transitions[oldEnd + start] != TRANSITIONS_END) {
-                    val dest = decodeTransitionTarget(transitions[oldEnd + start])
-                    val destAlive = (
-                            transitionIndices[dest] != NO_TRANSITIONS &&
-                                    transitions[transitionIndices[dest]] != TRANSITIONS_END) ||
-                            finalsByState.containsKey(dest)
-                    if (destAlive) {
-                        anyTransitionsAlive = true
-                    } else {
-                        transitionsToRemove.set(oldEnd)
-                    }
-                    oldEnd++
-                }
-                if (anyTransitionsAlive) {
-                    val newEnd = oldEnd - transitionsToRemove.cardinality()
-                    if (newEnd != oldEnd) {
-                        var srcI = oldEnd - 1
-                        var destI = newEnd - 1
-                        while (destI >= 0) {
-                            if (transitionsToRemove[srcI]) {
-                                srcI--
-                            } else {
-                                transitions[start + destI] = transitions[start + srcI]
-                                srcI--
-                                destI--
-                            }
-                        }
-                        transitions[newEnd] = TRANSITIONS_END
-                    }
-                } else {
-                    transitions[start] = TRANSITIONS_END
-                }
-
-                start += oldEnd + 1
-                transitionsToRemove.clear()
-            }
-        }
-
-        fun dumpDot(name: String = "automaton.dot") {
-            Files.newBufferedWriter(Paths.get(name)).use { wr ->
-                wr.appendln("digraph g {")
-                for (state in 0 until transitionIndices.size()) {
-                    wr.appendln("$state [shape=${if (finalsByState.containsKey(state)) "doublecircle" else "circle"}];")
-                    forTransitions(state) { ch, to ->
-                        wr.appendln("$state -> $to [label=\"${if (ch == EPSILON) 'ε' else ch}\"];")
-                    }
-                }
-                wr.appendln("}")
             }
         }
     }
