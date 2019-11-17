@@ -2,16 +2,28 @@ package at.yawk.javabrowser.server
 
 import com.google.common.collect.Iterables
 import com.google.common.collect.Iterators
+import org.eclipse.collections.api.LongIterable
+import org.eclipse.collections.api.PrimitiveIterable
+import org.eclipse.collections.api.list.primitive.CharList
+import org.eclipse.collections.api.list.primitive.IntList
+import org.eclipse.collections.api.list.primitive.LongList
+import org.eclipse.collections.api.list.primitive.MutableIntList
+import org.eclipse.collections.api.list.primitive.MutableLongList
+import org.eclipse.collections.api.list.primitive.MutableShortList
+import org.eclipse.collections.api.list.primitive.ShortList
 import org.eclipse.collections.api.map.primitive.MutableCharObjectMap
 import org.eclipse.collections.api.map.primitive.MutableObjectIntMap
 import org.eclipse.collections.api.set.primitive.IntSet
 import org.eclipse.collections.api.set.primitive.MutableIntSet
 import org.eclipse.collections.impl.factory.primitive.CharObjectMaps
+import org.eclipse.collections.impl.factory.primitive.CharSets
 import org.eclipse.collections.impl.factory.primitive.IntIntMaps
 import org.eclipse.collections.impl.factory.primitive.IntLists
 import org.eclipse.collections.impl.factory.primitive.IntSets
 import org.eclipse.collections.impl.factory.primitive.LongLists
 import org.eclipse.collections.impl.factory.primitive.ObjectIntMaps
+import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList
+import org.eclipse.collections.impl.list.mutable.primitive.ShortArrayList
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.BitSet
@@ -31,7 +43,7 @@ class IndexAutomaton<E : Any>(
 
     private val automata = Iterables.partition(entries, CHUNK_SIZE).map { chunk ->
         val nfa = Automaton(chunk)
-        val root = nfa.StateBuilder()
+        val root = nfa.stateBuilder()
         val cache = ObjectIntMaps.mutable.empty<StateRequest>()
         for ((i, entry) in chunk.withIndex()) {
             root.addTransition(Automaton.EPSILON, fromInput(
@@ -48,6 +60,7 @@ class IndexAutomaton<E : Any>(
 
         nfa.pruneDead()
         val dfa = nfa.nfaToDfa()
+        dfa.compact()
         dfa.deduplicateFinals()
         dfa
     }
@@ -71,7 +84,7 @@ class IndexAutomaton<E : Any>(
     ): Int {
         cache.getIfAbsent(request, -1).let { if (it != -1) return it }
 
-        val builder = nfa.StateBuilder()
+        val builder = nfa.stateBuilder()
         cache.put(request, builder.state)
 
         val lastComponent = request.componentsIndex >= components.size - 1
@@ -110,7 +123,7 @@ class IndexAutomaton<E : Any>(
             }
         }
         if (request.remainingJumps == 0 && !request.justJumped) {
-            builder.setFinal(finalIndex)
+            nfa.setFinal(builder.state, finalIndex)
         }
         builder.finish()
         return builder.state
@@ -205,6 +218,8 @@ private class StaticBitSet private constructor(private val data: LongArray) {
             return res
         }
 
+        fun keySet(): IntSet = indices.keySet()
+
         fun containsKey(key: Int) = indices.containsKey(key)
 
         inline fun forEachKeyValue(f: (Int, StaticBitSet) -> Unit) {
@@ -232,17 +247,8 @@ private class StaticBitSet private constructor(private val data: LongArray) {
     }
 }
 
-private class Automaton<F : Any>(val finals: List<F>) {
+private class TransitionSet {
     companion object {
-        private const val NO_TRANSITIONS = -1
-        private const val TRANSITIONS_END = -1L
-        const val EPSILON = '\u0000'
-
-        /**
-         * Reusable to avoid allocation
-         */
-        private val createIntSet: Function0<MutableIntSet> = { IntSets.mutable.empty() }
-
         private fun encodeTransition(symbol: Char, to: Int): Long {
             return (symbol.toLong() shl 32) or to.toLong()
         }
@@ -254,119 +260,100 @@ private class Automaton<F : Any>(val finals: List<F>) {
         private fun decodeTransitionTarget(transition: Long): Int {
             return transition.toInt()
         }
+
+        const val NO_TRANSITIONS_INT = -1
+        const val NO_TRANSITIONS_SHORT = (-1).toShort()
+
+        const val TRANSITIONS_END_LONG = -1L
+        const val TRANSITIONS_END_INT = -1
+        const val TRANSITIONS_END_SHORT = (-1).toShort()
     }
 
-    var startState = -1
+    var alphabet: Alphabet? = null
+    var transitionIndices: PrimitiveIterable = IntLists.mutable.empty()!!
+    var transitions: PrimitiveIterable = LongLists.mutable.empty()!!
 
-    private val transitionIndices = IntLists.mutable.empty()
-    private val transitions = LongLists.mutable.empty()
+    val size: Int
+        get() = transitionIndices.size()
 
-    private var finalIndices = StaticBitSet.IntStaticBitSetMap(finals.size)
+    fun createState(): Int {
+        (transitionIndices as MutableIntList).add(NO_TRANSITIONS_INT)
+        return transitionIndices.size() - 1
+    }
 
-    private inline fun forTransitions(from: Int, f: (Char, Int) -> Unit) {
-        var i = transitionIndices[from]
-        if (i == NO_TRANSITIONS) return
-        while (i < transitions.size() && transitions[i] != TRANSITIONS_END) {
-            val transition = transitions[i++]
-            f(decodeTransitionSymbol(transition), decodeTransitionTarget(transition))
+    fun putTransitions(state: Int, stateTransitions: LongIterable) {
+        val transitionIndices = this.transitionIndices as MutableIntList
+        val transitions = this.transitions as MutableLongList
+
+        transitionIndices[state] = transitions.size()
+        transitions.addAll(stateTransitions)
+        transitions.add(TRANSITIONS_END_LONG)
+    }
+
+    inline fun forTransitions(from: Int, f: (Char, Int) -> Unit) {
+        val transitionIndices = this.transitionIndices
+
+        var i: Int
+        when (transitionIndices) {
+            is IntList -> {
+                i = transitionIndices.get(from)
+                if (i == NO_TRANSITIONS_INT) return
+            }
+            is ShortList -> {
+                i = transitionIndices.get(from).toInt() and 0xffff
+                if (i.toShort() == NO_TRANSITIONS_SHORT) return
+            }
+            else -> throw IllegalStateException()
         }
-    }
 
-    fun run(query: String): Iterator<F>? {
-        var state = startState
-        for (c in query) {
-            // if we sort transitions we could binary search here, but it's probably not worth it for the maybe
-            // max 50 transitions we accumulate at one state
-            var next = -1
-            forTransitions(state) { ch, to ->
-                if (ch == c) {
-                    if (next != -1) throw IllegalStateException("Not a DFA")
-                    next = to
+        val transitions = this.transitions
+        val alphabet = this.alphabet
+        loop@while (i < transitions.size()) {
+            val symbol: Char
+            val target: Int
+            when (transitions) {
+                is LongList -> {
+                    val transition = transitions[i]
+                    if (transition == TRANSITIONS_END_LONG) break@loop
+                    symbol = decodeTransitionSymbol(transition)
+                    target = decodeTransitionTarget(transition)
                 }
+                is IntList -> {
+                    val transition = transitions[i]
+                    if (transition == TRANSITIONS_END_INT) break@loop
+                    val targetBits = 32 - alphabet!!.requiredBits
+                    symbol = alphabet.unmapFromAlphabet((transition ushr targetBits).toChar())
+                    target = (transition and ((1 shl targetBits) - 1))
+                }
+                is ShortList -> {
+                    val transition = transitions[i]
+                    if (transition == TRANSITIONS_END_SHORT) break@loop
+                    val targetBits = 16 - alphabet!!.requiredBits
+                    symbol = alphabet.unmapFromAlphabet(((transition.toInt() and 0xffff) ushr targetBits).toChar())
+                    target = (transition.toInt() and ((1 shl targetBits) - 1))
+                }
+                else -> throw IllegalStateException()
             }
-            if (next == -1) return null
-            state = next
-        }
-        return getFinals(state)
-    }
-
-    private fun getFinals(state: Int): Iterator<F>? {
-        val bitSet = finalIndices.get(state)
-        if (bitSet == null) {
-            return null
-        } else {
-            return bitSet.filter(finals)
+            f(symbol, target)
+            i++
         }
     }
 
-    private fun recordTransitions(to: MutableCharObjectMap<MutableIntSet>, from: Int) {
-        forTransitions(from) { ch, dest ->
-            if (ch == EPSILON) {
-                recordTransitions(to, dest)
-            } else {
-                to.getIfAbsentPut(ch, createIntSet).add(dest)
-            }
-        }
-    }
+    fun pruneDead(finals: IntSet) {
+        val transitionIndices = this.transitionIndices as MutableIntList
+        val transitions = this.transitions as MutableLongList
 
-    private fun <F : Any> nfaToDfaImpl(
-            dfa: Automaton<F>,
-            cache: MutableObjectIntMap<IntSet>,
-            key: IntSet
-    ): Int {
-        val s = cache.getIfAbsent(key, -1)
-        if (s != -1) {
-            return s
-        }
-        val builder = dfa.StateBuilder()
-        cache.put(key, builder.state)
-
-        val transitions = CharObjectMaps.mutable.empty<MutableIntSet>()
-        var finals: StaticBitSet? = null
-        val itr = key.intIterator()
-        while (itr.hasNext()) {
-            val memberState = itr.next()
-            recordTransitions(transitions, memberState)
-            val memberFinals = finalIndices[memberState]
-            if (memberFinals != null) {
-                if (finals == null) finals = StaticBitSet(this.finals.size)
-                finals.orFrom(memberFinals)
-            }
-        }
-
-        transitions.forEachKeyValue { symbol, nextKey ->
-            builder.addTransition(symbol, nfaToDfaImpl(dfa, cache, nextKey))
-        }
-
-        if (finals != null) {
-            builder.setFinals(finals)
-        }
-
-        builder.finish()
-        return builder.state
-    }
-
-    fun nfaToDfa(): Automaton<F> {
-        val automaton = Automaton(finals)
-        automaton.startState = nfaToDfaImpl(automaton, ObjectIntMaps.mutable.empty(), IntSets.immutable.of(startState))
-        return automaton
-    }
-
-    /**
-     * Remove states that have no transitions to final states. Does not change the behavior of this automaton.
-     */
-    fun pruneDead() {
         val transitionsToRemove = BitSet()
         var start = 0
         while (start < transitions.size()) {
             var anyTransitionsAlive = false
             var oldEnd = 0
-            while (oldEnd + start < transitions.size() && transitions[oldEnd + start] != TRANSITIONS_END) {
+            while (oldEnd + start < transitions.size() && transitions[oldEnd + start] != TRANSITIONS_END_LONG) {
                 val dest = decodeTransitionTarget(transitions[oldEnd + start])
                 val destAlive = (
-                        transitionIndices[dest] != NO_TRANSITIONS &&
-                                transitions[transitionIndices[dest]] != TRANSITIONS_END) ||
-                        finalIndices.containsKey(dest)
+                        transitionIndices[dest] != NO_TRANSITIONS_INT &&
+                                transitions[transitionIndices[dest]] != TRANSITIONS_END_LONG) ||
+                        finals.contains(dest)
                 if (destAlive) {
                     anyTransitionsAlive = true
                 } else {
@@ -388,15 +375,244 @@ private class Automaton<F : Any>(val finals: List<F>) {
                             destI--
                         }
                     }
-                    transitions[newEnd] = TRANSITIONS_END
+                    transitions[newEnd] = TRANSITIONS_END_LONG
                 }
             } else {
-                transitions[start] = TRANSITIONS_END
+                transitions[start] = TRANSITIONS_END_LONG
             }
 
             start += oldEnd + 1
             transitionsToRemove.clear()
         }
+    }
+
+    fun compact() {
+        val alphabetBuilder = Alphabet.Builder()
+        val oldTransitionIndices = transitionIndices as IntList
+        val oldTransitions = transitions as LongList
+
+        // build alphabet
+        for (i in 0 until oldTransitions.size()) {
+            val transition = oldTransitions[i]
+            if (transition != TRANSITIONS_END_LONG) {
+                alphabetBuilder.put(decodeTransitionSymbol(transition))
+                if (alphabetBuilder.size.toInt() > 1000) return
+            }
+        }
+
+        val alphabet = alphabetBuilder.build()
+        this.alphabet = alphabet
+
+        if (oldTransitions.size() <= 0xffff) {
+            val newTransitionIndices = ShortArrayList(oldTransitionIndices.size())
+            for (i in 0 until oldTransitionIndices.size()) {
+                val item = oldTransitionIndices[i]
+                // 0xffff is used for NO_TRANSITIONS_SHORT
+                if (item >= 0xffff) throw AssertionError()
+                newTransitionIndices.add(item.toShort())
+            }
+            this.transitionIndices = newTransitionIndices
+        }
+
+        val stateBits = 32 - Integer.numberOfLeadingZeros(oldTransitionIndices.size())
+        val newTransitions: PrimitiveIterable
+        when {
+            stateBits + alphabet.requiredBits <= 16 -> newTransitions = ShortArrayList(oldTransitions.size())
+            stateBits + alphabet.requiredBits <= 32 -> newTransitions = IntArrayList(oldTransitions.size())
+            else -> return
+        }
+
+        // copy transitions
+        for (i in 0 until oldTransitions.size()) {
+            val transition = oldTransitions[i]
+            if (transition == TRANSITIONS_END_LONG) {
+                when (newTransitions) {
+                    is MutableShortList -> newTransitions.add(TRANSITIONS_END_SHORT)
+                    is MutableIntList -> newTransitions.add(TRANSITIONS_END_INT)
+                    else -> throw AssertionError()
+                }
+            } else {
+                val mappedSymbol = alphabet.mapToAlphabet(decodeTransitionSymbol(transition))
+                val target = decodeTransitionTarget(transition)
+                when (newTransitions) {
+                    is MutableShortList ->
+                        newTransitions.add(((mappedSymbol.toInt() shl (16 - alphabet.requiredBits)) or target).toShort())
+                    is MutableIntList ->
+                        newTransitions.add((mappedSymbol.toInt() shl (32 - alphabet.requiredBits)) or target)
+                    else -> throw AssertionError()
+                }
+            }
+        }
+        this.transitions = newTransitions
+    }
+
+    private class Alphabet private constructor(private val items: CharList) {
+        val size: Char
+            get() = items.size().toChar()
+
+        val requiredBits: Int
+            get() = 32 - Integer.numberOfLeadingZeros(size.toInt())
+
+        fun get(c: Char, default: Char): Char {
+            val r = items.binarySearch(c)
+            return if (r < 0) default else r.toChar()
+        }
+
+        fun mapToAlphabet(c: Char): Char {
+            val r = items.binarySearch(c)
+            if (r < 0)
+                throw NoSuchElementException()
+            return r.toChar()
+        }
+
+        fun unmapFromAlphabet(c: Char): Char {
+            return items[c.toInt()]
+        }
+
+        class Builder {
+            private val items = CharSets.mutable.empty()
+
+            val size: Char
+                get() = items.size().toChar()
+
+            fun put(c: Char) {
+                items.add(c)
+            }
+
+            fun build() = Alphabet(items.toSortedList())
+        }
+    }
+
+    inner class StateBuilder {
+        @Suppress("JoinDeclarationAndAssignment")
+        val state: Int
+
+        private val stateTransitions = LongLists.mutable.empty()
+
+        init {
+            state = createState()
+        }
+
+        fun addTransition(transition: Long) {
+            stateTransitions.add(transition)
+        }
+
+        fun addTransition(symbol: Char, target: Int) {
+            addTransition(encodeTransition(symbol, target))
+        }
+
+        fun finish() {
+            if (!stateTransitions.isEmpty) {
+                putTransitions(state, stateTransitions)
+            }
+        }
+    }
+}
+
+private class Automaton<F : Any>(val finals: List<F>) {
+    companion object {
+        const val EPSILON = '\u0000'
+
+        /**
+         * Reusable to avoid allocation
+         */
+        private val createIntSet: Function0<MutableIntSet> = { IntSets.mutable.empty() }
+    }
+
+    var startState = -1
+
+    private val transitions = TransitionSet()
+    private var finalIndices = StaticBitSet.IntStaticBitSetMap(finals.size)
+
+    fun run(query: String): Iterator<F>? {
+        var state = startState
+        for (c in query) {
+            // if we sort transitions we could binary search here, but it's probably not worth it for the maybe
+            // max 50 transitions we accumulate at one state
+            var next = -1
+            transitions.forTransitions(state) { ch, to ->
+                if (ch == c) {
+                    if (next != -1) throw IllegalStateException("Not a DFA")
+                    next = to
+                }
+            }
+            if (next == -1) return null
+            state = next
+        }
+        return getFinals(state)
+    }
+
+    private fun getFinals(state: Int): Iterator<F>? {
+        val bitSet = finalIndices.get(state)
+        if (bitSet == null) {
+            return null
+        } else {
+            return bitSet.filter(finals)
+        }
+    }
+
+    private fun recordTransitions(to: MutableCharObjectMap<MutableIntSet>, from: Int) {
+        transitions.forTransitions(from) { ch, dest ->
+            if (ch == EPSILON) {
+                recordTransitions(to, dest)
+            } else {
+                to.getIfAbsentPut(ch, createIntSet).add(dest)
+            }
+        }
+    }
+
+    private fun <F : Any> nfaToDfaImpl(
+            dfa: Automaton<F>,
+            cache: MutableObjectIntMap<IntSet>,
+            key: IntSet
+    ): Int {
+        val s = cache.getIfAbsent(key, -1)
+        if (s != -1) {
+            return s
+        }
+        val builder = dfa.stateBuilder()
+        cache.put(key, builder.state)
+
+        val transitions = CharObjectMaps.mutable.empty<MutableIntSet>()
+        var finals: StaticBitSet? = null
+        val itr = key.intIterator()
+        while (itr.hasNext()) {
+            val memberState = itr.next()
+            recordTransitions(transitions, memberState)
+            val memberFinals = finalIndices[memberState]
+            if (memberFinals != null) {
+                if (finals == null) finals = StaticBitSet(this.finals.size)
+                finals.orFrom(memberFinals)
+            }
+        }
+
+        transitions.forEachKeyValue { symbol, nextKey ->
+            builder.addTransition(symbol, nfaToDfaImpl(dfa, cache, nextKey))
+        }
+
+        if (finals != null) {
+            dfa.setFinals(builder.state, finals)
+        }
+
+        builder.finish()
+        return builder.state
+    }
+
+    fun nfaToDfa(): Automaton<F> {
+        val automaton = Automaton(finals)
+        automaton.startState = nfaToDfaImpl(automaton, ObjectIntMaps.mutable.empty(), IntSets.immutable.of(startState))
+        return automaton
+    }
+
+    /**
+     * Remove states that have no transitions to final states. Does not change the behavior of this automaton.
+     */
+    fun pruneDead() {
+        transitions.pruneDead(finalIndices.keySet())
+    }
+
+    fun compact() {
+        transitions.compact()
     }
 
     fun deduplicateFinals() {
@@ -410,9 +626,9 @@ private class Automaton<F : Any>(val finals: List<F>) {
     fun dumpDot(name: String = "automaton.dot") {
         Files.newBufferedWriter(Paths.get(name)).use { wr ->
             wr.appendln("digraph g {")
-            for (state in 0 until transitionIndices.size()) {
+            for (state in 0 until transitions.size) {
                 wr.appendln("$state [shape=${if (finalIndices.containsKey(state)) "doublecircle" else "circle"}];")
-                forTransitions(state) { ch, to ->
+                transitions.forTransitions(state) { ch, to ->
                     wr.appendln("$state -> $to [label=\"${if (ch == EPSILON) 'ε' else ch}\"];")
                 }
             }
@@ -420,41 +636,15 @@ private class Automaton<F : Any>(val finals: List<F>) {
         }
     }
 
-    inner class StateBuilder {
-        @Suppress("JoinDeclarationAndAssignment")
-        val state: Int
+    fun stateBuilder() = transitions.StateBuilder()
 
-        private val stateTransitions = LongLists.mutable.empty()
+    fun setFinal(state: Int, index: Int) {
+        val set = StaticBitSet(finals.size)
+        set.set(index)
+        setFinals(state, set)
+    }
 
-        init {
-            state = transitionIndices.size()
-            transitionIndices.add(NO_TRANSITIONS)
-        }
-
-        fun addTransition(transition: Long) {
-            stateTransitions.add(transition)
-        }
-
-        fun addTransition(symbol: Char, target: Int) {
-            addTransition(encodeTransition(symbol, target))
-        }
-
-        fun setFinal(index: Int) {
-            val set = StaticBitSet(finals.size)
-            set.set(index)
-            setFinals(set)
-        }
-
-        fun setFinals(indices: StaticBitSet) {
-            finalIndices.put(state, indices)
-        }
-
-        fun finish() {
-            if (!stateTransitions.isEmpty) {
-                transitionIndices[state] = transitions.size()
-                transitions.addAll(stateTransitions)
-                transitions.add(TRANSITIONS_END)
-            }
-        }
+    fun setFinals(state: Int, finals: StaticBitSet) {
+        finalIndices.put(state, finals)
     }
 }

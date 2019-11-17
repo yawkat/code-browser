@@ -1,12 +1,6 @@
 package at.yawk.javabrowser.server;
 
-import com.google.common.base.Stopwatch;
 import com.google.common.collect.Iterators;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -21,14 +15,13 @@ import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
-import org.tukaani.xz.XZInputStream;
 
 /**
  * @author yawkat
  */
 @Warmup(iterations = 5, time = 10)
 @Measurement(iterations = 10, time = 10)
-@BenchmarkMode(Mode.SingleShotTime)
+@BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class SearchIndexPerformanceTest {
     private static final Object CATEGORY = new Object();
@@ -43,18 +36,8 @@ public class SearchIndexPerformanceTest {
         private static final SearchIndex<Object, Void> INDEX = new SearchIndex<>();
 
         static {
-            System.out.println("Loading test data...");
-            Stopwatch stopwatch = Stopwatch.createStarted();
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(
-                    new XZInputStream(SearchIndexPerformanceTest.class.getResourceAsStream("bindings.tsv.xz")),
-                    StandardCharsets.UTF_8
-            ))) {
-                INDEX.replace(CATEGORY, r.lines().map(s -> new SearchIndex.Input<Void>(s, null)).iterator());
-            } catch (IOException ioe) {
-                throw new UncheckedIOException(ioe);
-            }
-            stopwatch.stop();
-            System.out.println("Test data loaded in " + stopwatch.toString());
+            INDEX.replace(CATEGORY, TestBindings.INSTANCE.getBindings().stream()
+                    .map(s -> new SearchIndex.Input<Void>(s, null)).iterator());
         }
     }
 
