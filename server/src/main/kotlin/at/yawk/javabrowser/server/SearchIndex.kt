@@ -2,8 +2,7 @@ package at.yawk.javabrowser.server
 
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Ascii
-import java.util.BitSet
-import java.util.Comparator
+import com.google.common.collect.Iterators
 import java.util.Locale
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
@@ -43,73 +42,71 @@ class SearchIndex<K, V> {
         }
     }
 
-    private val categories = ConcurrentHashMap<K, List<Entry<V>>>()
+    private val categories = ConcurrentHashMap<K, Category<V>>()
 
     fun replace(categoryKey: K, strings: Iterator<Input<V>>) {
-        categories[categoryKey] = strings.asSequence().map {
-            Entry(it.value, SplitEntry(it.string), SplitEntry(it.string.substring(it.string.lastIndexOf('.') + 1)))
-        }.sortedBy { it.name }.toList()
+        categories[categoryKey] = Category(strings)
     }
 
     fun find(query: String, includedCats: Set<K> = this.categories.keys) = sequence {
         val queryLower = query.toLowerCase(Locale.US)
-        val candidates = ArrayList<List<Entry<V>>>(includedCats.size)
-        val includedCategoriesFinal = ArrayList<K>(includedCats.size)
-        // one loop to maintain order
-        for (category in includedCats) {
-            candidates.add(categories[category] ?: continue)
-            includedCategoriesFinal.add(category)
+        val categoriesFiltered = ArrayList<Category<V>>()
+        val keys = ArrayList<K>()
+        for (cat in includedCats) {
+            categoriesFiltered.add(categories[cat] ?: continue)
+            keys.add(cat)
         }
 
-        val visited = candidates.map { BitSet(it.size) }
-        // depth 0 is the same as 1, except we only search the class name.
-        for (depth in 0 until MAX_DEPTH) {
-            // all the lists in candidates are sorted by entry length, so we can do a simple merge to keep order
-            val indices = IntArray(candidates.size)
+        val returnedNames = HashSet<Entry<V>>()
+
+        for (depth in 0..MAX_DEPTH) {
+            val depthIterators = categoriesFiltered.map { Iterators.peekingIterator(it.byDepth[depth].run(queryLower)) }
             while (true) {
-                // find the next shortest unvisited entry in candidates
-                var bestList = -1
-                var bestEntry: Entry<V>? = null
-                for ((j, list) in candidates.withIndex()) {
-                    while (true) {
-                        if (indices[j] >= list.size) {
-                            break
-                        }
-                        if (visited[j][indices[j]]) {
-                            indices[j]++
-                            continue
-                        }
-                        val entryHere = list[indices[j]]
-                        if (bestList == -1 || bestEntry!!.name > entryHere.name) {
-                            bestEntry = entryHere
-                            bestList = j
-                        }
-                        break
-                    }
-                }
-                if (bestList == -1) {
-                    break
-                }
-                val result =
-                        if (depth == 0) Searcher(bestEntry!!.simpleName.componentsLower, queryLower).search(1)
-                        else Searcher(bestEntry!!.name.componentsLower, queryLower).search(depth)
-                if (result != null) {
+                val bestIndex = depthIterators.indices
+                        .filter { depthIterators[it].hasNext() }
+                        .minBy { depthIterators[it].peek().name } ?: break
+                val bestEntry = depthIterators[bestIndex].next()
+                if (returnedNames.add(bestEntry)) {
+                    val name = if (depth == 0) bestEntry.simpleName else bestEntry.name
+                    val highlight = Searcher(name.componentsLower, queryLower)
+                            // TODO: we get better highlighting with depth - 1 under some circumstances. investigate
+                            .search(if (depth == 0) 1 else depth)
+                            ?: throw AssertionError("Mismatch in automaton")
                     val paddedResult: IntArray
                     if (depth == 0) {
                         // prepend 0s
                         paddedResult = IntArray(bestEntry.name.componentsLower.size)
-                        System.arraycopy(result, 0, paddedResult, paddedResult.size - result.size, result.size)
+                        System.arraycopy(highlight, 0, paddedResult, paddedResult.size - highlight.size, highlight.size)
                     } else {
-                        paddedResult = result
+                        paddedResult = highlight
                     }
-                    yield(SearchResult(query, includedCategoriesFinal[bestList], bestEntry, paddedResult))
-                    visited[bestList][indices[bestList]] = true
+                    yield(SearchResult(query, keys[bestIndex], bestEntry, paddedResult))
                 }
-                indices[bestList]++
             }
         }
     }
 
+    private class Category<V>(strings: Iterator<Input<V>>) {
+        val byDepth: List<IndexAutomaton<Entry<V>>>
+
+        init {
+            val entries = strings.asSequence().map {
+                Entry(it.value, SplitEntry(it.string), SplitEntry(it.string.substring(it.string.lastIndexOf('.') + 1)))
+            }.sortedBy { it.name }.toList()
+
+            val entriesForQualified = entries.sortedBy { it.name }
+            val entriesForSimple = entries.sortedBy { it.simpleName }
+            byDepth = listOf(IndexAutomaton(entriesForSimple, { it.simpleName.componentsLower.asList() }, 0)) +
+                    (0 until MAX_DEPTH).map { jumps ->
+                        IndexAutomaton(entriesForQualified, { it.name.componentsLower.asList() }, jumps)
+                    }
+        }
+    }
+
+    /**
+     * This class used to be used for searching, but now the filtering part is done by [IndexAutomaton] and this class
+     * only does a second pass for highlighting.
+     */
     @VisibleForTesting
     internal class Searcher(private val groups: Array<String>, private val query: String) {
         private val memo = arrayOfNulls<IntArray>(groups.size * query.length * 2)
@@ -195,7 +192,7 @@ class SearchIndex<K, V> {
             val value: V
     )
 
-    internal data class SplitEntry(
+    data class SplitEntry(
             val string: String
     ) : Comparable<SplitEntry> {
         val componentsLower: Array<String> = split(string).toTypedArray()
@@ -216,9 +213,15 @@ class SearchIndex<K, V> {
         }
     }
 
-    internal data class Entry<V>(
+    data class Entry<V>(
             val value: V,
+            /**
+             * Qualified name of this entry
+             */
             val name: SplitEntry,
+            /**
+             * Simple name of this entry, from the last dot. If this is a nested class, the outer class is not included.
+             */
             val simpleName: SplitEntry
     )
 }
