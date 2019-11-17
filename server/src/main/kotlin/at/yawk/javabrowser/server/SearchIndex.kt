@@ -69,7 +69,8 @@ class SearchIndex<K, V> {
                 if (returnedNames.add(bestEntry)) {
                     val name = if (depth == 0) bestEntry.simpleName else bestEntry.name
                     val highlight = Searcher(name.componentsLower, queryLower)
-                            .search(if (depth == 0) 0 else depth - 1)
+                            // TODO: we get better highlighting with depth - 1 under some circumstances. investigate
+                            .search(if (depth == 0) 1 else depth)
                             ?: throw AssertionError("Mismatch in automaton")
                     val paddedResult: IntArray
                     if (depth == 0) {
