@@ -7,8 +7,8 @@ import org.eclipse.collections.api.map.primitive.MutableObjectIntMap
 import org.eclipse.collections.api.set.primitive.IntSet
 import org.eclipse.collections.api.set.primitive.MutableIntSet
 import org.eclipse.collections.impl.factory.primitive.CharObjectMaps
+import org.eclipse.collections.impl.factory.primitive.IntIntMaps
 import org.eclipse.collections.impl.factory.primitive.IntLists
-import org.eclipse.collections.impl.factory.primitive.IntObjectMaps
 import org.eclipse.collections.impl.factory.primitive.IntSets
 import org.eclipse.collections.impl.factory.primitive.LongLists
 import org.eclipse.collections.impl.factory.primitive.ObjectIntMaps
@@ -117,7 +117,7 @@ class IndexAutomaton<E : Any>(
     }
 }
 
-class StaticBitSet private constructor(private val data: LongArray) {
+private class StaticBitSet private constructor(private val data: LongArray) {
     private companion object {
         private const val BITS_BITS = 6 // 64 = 2**6
 
@@ -178,12 +178,63 @@ class StaticBitSet private constructor(private val data: LongArray) {
 
     override fun equals(other: Any?) = other is StaticBitSet && this.data.contentEquals(other.data)
     override fun hashCode() = data.contentHashCode()
+
+    class IntStaticBitSetMap(private val memberCapacity: Int) {
+        private val data = LongLists.mutable.empty()
+        private val indices = IntIntMaps.mutable.empty()
+
+        fun put(key: Int, value: StaticBitSet) {
+            val index = indices.getIfAbsent(key, -1)
+            if (index == -1) {
+                indices.put(key, data.size())
+                data.addAll(*value.data)
+            } else {
+                for ((offset, item) in value.data.withIndex()) {
+                    data[index + offset] = item
+                }
+            }
+        }
+
+        operator fun get(key: Int): StaticBitSet? {
+            val index = indices.getIfAbsent(key, -1)
+            if (index == -1) return null
+            val res = StaticBitSet(memberCapacity)
+            for (i in res.data.indices) {
+                res.data[i] = data[index + i]
+            }
+            return res
+        }
+
+        fun containsKey(key: Int) = indices.containsKey(key)
+
+        inline fun forEachKeyValue(f: (Int, StaticBitSet) -> Unit) {
+            val itr = indices.keysView().intIterator()
+            while (itr.hasNext()) {
+                val key = itr.next()
+                f(key, get(key)!!)
+            }
+        }
+
+        fun deduplicated(): IntStaticBitSetMap {
+            val cache = ObjectIntMaps.mutable.empty<StaticBitSet>()
+            val result = IntStaticBitSetMap(memberCapacity)
+            forEachKeyValue { k, v ->
+                val index = cache.getIfAbsent(v, -1)
+                if (index == -1) {
+                    cache.put(v, result.data.size())
+                    result.put(k, v)
+                } else {
+                    result.indices.put(k, index)
+                }
+            }
+            return result
+        }
+    }
 }
 
 private class Automaton<F : Any>(val finals: List<F>) {
     companion object {
         private const val NO_TRANSITIONS = -1
-        private const val REJECT = -1
         private const val TRANSITIONS_END = -1L
         const val EPSILON = '\u0000'
 
@@ -210,7 +261,7 @@ private class Automaton<F : Any>(val finals: List<F>) {
     private val transitionIndices = IntLists.mutable.empty()
     private val transitions = LongLists.mutable.empty()
 
-    private val finalIndices = IntObjectMaps.mutable.empty<StaticBitSet>()
+    private var finalIndices = StaticBitSet.IntStaticBitSetMap(finals.size)
 
     private inline fun forTransitions(from: Int, f: (Char, Int) -> Unit) {
         var i = transitionIndices[from]
@@ -349,10 +400,7 @@ private class Automaton<F : Any>(val finals: List<F>) {
     }
 
     fun deduplicateFinals() {
-        val cache = HashMap<StaticBitSet, StaticBitSet>()
-        finalIndices.forEachKeyValue { k, v ->
-            finalIndices.put(k, cache.getOrPut(v) { v })
-        }
+        finalIndices = finalIndices.deduplicated()
     }
 
     /**
