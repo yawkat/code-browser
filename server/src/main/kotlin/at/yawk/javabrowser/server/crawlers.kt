@@ -23,5 +23,8 @@ internal fun HttpServerExchange.isCrawler(): Boolean {
             agent.contains("Exabot") ||
             agent.contains("facebot") ||
             agent.contains("facebookexternalhit") ||
-            agent.contains("ia_archiver")
+            agent.contains("ia_archiver") ||
+            agent.contains("DotBot") ||
+            agent.contains("SemrushBot") ||
+            agent.contains("AhrefsBot")
 }
