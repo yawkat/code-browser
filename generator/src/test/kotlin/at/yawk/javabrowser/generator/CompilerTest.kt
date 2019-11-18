@@ -4,13 +4,12 @@ import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.DbConfig
 import at.yawk.javabrowser.DbMigration
+import org.jboss.shrinkwrap.resolver.api.maven.coordinate.MavenCoordinates
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.testng.Assert
 import org.testng.annotations.AfterMethod
-import org.testng.annotations.AfterTest
 import org.testng.annotations.BeforeMethod
-import org.testng.annotations.BeforeTest
 import org.testng.annotations.Test
 import ru.yandex.qatools.embed.postgresql.EmbeddedPostgres
 
@@ -123,6 +122,22 @@ class CompilerTest {
         val count = dbi.withHandle {
             it.select("select count from binding_references_count_view where targetbinding = 'io.ebean.ExtendedServer#findList(io.ebean.SqlQuery,io.ebean.Transaction)' and type = ?",
                     BindingRefType.SUPER_METHOD.id)[0]["count"] as Number
+        }.toInt()
+        Assert.assertEquals(count, 1)
+    }
+
+    @Test
+    fun `spring-webmvc declarations`() {
+        val session = Session(dbi)
+        val compiler = Compiler(dbi, session, MavenDependencyResolver(MavenDependencyResolver.Config(
+                excludeDependencies = listOf(MavenCoordinates.createCoordinate("com.ibm.websphere:uow:jar:6.0.2.17"),
+                        MavenCoordinates.createCoordinate("xerces:xerces-impl:jar:2.6.2")))))
+        compiler.compileMaven("x",
+                ArtifactConfig.Maven("org.springframework", "spring-webmvc", "5.1.5.RELEASE"))
+        session.execute()
+
+        val count = dbi.withHandle {
+            it.select("select count(*) from bindings where binding like 'org.springframework.web.servlet.i18n.SessionLocaleResolver#resolveLocaleContext(%)'")[0]["count"] as Number
         }.toInt()
         Assert.assertEquals(count, 1)
     }

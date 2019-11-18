@@ -9,7 +9,7 @@ import org.testng.annotations.Test
 class MavenTest {
     @Test
     fun deps() {
-        val dependencies = getMavenDependencies("com.google.guava", "guava", "25.1-jre")
+        val dependencies = MavenDependencyResolver().getMavenDependencies("com.google.guava", "guava", "25.1-jre")
         Assert.assertTrue(
                 dependencies.map { it.coordinate.toCanonicalForm() }
                         .any { it.matches("com.google.errorprone:.*".toRegex()) }

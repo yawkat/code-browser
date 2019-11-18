@@ -9,6 +9,7 @@ import java.nio.file.Paths
  */
 data class Config(
         val database: DbConfig,
+        val mavenResolver: MavenDependencyResolver.Config,
         val artifacts: List<ArtifactConfig> = listOf(
                 ArtifactConfig.OldJava("8", Paths.get("/usr/lib/jvm/java-8-openjdk/src.zip"), ArtifactMetadata()),
                 ArtifactConfig.Java("10", Paths.get("/usr/lib/jvm/java-10-openjdk"), ArtifactMetadata()),

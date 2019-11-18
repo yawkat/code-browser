@@ -47,7 +47,11 @@ private inline fun tempDir(f: (Path) -> Unit) {
     }
 }
 
-class Compiler(private val dbi: DBI, private val session: Session) {
+class Compiler(
+        private val dbi: DBI,
+        private val session: Session,
+        private val mavenDependencyResolver: MavenDependencyResolver = MavenDependencyResolver()
+) {
     companion object {
         private val log = LoggerFactory.getLogger(Compiler::class.java)
 
@@ -57,7 +61,7 @@ class Compiler(private val dbi: DBI, private val session: Session) {
         private const val NOMINAL_JAVA_VERSION = "java/11"
         private const val ANDROID_JAVA_VERSION = "java/8"
 
-        const val VERSION = 30
+        const val VERSION = 31
     }
 
     private fun needsRecompile(artifactId: String): Boolean {
@@ -358,7 +362,7 @@ class Compiler(private val dbi: DBI, private val session: Session) {
     fun compileMaven(artifactId: String, artifact: ArtifactConfig.Maven) {
         if (!needsRecompile(artifactId)) return
 
-        val depObjects = getMavenDependencies(artifact.groupId,
+        val depObjects = mavenDependencyResolver.getMavenDependencies(artifact.groupId,
                 artifact.artifactId,
                 artifact.version)
                 .filter {

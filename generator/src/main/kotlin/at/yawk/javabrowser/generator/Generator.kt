@@ -15,7 +15,10 @@ private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.Generat
 
 fun main(args: Array<String>) {
 
-    val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
+    val config = ObjectMapper(YAMLFactory())
+            .findAndRegisterModules()
+            .registerModule(GeneratorConfigTypeModule)
+            .readValue(File(args[0]), Config::class.java)
 
     val duplicateArtifactBag = Bags.mutable.withAll(config.artifacts)
     if (duplicateArtifactBag.toMapOfItemToCount().values.any { it > 1 }) {
@@ -35,7 +38,7 @@ fun main(args: Array<String>) {
 
     val session = Session(dbi)
 
-    val compiler = Compiler(dbi, session)
+    val compiler = Compiler(dbi, session, MavenDependencyResolver(config.mavenResolver))
     val artifactIds = ArrayList<String>()
     for (artifact in config.artifacts) {
         val id = when (artifact) {
@@ -54,7 +57,7 @@ fun main(args: Array<String>) {
                 is ArtifactConfig.Maven -> compiler.compileMaven(id, artifact)
             }
         } catch (e: Exception) {
-            log.error("Failed to compile artifact {}", artifact, e)
+            throw RuntimeException("Failed to compile artifact $artifact", e)
         }
     }
 

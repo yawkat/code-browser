@@ -3,6 +3,7 @@ database:
   password: password
   url: jdbc:postgresql://postgres.local.yawk.at/java-browser
   #url: jdbc:postgresql://127.0.0.1/java-browser
+mavenResolver: {}
 artifacts:
 - type: old-java
   src: "/usr/lib/jvm/java-8-openjdk/src.zip"
@@ -1027,3 +1028,19 @@ artifacts:
   groupId: org.apache.lucene
   artifactId: lucene-classification
   version: 8.2.0
+- type: maven
+  groupId: org.jboss.shrinkwrap
+  artifactId: shrinkwrap-api
+  version: 1.2.6
+- type: maven
+  groupId: org.jboss.shrinkwrap
+  artifactId: shrinkwrap-spi
+  version: 1.2.6
+- type: maven
+  groupId: org.jboss.shrinkwrap
+  artifactId: shrinkwrap-impl-base
+  version: 1.2.6
+- type: maven
+  groupId: org.jboss.shrinkwrap.resolver
+  artifactId: shrinkwrap-resolver-impl-maven
+  version: 3.1.3
