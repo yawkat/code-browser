@@ -16,37 +16,40 @@
 </#assign>
 <@page.page title=title artifactId=sourceArtifactId!"" additionalTitle=head additionalMenu=additionalMenu>
   <div id="noncode">
-    <div class="reference-detail-table">
-      <table>
-        <thead>
-        <tr>
-          <th></th>
-          <#list countsByType?keys as type>
-            <th class="rotate small">${type.displayName}</th>
-          </#list>
-          <th class="rotate">Total</th>
-        </tr>
-        <tr>
-          <th>Total</th>
-          <#list countsByType as type, count>
-            <th><a href="${baseUri}?type=${type}">${count}</a></th>
-          </#list>
-          <th><a href="${baseUri}">${totalCount}</a></th>
-        </tr>
-        </thead>
-        <tbody>
-        <#list artifacts as artifactId>
+    <div class="reference-detail-table size-expander-wrapper <#if (artifacts?size) gt 10> retracted</#if>">
+      <div class="size-expander-target">
+        <table>
+          <thead>
           <tr>
-            <th class="small"><a href="/${artifactId}">${artifactId}</a></th>
+            <th></th>
             <#list countsByType?keys as type>
-              <td><a href="${baseUri}?type=${type}&fromArtifact=${artifactId}">${countTable.get(artifactId, type)!""}</a>
-              </td>
+              <th class="rotate small">${type.displayName}</th>
             </#list>
-            <th><a href="${baseUri}?fromArtifact=${artifactId}">${countsByArtifact[artifactId]}</a></th>
+            <th class="rotate">Total</th>
           </tr>
-        </#list>
-        </tbody>
-      </table>
+          <tr>
+            <th>Total</th>
+            <#list countsByType as type, count>
+              <th><a href="${baseUri}?type=${type}">${count}</a></th>
+            </#list>
+            <th><a href="${baseUri}">${totalCount}</a></th>
+          </tr>
+          </thead>
+          <tbody>
+          <#list artifacts as artifactId>
+            <tr>
+              <th class="small"><a href="/${artifactId}">${artifactId}</a></th>
+              <#list countsByType?keys as type>
+                <td><a href="${baseUri}?type=${type}&fromArtifact=${artifactId}">${countTable.get(artifactId, type)!""}</a>
+                </td>
+              </#list>
+              <th><a href="${baseUri}?fromArtifact=${artifactId}">${countsByArtifact[artifactId]}</a></th>
+            </tr>
+          </#list>
+          </tbody>
+        </table>
+      </div>
+      <a class="size-expander-expand" href="javascript:"><i>Show all</i></a>
     </div>
 
     <#if hitResultLimit>

@@ -20,7 +20,7 @@
       </#if>
 
       <#if dependencies?has_content>
-        <div class="size-expander-wrapper <#if (dependencies?size) gt 10> retracted</#if>">
+        <div class="size-expander-wrapper <#if (dependencies?size) gt 20> retracted</#if>">
           <h2>Dependencies</h2>
           <ul class="size-expander-target">
               <#list dependencies as dependency>

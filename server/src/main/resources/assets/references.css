@@ -3,15 +3,10 @@
     padding: 1em;
     margin: 1em;
     border: 1px solid #ccc;
-    max-height: 20.5em;
-    overflow-y: hidden;
 }
 .reference-detail-table table {
     text-align: right;
     border-collapse: collapse;
-}
-.reference-detail-table:hover {
-    max-height: none;
 }
 .reference-detail-table td, .reference-detail-table th {
     padding: .2em;

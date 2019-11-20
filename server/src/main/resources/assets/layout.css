@@ -284,6 +284,6 @@ li {
     display: block;
 }
 .size-expander-wrapper.retracted .size-expander-target {
-    max-height: 9em;
+    max-height: 17em;
     overflow-y: hidden;
 }
