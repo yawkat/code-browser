@@ -276,3 +276,14 @@ li {
         display: block;
     }
 }
+
+.size-expander-wrapper .size-expander-expand {
+    display: none;
+}
+.size-expander-wrapper.retracted .size-expander-expand {
+    display: block;
+}
+.size-expander-wrapper.retracted .size-expander-target {
+    max-height: 9em;
+    overflow-y: hidden;
+}

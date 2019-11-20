@@ -20,15 +20,18 @@
       </#if>
 
       <#if dependencies?has_content>
-        <h2>Dependencies</h2>
-        <ul>
-          <#list dependencies as dependency>
-            <li>
-              <#if dependency.prefix??>
-                <a href="/${dependency.prefix}">${dependency.prefix}</a></#if>${dependency.suffix}
-            </li>
-          </#list>
-        </ul>
+        <div class="size-expander-wrapper <#if (dependencies?size) gt 10> retracted</#if>">
+          <h2>Dependencies</h2>
+          <ul class="size-expander-target">
+              <#list dependencies as dependency>
+                <li>
+                    <#if dependency.prefix??>
+                      <a href="/${dependency.prefix}">${dependency.prefix}</a></#if>${dependency.suffix}
+                </li>
+              </#list>
+          </ul>
+          <a class="size-expander-expand" href="javascript:"><i>Show more dependencies</i></a>
+        </div>
       </#if>
 
     <#if !oldArtifactId??>

@@ -38,6 +38,10 @@ $(function () {
             Dialog.currentDialog.close();
         }
     });
+
+    $(".size-expander-expand").click(function () {
+        $(this).closest(".size-expander-wrapper").removeClass("retracted");
+    });
 });
 
 function expandDeclaration(element) {
