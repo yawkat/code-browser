@@ -2,11 +2,9 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.DbConfig
 import at.yawk.javabrowser.DbMigration
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.eclipse.collections.impl.factory.Bags
 import org.slf4j.LoggerFactory
-import java.io.File
+import java.nio.file.Paths
 
 /**
  * @author yawkat
@@ -14,11 +12,7 @@ import java.io.File
 private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.Generator")
 
 fun main(args: Array<String>) {
-
-    val config = ObjectMapper(YAMLFactory())
-            .findAndRegisterModules()
-            .registerModule(GeneratorConfigTypeModule)
-            .readValue(File(args[0]), Config::class.java)
+    val config = Config.fromFile(Paths.get(args[0]))
 
     val duplicateArtifactBag = Bags.mutable.withAll(config.artifacts)
     if (duplicateArtifactBag.toMapOfItemToCount().values.any { it > 1 }) {
