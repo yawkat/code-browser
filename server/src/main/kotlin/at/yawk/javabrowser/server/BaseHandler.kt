@@ -25,12 +25,14 @@ import javax.inject.Inject
  */
 class BaseHandler @Inject constructor(
         private val dbi: DBI,
-              private val ftl: Ftl,
-              private val bindingResolver: BindingResolver,
-              private val objectMapper: ObjectMapper,
-              private val artifactIndex: ArtifactIndex,
-              private val declarationTreeHandler: DeclarationTreeHandler,
-              private val siteStatisticsService: SiteStatisticsService) : HttpHandler {
+        private val ftl: Ftl,
+        private val bindingResolver: BindingResolver,
+        private val objectMapper: ObjectMapper,
+        private val artifactIndex: ArtifactIndex,
+        private val declarationTreeHandler: DeclarationTreeHandler,
+        private val siteStatisticsService: SiteStatisticsService,
+        private val aliasIndex: AliasIndex
+) : HttpHandler {
     private sealed class ParsedPath(val artifact: ArtifactNode) {
         class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact)
         class LeafArtifact(artifact: ArtifactNode) : ParsedPath(artifact)
@@ -90,7 +92,7 @@ class BaseHandler @Inject constructor(
                 diffWith?.artifact,
                 getArtifactMetadata(conn, path.artifact),
                 conn.attach(DependencyDao::class.java).getDependencies(path.artifact.id).map {
-                    buildDependencyInfo(conn, it)
+                    buildDependencyInfo(it)
                 },
                 topLevelPackages,
                 alternatives
@@ -103,20 +105,26 @@ class BaseHandler @Inject constructor(
         return objectMapper.readValue(bytes, ArtifactMetadata::class.java)
     }
 
-    private fun buildDependencyInfo(conn: Handle, it: String): TypeSearchView.Dependency {
-        val parts = it.split("/")
-        for (i in parts.size downTo 1) {
-            var prefix = parts.subList(0, i).joinToString("/")
-            if (i != parts.size) prefix += "/"
+    private fun buildDependencyInfo(it: String): TypeSearchView.Dependency {
+        if (artifactIndex.allArtifacts.containsKey(it)) {
+            return TypeSearchView.Dependency(it, "", null)
+        }
 
-            if (conn.createQuery("select count(*) from artifacts where id like ?")
-                            .bind(0, prefix + (if (i == parts.size) "" else "%"))
-                            .map(SingleColumnResultSetMapper.INT)
-                            .single() > 0) {
-                return TypeSearchView.Dependency(prefix, parts.subList(i, parts.size).joinToString("/"))
+        val matchingAlias = aliasIndex.findAliasedTo(it)
+
+        val parts = it.split("/")
+        for (i in parts.size - 1 downTo 1) {
+            val prefix = parts.subList(0, i).joinToString("/")
+
+            val node = artifactIndex.allArtifacts[prefix]
+            if (node != null) {
+                return TypeSearchView.Dependency(
+                        "$prefix/",
+                        parts.subList(i, parts.size).joinToString("/"),
+                        matchingAlias)
             }
         }
-        return TypeSearchView.Dependency(null, it)
+        return TypeSearchView.Dependency(null, it, matchingAlias)
     }
 
     private fun requestSourceFile(conn: Handle, parsedPath: ParsedPath.SourceFile): ServerSourceFile {

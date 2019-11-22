@@ -35,12 +35,7 @@ fun main(args: Array<String>) {
     val compiler = Compiler(dbi, session, MavenDependencyResolver(config.mavenResolver))
     val artifactIds = ArrayList<String>()
     for (artifact in config.artifacts) {
-        val id = when (artifact) {
-            is ArtifactConfig.OldJava -> "java/${artifact.version}"
-            is ArtifactConfig.Java -> "java/${artifact.version}"
-            is ArtifactConfig.Android -> "android/${artifact.version}"
-            is ArtifactConfig.Maven -> "${artifact.groupId}/${artifact.artifactId}/${artifact.version}"
-        }
+        val id = Compiler.getArtifactId(artifact)
 
         artifactIds.add(id)
         try {

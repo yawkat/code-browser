@@ -1,7 +1,9 @@
 package at.yawk.javabrowser.server
 
 /**
- * @author yawkat
+ * Compares dot/slash-separated strings numerically and alphabetically, placing "later" numerical values first.
+ *
+ * 'java/8' > 'java/11'
  */
 object VersionComparator : Comparator<String> {
     override fun compare(o1: String, o2: String): Int {

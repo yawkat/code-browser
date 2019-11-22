@@ -39,7 +39,8 @@ sealed class ArtifactConfig {
             val groupId: String,
             val artifactId: String,
             val version: String,
-            override val metadata: ArtifactMetadata? = null
+            override val metadata: ArtifactMetadata? = null,
+            val aliases: List<Maven> = emptyList()
     ) : ArtifactConfig()
 
     data class GitRepo(

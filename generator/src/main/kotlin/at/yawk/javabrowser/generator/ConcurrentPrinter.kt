@@ -15,6 +15,10 @@ class ConcurrentPrinter : PrinterWithDependencies {
         queue.put(Action.AddDependency(dependency))
     }
 
+    override fun addAlias(alias: String) {
+        queue.put(Action.AddAlias(alias))
+    }
+
     override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
         queue.put(Action.AddSourceFile(path, sourceFile, tokens))
     }
@@ -27,8 +31,9 @@ class ConcurrentPrinter : PrinterWithDependencies {
     fun work(delegate: PrinterWithDependencies) {
         while (!done || !queue.isEmpty()) {
             val item = queue.take()
-            when (item) {
+            val exhaustiveCheck = when (item) {
                 is Action.AddDependency -> delegate.addDependency(item.dependency)
+                is Action.AddAlias -> delegate.addDependency(item.alias)
                 is Action.AddSourceFile -> delegate.addSourceFile(item.path, item.sourceFile, item.tokens)
                 is Action.End -> {}
             }
@@ -37,6 +42,7 @@ class ConcurrentPrinter : PrinterWithDependencies {
 
     private sealed class Action {
         data class AddDependency(val dependency: String) : Action()
+        data class AddAlias(val alias: String) : Action()
         data class AddSourceFile(val path: String,
                                  val sourceFile: GeneratorSourceFile,
                                  val tokens: List<Tokenizer.Token>) : Action()

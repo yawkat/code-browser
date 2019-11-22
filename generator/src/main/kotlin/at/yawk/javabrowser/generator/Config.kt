@@ -68,9 +68,25 @@ data class Config(
                     artifacts.add(ArtifactConfig.Android(repos, version, metadata))
                 }
 
-                fun maven(groupId: String, artifactId: String, version: String, metadata: ArtifactMetadata? = null) {
-                    artifacts.add(ArtifactConfig.Maven(groupId, artifactId, version, metadata))
+                fun maven(groupId: String, artifactId: String, version: String, metadata: ArtifactMetadata? = null,
+                          f: MavenBuilder.() -> Unit = {}) {
+                    val builder = MavenBuilder(groupId, artifactId, version, metadata)
+                    builder.f()
+                    artifacts.add(builder.build())
                 }
+            }
+
+            class MavenBuilder(private val groupId: String,
+                               private val artifactId: String,
+                               val version: String,
+                               private val metadata: ArtifactMetadata? = null) {
+                private val aliases = ArrayList<ArtifactConfig.Maven>()
+
+                fun alias(groupId: String, artifactId: String, version: String = this.version) {
+                    aliases.add(ArtifactConfig.Maven(groupId, artifactId, version))
+                }
+
+                fun build() = ArtifactConfig.Maven(groupId, artifactId, version, metadata, aliases)
             }
         }
 

@@ -87,6 +87,7 @@ class Session(
                 conn.update("delete from binding_references where sourceArtifactId $inParam", *args)
                 conn.update("delete from sourceFiles where artifactId $inParam", *args)
                 conn.update("delete from dependencies where fromArtifactId $inParam", *args)
+                conn.update("delete from artifactAliases where artifactId $inParam", *args)
                 conn.update("delete from artifacts where id $inParam", *args)
             }
 
@@ -153,6 +154,12 @@ class Session(
                 conn.insert("insert into dependencies (fromArtifactId, toArtifactId) values (?, ?)",
                         artifactId,
                         dependency)
+            }
+
+            override fun addAlias(alias: String) {
+                conn.insert("insert into artifactAliases (artifactId, alias) values (?, ?)",
+                        artifactId,
+                        alias)
             }
 
             private fun storeTokens(table: String,

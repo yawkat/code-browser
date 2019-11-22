@@ -62,6 +62,13 @@ class Compiler(
         private const val ANDROID_JAVA_VERSION = "java/8"
 
         const val VERSION = 31
+
+        fun getArtifactId(artifact: ArtifactConfig) = when (artifact) {
+            is ArtifactConfig.OldJava -> "java/${artifact.version}"
+            is ArtifactConfig.Java -> "java/${artifact.version}"
+            is ArtifactConfig.Android -> "android/${artifact.version}"
+            is ArtifactConfig.Maven -> "${artifact.groupId}/${artifact.artifactId}/${artifact.version}"
+        }
     }
 
     private fun needsRecompile(artifactId: String): Boolean {
@@ -372,9 +379,10 @@ class Compiler(
         val depPaths = depObjects.map { (it as MavenResolvedArtifact).asFile().toPath() }
         val depNames = depObjects.map {
             var name = it.coordinate.groupId + "/" + it.coordinate.artifactId + "/" + it.coordinate.version
-            if (it.coordinate.classifier != null) name += "/" + it.coordinate.classifier
+            if (!it.coordinate.classifier.isNullOrEmpty()) name += "/" + it.coordinate.classifier
             name
         }
+        val aliasNames = artifact.aliases.map { getArtifactId(it) }
         val metadata = resolveMavenMetadata(artifact)
         val sourceJar = Maven.resolver()
                 .addDependency(MavenDependencies.createDependency(
@@ -396,6 +404,7 @@ class Compiler(
                 compile(artifactId, src, depPaths, true, printer)
                 depNames.forEach { printer.addDependency(it) }
                 printer.addDependency(NOMINAL_JAVA_VERSION)
+                aliasNames.forEach { printer.addAlias(it) }
             }
         }
     }

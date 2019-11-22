@@ -4,6 +4,7 @@ import at.yawk.javabrowser.server.artifact.ArtifactNode
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.skife.jdbi.v2.TransactionStatus
+import java.util.NavigableMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,6 +27,9 @@ class ArtifactIndex @Inject constructor(
             ArtifactNode.build(conn.select("select id from artifacts").map { it["id"] as String })
         }
     }
+
+    val allArtifacts: NavigableMap<String, ArtifactNode>
+        get() = rootArtifact.allNodes
 
     fun parse(rawPath: String): ParseResult {
         val path = rawPath.removePrefix("/").removeSuffix("/")

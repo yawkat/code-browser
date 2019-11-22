@@ -77,10 +77,20 @@ create table if not exists binding_references
 
 create table if not exists dependencies
 (
-    fromArtifactId varchar references artifacts,
-    toArtifactId   varchar,
+    fromArtifactId varchar not null references artifacts,
+    toArtifactId   varchar not null,
 
     primary key (fromArtifactId, toArtifactId)
+);
+
+-- ALIASES
+
+create table if not exists artifactAliases
+(
+    artifactId varchar not null references artifacts,
+    alias      varchar not null,
+
+    primary key (artifactId, alias)
 );
 
 -- BINDING REFERENCE COUNTS

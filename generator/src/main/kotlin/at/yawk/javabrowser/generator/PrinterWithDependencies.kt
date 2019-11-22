@@ -5,4 +5,5 @@ package at.yawk.javabrowser.generator
  */
 interface PrinterWithDependencies : Printer {
     fun addDependency(dependency: String)
+    fun addAlias(alias: String)
 }

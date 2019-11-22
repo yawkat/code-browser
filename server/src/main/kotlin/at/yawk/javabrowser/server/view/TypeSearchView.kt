@@ -22,6 +22,7 @@ data class TypeSearchView(
 
     data class Dependency(
             val prefix: String?,
-            val suffix: String
+            val suffix: String,
+            val aliasedTo: String?
     )
 }

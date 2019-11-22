@@ -21,9 +21,13 @@ private val log = LoggerFactory.getLogger(SearchResource::class.java)
 
 @ThreadSafe
 @Singleton
-class SearchResource @Inject constructor(private val dbi: DBI,
-                                         private val objectMapper: ObjectMapper,
-                                         artifactUpdater: ArtifactUpdater) : HttpHandler {
+class SearchResource @Inject constructor(
+        private val dbi: DBI,
+        private val objectMapper: ObjectMapper,
+        artifactUpdater: ArtifactUpdater,
+        private val aliasIndex: AliasIndex,
+        private val artifactIndex: ArtifactIndex
+) : HttpHandler {
     companion object {
         const val PATTERN = "/api/search/{query}"
     }
@@ -94,6 +98,23 @@ class SearchResource @Inject constructor(private val dbi: DBI,
                     if (includeDependencies)
                         dbi.inTransaction { conn: Handle, _ ->
                             conn.attach(DependencyDao::class.java).getDependencies(artifactId)
+                        }.mapNotNull { dependencyId ->
+                            val ceiling = artifactIndex.allArtifacts.ceilingEntry(dependencyId)
+                            if (ceiling != null) {
+                                if (ceiling.value.children.isEmpty()) {
+                                    // this exact version or a newer version is available. use that.
+                                    return@mapNotNull ceiling.key
+                                }
+                                val floor = artifactIndex.allArtifacts.ceilingEntry(dependencyId)
+                                if (floor != null
+                                        && floor.value.parent?.id == ceiling.key
+                                        && floor.value.children.isEmpty()) {
+                                    // an older version is available.
+                                    return@mapNotNull floor.key
+                                }
+                            }
+                            // nothing in the artifact index :( check for aliases
+                            return@mapNotNull aliasIndex.findAliasedTo(dependencyId)
                         }
                     else emptySet<String>()
             searchIndex.find(query, setOf(artifactId) + dependencies)

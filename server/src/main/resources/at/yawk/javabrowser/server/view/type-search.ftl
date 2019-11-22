@@ -27,6 +27,7 @@
                 <li>
                     <#if dependency.prefix??>
                       <a href="/${dependency.prefix}">${dependency.prefix}</a></#if>${dependency.suffix}
+                    <#if dependency.aliasedTo??>(available as <a href="/${dependency.aliasedTo}">${dependency.aliasedTo}</a>)</#if>
                 </li>
               </#list>
           </ul>
