@@ -40,6 +40,7 @@ data class Config(
         )
         abstract class ConfigScript {
             var dbConfig: DbConfig? = null
+            var mavenResolver: MavenDependencyResolver.Config = MavenDependencyResolver.Config()
             val artifacts = ArrayList<ArtifactConfig>()
 
             fun database(
@@ -49,6 +50,10 @@ data class Config(
             ) {
                 if (dbConfig != null) throw IllegalStateException()
                 dbConfig = DbConfig(url, user, password)
+            }
+
+            fun mavenResolver(config: MavenDependencyResolver.Config) {
+                this.mavenResolver = config
             }
 
             fun artifacts(f: ArtifactCollector.() -> Unit) {
@@ -107,7 +112,7 @@ data class Config(
             return Config(
                     database = configScript.dbConfig!!,
                     artifacts = configScript.artifacts,
-                    mavenResolver = MavenDependencyResolver.Config()
+                    mavenResolver = configScript.mavenResolver
             )
         }
     }
