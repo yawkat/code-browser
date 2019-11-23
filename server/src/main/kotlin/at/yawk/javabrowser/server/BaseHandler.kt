@@ -1,6 +1,5 @@
 package at.yawk.javabrowser.server
 
-import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import at.yawk.javabrowser.server.view.DeclarationNode
 import at.yawk.javabrowser.server.view.IndexView
@@ -31,7 +30,8 @@ class BaseHandler @Inject constructor(
         private val artifactIndex: ArtifactIndex,
         private val declarationTreeHandler: DeclarationTreeHandler,
         private val siteStatisticsService: SiteStatisticsService,
-        private val aliasIndex: AliasIndex
+        private val aliasIndex: AliasIndex,
+        private val metadataCache: ArtifactMetadataCache
 ) : HttpHandler {
     private sealed class ParsedPath(val artifact: ArtifactNode) {
         class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact)
@@ -90,19 +90,13 @@ class BaseHandler @Inject constructor(
         return TypeSearchView(
                 path.artifact,
                 diffWith?.artifact,
-                getArtifactMetadata(conn, path.artifact),
+                metadataCache.getArtifactMetadata(path.artifact),
                 conn.attach(DependencyDao::class.java).getDependencies(path.artifact.id).map {
                     buildDependencyInfo(it)
                 },
                 topLevelPackages,
                 alternatives
         )
-    }
-
-    private fun getArtifactMetadata(conn: Handle, artifact: ArtifactNode): ArtifactMetadata {
-        val bytes = conn.select("select metadata from artifacts where id = ?", artifact.id)
-                .single()["metadata"] as ByteArray
-        return objectMapper.readValue(bytes, ArtifactMetadata::class.java)
     }
 
     private fun buildDependencyInfo(it: String): TypeSearchView.Dependency {
@@ -228,7 +222,7 @@ class BaseHandler @Inject constructor(
                 ),
                 oldInfo = oldInfo,
                 alternatives = alternatives,
-                artifactMetadata = getArtifactMetadata(conn, parsedPath.artifact),
+                artifactMetadata = metadataCache.getArtifactMetadata(parsedPath.artifact),
                 declarations = declarations,
                 bindingResolver = bindingResolver
         )
