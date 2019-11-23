@@ -2,7 +2,7 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.DbConfig
 import at.yawk.javabrowser.DbMigration
-import org.eclipse.collections.impl.factory.Bags
+import com.google.common.collect.HashMultiset
 import org.slf4j.LoggerFactory
 import java.nio.file.Paths
 
@@ -14,9 +14,9 @@ private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.Generat
 fun main(args: Array<String>) {
     val config = Config.fromFile(Paths.get(args[0]))
 
-    val duplicateArtifactBag = Bags.mutable.withAll(config.artifacts)
-    if (duplicateArtifactBag.toMapOfItemToCount().values.any { it > 1 }) {
-        log.error("Duplicate artifacts: $duplicateArtifactBag")
+    val duplicateArtifactBag = HashMultiset.create(config.artifacts)
+    if (duplicateArtifactBag.entrySet().any { it.count > 1 }) {
+        log.error("Duplicate artifacts: ${duplicateArtifactBag.entrySet().filter { it.count > 1 }.map { it.element }}")
         return
     }
 
