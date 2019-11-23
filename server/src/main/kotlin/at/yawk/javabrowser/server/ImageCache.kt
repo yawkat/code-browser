@@ -14,6 +14,7 @@ import freemarker.template.TemplateException
 import freemarker.template.TemplateModel
 import io.undertow.server.HttpHandler
 import io.undertow.util.Headers
+import org.slf4j.LoggerFactory
 import java.awt.RenderingHints
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
@@ -31,6 +32,8 @@ import kotlin.math.roundToInt
 /**
  * @author yawkat
  */
+private val log = LoggerFactory.getLogger(ImageCache::class.java)
+
 @Singleton
 class ImageCache {
     companion object {
@@ -76,11 +79,13 @@ class ImageCache {
                 ?: throw TemplateException("maxWidth must be number", env)).asNumber.toInt()
         val maxHeight: Int = (((params["maxHeight"] ?: SimpleNumber(Int.MAX_VALUE)) as? SimpleNumber)
                 ?: throw TemplateException("maxHeight must be number", env)).asNumber.toInt()
-        env.out.write(load(CacheKey(url, maxWidth, maxHeight)).toASCIIString())
+        env.out.write(load(CacheKey(url, maxWidth, maxHeight))?.toASCIIString() ?: "")
     }
 
     private fun parseImage(key: CacheKey): Entry {
-        val stream = BufferedInputStream(URL(key.url).openStream())
+        val connection = URL(key.url).openConnection()
+        connection.setRequestProperty("User-Agent", "yawkat/java-browser image cache fetcher")
+        val stream = BufferedInputStream(connection.getInputStream())
         stream.mark(8)
 
         when (stream.read()) {
@@ -118,9 +123,14 @@ class ImageCache {
         return Entry(ByteStreams.toByteArray(stream), MediaType.SVG_UTF_8)
     }
 
-    private fun load(key: CacheKey): URI {
-        val entry = cache[key]
-        return URI("/img/${entry.id}")
+    private fun load(key: CacheKey): URI? {
+        try {
+            val entry = cache[key]
+            return URI("/img/${entry.id}")
+        } catch (e: Exception) {
+            log.error("Failed to load image ${key.url} to cache", e)
+            return null
+        }
     }
 
     data class CacheKey(
