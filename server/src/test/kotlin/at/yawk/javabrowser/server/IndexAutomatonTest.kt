@@ -13,7 +13,7 @@ class IndexAutomatonTest {
                 listOf("java.util.concurrent.ConcurrentHashMap",
                         "java.util.HashMap"),
                 { SearchIndex.split(it) },
-                5
+                4
         )
         val result = automaton.run("javuticohamap")
         Assert.assertEquals(
