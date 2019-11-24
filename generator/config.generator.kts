@@ -52,6 +52,12 @@ artifacts {
     maven("com.google.guava", "guava", "25.1-jre")
     maven("com.google.guava", "guava", "27.1-jre")
     maven("com.google.code.findbugs", "jsr305", "3.0.2")
+    maven("com.google.code.findbugs", "annotations", "3.0.1") {
+        alias("findbugs", "findbugs")
+    }
+    maven("com.google.code.findbugs", "findbugs", "3.0.1") {
+        alias("findbugs", "findbugs")
+    }
 
     val junit4Meta = ArtifactMetadata(logoUrl = "https://junit.org/junit4/images/junit-logo.png")
     maven("junit", "junit", "4.12", metadata = junit4Meta)
@@ -65,16 +71,37 @@ artifacts {
     maven("org.slf4j", "slf4j-api", "1.7.25", metadata = slf4jMeta)
     maven("org.slf4j", "slf4j-api", "1.7.26", metadata = slf4jMeta)
     maven("org.slf4j", "slf4j-simple", "1.7.26", metadata = slf4jMeta)
+
     maven("commons-io", "commons-io", "2.6")
+    maven("commons-beanutils", "commons-beanutils", "1.9.4")
     maven("commons-codec", "commons-codec", "1.12")
+    maven("commons-cli", "commons-cli", "1.4")
+    maven("commons-collections", "commons-collections", "3.2.2")
+    maven("commons-configuration", "commons-configuration", "1.10")
+    maven("commons-dbcp", "commons-dbcp", "1.4")
+    maven("commons-digester", "commons-digester", "2.1")
+    maven("commons-fileupload", "commons-fileupload", "1.4")
+    maven("commons-httpclient", "commons-httpclient", "3.1")
+    maven("commons-logging", "commons-logging", "1.2")
+    maven("commons-net", "commons-net", "3.6")
+    maven("commons-pool", "commons-pool", "1.6")
+
     maven("org.apache.commons", "commons-collections4", "4.3")
     maven("org.apache.commons", "commons-math3", "3.6.1")
     maven("org.apache.commons", "commons-compress", "1.18")
+    maven("org.apache.commons", "commons-configuration2", "2.6")
+    maven("org.apache.commons", "commons-dbcp2", "2.7.0")
+    maven("org.apache.commons", "commons-digester3", "3.2")
+    maven("org.apache.commons", "commons-pool2", "2.7.0")
+    maven("org.apache.commons", "commons-vfs2", "2.4.1")
+
     val log4j2Meta = ArtifactMetadata(logoUrl = "https://logging.apache.org/log4j/2.x/images/logo.png")
     maven("org.apache.logging.log4j", "log4j-core", "2.11.0", metadata = log4j2Meta)
     maven("org.apache.logging.log4j", "log4j-core", "2.12.0", metadata = log4j2Meta)
     maven("org.apache.logging.log4j", "log4j-api", "2.12.0", metadata = log4j2Meta)
     maven("ch.qos.logback", "logback-classic", "1.2.3")
+    maven("ch.qos.logback", "logback-core", "1.2.3")
+    maven("ch.qos.cal10n", "cal10n-api", "0.8.1")
     maven("org.apache.commons", "commons-lang3", "3.7")
     maven("commons-lang", "commons-lang", "2.6")
     for (jacksonVersion in listOf("2.9.5", "2.10.1")) {
@@ -85,8 +112,15 @@ artifacts {
         maven("com.fasterxml.jackson.datatype", "jackson-datatype-jsr310", jacksonVersion)
         maven("com.fasterxml.jackson.dataformat", "jackson-dataformat-yaml", jacksonVersion)
         maven("com.fasterxml.jackson.dataformat", "jackson-dataformat-xml", jacksonVersion)
+        maven("com.fasterxml.jackson.dataformat", "jackson-dataformat-cbor", jacksonVersion)
+        maven("com.fasterxml.jackson.dataformat", "jackson-dataformat-smile", jacksonVersion)
         maven("com.fasterxml.jackson.module", "jackson-module-jaxb-annotations", jacksonVersion)
+        maven("com.fasterxml.jackson.jaxrs", "jackson-jaxrs-base", jacksonVersion)
+        maven("com.fasterxml.jackson.jaxrs", "jackson-jaxrs-json-provider", jacksonVersion)
     }
+    maven("com.fasterxml.woodstox", "woodstox-core", "6.0.2")
+    maven("com.fasterxml", "classmate", "1.5.1")
+    maven("com.fasterxml", "aalto-xml", "1.2.2")
     val nettyMeta = ArtifactMetadata(logoUrl = "https://netty.io/images/logo.png")
     maven("io.netty", "netty-all", "4.1.25.Final", metadata = nettyMeta) {
         alias("io.netty", "netty-buffer")
@@ -111,6 +145,9 @@ artifacts {
         alias("io.netty", "netty-transport-rxtx")
         alias("io.netty", "netty-transport-sctp")
         alias("io.netty", "netty-transport-udt")
+        alias("io.netty", "netty-transport-native-epoll")
+        alias("io.netty", "netty-transport-native-kqueue")
+        alias("io.netty", "netty-transport-native-unix-common")
         alias("io.netty", "netty-example")
     }
     maven("io.undertow", "undertow-core", "2.0.9.Final")
@@ -135,7 +172,17 @@ artifacts {
     val hibernateMeta = ArtifactMetadata(logoUrl = "http://hibernate.org/images/hibernate-logo.svg")
     maven("org.hibernate", "hibernate-core", "5.3.1.Final", metadata = hibernateMeta)
     maven("org.hibernate.validator", "hibernate-validator", "6.0.16.Final", metadata = hibernateMeta)
-    maven("javax.persistence", "javax.persistence-api", "2.2")
+    maven("javax.persistence", "javax.persistence-api", "2.2") {
+        alias("javax.persistence", "persistence-api")
+    }
+    maven("javax.servlet", "javax.servlet-api", "4.0.1") {
+        alias("javax.servlet", "servlet-api")
+    }
+    maven("javax.transaction", "javax.transaction-api", "1.3") {
+        alias("javax.transaction", "transaction-api")
+    }
+    maven("javax.validation", "validation-api", "2.0.1.Final")
+    maven("javax.money", "money-api", "1.0.3")
     maven("org.hibernate", "hibernate-entitymanager", "4.3.11.Final", metadata = hibernateMeta)
     maven("org.hibernate", "hibernate-core", "4.3.11.Final", metadata = hibernateMeta)
     maven("org.openjdk.jmh", "jmh-core", "1.21")
@@ -143,10 +190,21 @@ artifacts {
     maven("org.bouncycastle", "bcprov-jdk15on", "1.61")
     val asmMeta = ArtifactMetadata(logoUrl = "https://asm.ow2.io/asm-logo.svg")
     for (asmVersion in listOf("6.2.1", "7.1")) {
-        maven("org.ow2.asm", "asm", asmVersion, metadata = asmMeta)
-        maven("org.ow2.asm", "asm-tree", asmVersion, metadata = asmMeta)
-        maven("org.ow2.asm", "asm-commons", asmVersion, metadata = asmMeta)
-        maven("org.ow2.asm", "asm-util", asmVersion, metadata = asmMeta)
+        maven("org.ow2.asm", "asm", asmVersion, metadata = asmMeta) {
+            alias("asm", "asm")
+        }
+        maven("org.ow2.asm", "asm-tree", asmVersion, metadata = asmMeta) {
+            alias("asm", "asm-tree")
+        }
+        maven("org.ow2.asm", "asm-commons", asmVersion, metadata = asmMeta) {
+            alias("asm", "asm-commons")
+        }
+        maven("org.ow2.asm", "asm-util", asmVersion, metadata = asmMeta) {
+            alias("asm", "asm-util")
+        }
+        maven("org.ow2.asm", "asm-analysis", asmVersion, metadata = asmMeta) {
+            alias("asm", "asm-util")
+        }
     }
     maven("cglib", "cglib", "3.3.0")
     maven("joda-time", "joda-time", "2.10")
@@ -164,6 +222,9 @@ artifacts {
     maven("org.openjfx", "javafx-controls", "11")
     maven("com.google.code.gson", "gson", "2.8.5")
     maven("org.apache.httpcomponents", "httpclient", "4.5.7")
+    maven("org.apache.httpcomponents", "httpclient", "4.5.10")
+    maven("org.apache.httpcomponents", "httpcore", "4.4.12")
+    maven("org.apache.httpcomponents", "httpcore-nio", "4.4.12")
 
     val springMeta = ArtifactMetadata(logoUrl = "https://spring.io/img/spring-by-pivotal-9066b55828deb3c10e27e609af322c40.png")
     maven("org.springframework", "spring-context", "5.1.5.RELEASE", metadata = springMeta)
@@ -189,10 +250,13 @@ artifacts {
     maven("io.ebean", "ebean-annotation", "4.7", metadata = ebeanMeta)
     maven("io.ebean", "persistence-api", "2.2.2", metadata = ebeanMeta)
     maven("io.ebean", "ebean-datasource", "4.5.1", metadata = ebeanMeta)
+    maven("io.ebean", "ebean-datasource-api", "4.6", metadata = ebeanMeta)
     maven("io.ebean", "ebean-types", "1.3", metadata = ebeanMeta)
     maven("org.yaml", "snakeyaml", "1.24")
     val byteBuddyMeta = ArtifactMetadata(logoUrl = "http://bytebuddy.net/images/logo-orange.png")
-    maven("net.bytebuddy", "byte-buddy-dep", "1.9.12", metadata = byteBuddyMeta)
+    maven("net.bytebuddy", "byte-buddy-dep", "1.9.12", metadata = byteBuddyMeta) {
+        alias("net.bytebuddy", "byte-buddy")
+    }
     maven("net.bytebuddy", "byte-buddy-agent", "1.9.12", metadata = byteBuddyMeta)
     maven("com.jcraft", "jsch", "0.1.55")
     val antlrMeta = ArtifactMetadata(logoUrl = "https://raw.githubusercontent.com/antlr/website-antlr4/gh-pages/images/antlr-logo.png")
@@ -223,15 +287,99 @@ artifacts {
     val poiMeta = ArtifactMetadata(logoUrl = "https://poi.apache.org/images/project-header.png")
     maven("org.apache.poi", "poi", "4.1.0", metadata = poiMeta)
     maven("org.apache.poi", "poi-ooxml", "4.1.0", metadata = poiMeta)
-    maven("io.vertx", "vertx-core", "3.8.0")
-    maven("io.vertx", "vertx-unit", "3.8.0")
-    maven("io.vertx", "vertx-web", "3.8.0")
-    maven("io.vertx", "vertx-web-common", "3.8.0")
-    maven("io.vertx", "vertx-auth-common", "3.8.0")
-    maven("io.vertx", "vertx-bridge-common", "3.8.0")
-    maven("io.vertx", "vertx-codegen", "3.8.0")
-    maven("io.vertx", "vertx-rx-java2", "3.8.0")
-    maven("io.reactivex.rxjava2", "rxjava", "2.2.11")
+    val vertxMeta = ArtifactMetadata(logoUrl = "https://vertx.io/assets/logo-sm.png")
+    for (vertxVersion in listOf("3.8.0")) {
+        maven("io.vertx", "vertx-amqp-bridge", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-amqp-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-auth-common", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-auth-htdigest", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-auth-htpasswd", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-auth-jdbc", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-auth-jwt", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-auth-mongo", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-auth-oauth2", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-auth-shiro", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-bridge-common", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-cassandra-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-circuit-breaker", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-codegen", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-codetrans", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config-consul", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config-git", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config-hocon", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config-kubernetes-configmap", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config-redis", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config-vault", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config-yaml", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-config-zookeeper", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-consul-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-consul-service", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-core", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-dropwizard-metrics", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-hazelcast", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-health-check", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-ignite", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-infinispan", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-jdbc-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-junit5", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-jwt", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-kafka-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-lang-groovy", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-lang-js-gen", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-lang-kotlin-gen", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-lang-ruby-gen", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-mail-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-mail-service", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-micrometer-metrics", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-mongo-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-mongo-service", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-mqtt", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-mysql-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-mysql-postgresql-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-pg-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-proton", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-rabbitmq-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-redis-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-rx-java", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-rx-java-gen", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-rx-java2", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-rx-java2-gen", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery-backend-consul", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery-backend-redis", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery-backend-zookeeper", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery-bridge-consul", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery-bridge-docker", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery-bridge-docker-links", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery-bridge-kubernetes", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-discovery-bridge-zookeeper", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-factory", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-service-proxy", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-shell", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-sockjs-service-proxy", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-sql-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-sql-common", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-stomp", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-tcp-eventbus-bridge", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-unit", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-api-contract", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-client", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-common", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-graphql", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-templ-freemarker", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-templ-handlebars", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-templ-jade", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-templ-mvel", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-templ-thymeleaf", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-templ-pebble", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-web-templ-rocker", vertxVersion, metadata = vertxMeta)
+        maven("io.vertx", "vertx-zookeeper", vertxVersion, metadata = vertxMeta)
+    }
+    maven("io.reactivex.rxjava2", "rxjava", "2.2.11") {
+        alias("io.reactivex", "rxjava")
+    }
     maven("io.reactiverse", "reactive-pg-client", "0.11.4")
     maven("com.github.purejavacomm", "purejavacomm", "1.0.2.RELEASE")
     maven("org.apache.avro", "avro", "1.9.1", metadata = ArtifactMetadata(logoUrl = "https://avro.apache.org/images/avro-logo.png"))
@@ -330,7 +478,120 @@ artifacts {
     maven("org.codehaus.plexus", "plexus-utils", "3.3.0", metadata = plexusMeta)
     maven("org.sonatype.plexus", "plexus-sec-dispatcher", "1.4", metadata = plexusMeta)
     maven("org.sonatype.plexus", "plexus-cipher", "1.7", metadata = plexusMeta)
-    maven("org.codehaus.plexus", "plexus-classworlds", "2.6.0", metadata = plexusMeta)
+    maven("org.codehaus.plexus", "plexus-classworlds", "2.6.0", metadata = plexusMeta) {
+        alias("classworlds", "classworlds")
+    }
 
     maven("org.jsoup", "jsoup", "1.12.1")
+    maven("org.apache.ant", "ant", "1.10.7") {
+        alias("ant", "ant")
+    }
+    maven("aopalliance", "aopalliance", "1.0")
+    maven("org.apache.avalon.framework", "avalon-framework-api", "4.3.1") {
+        alias("avalon-framework", "avalon-framework-api")
+    }
+    maven("org.apache.avalon.framework", "avalon-framework-impl", "4.3.1") {
+        alias("avalon-framework", "avalon-framework-impl")
+        alias("avalon-framework", "avalon-framework")
+    }
+    maven("org.apache.bcel", "bcel", "6.4.1") {
+        alias("bcel", "bcel")
+    }
+    maven("org.apache.bsf", "bsf-api", "3.1") {
+        alias("bsf", "bsf")
+    }
+    maven("com.mchange", "c3p0", "0.9.5.4") {
+        alias("c3p0", "c3p0")
+    }
+    maven("cglib", "cglib", "3.3.0") {
+        alias("cglib", "cglib-nodep")
+    }
+    maven("net.sourceforge.cobertura", "cobertura", "2.1.1") {
+        alias("cobertura", "cobertura")
+    }
+    maven("com.101tec", "zkclient", "0.11")
+    maven("com.barchart.udt", "barchart-udt-bundle", "2.3.0")
+    maven("com.beust", "jcommander", "1.78")
+    maven("com.carrotsearch", "hppc", "0.8.1")
+    maven("com.caucho", "hessian", "4.0.63")
+    maven("com.conversantmedia", "disruptor", "1.2.15")
+    maven("com.coverity.security", "coverity-escapers", "1.1.1")
+    maven("com.datastax.oss", "java-driver-core", "4.3.0") {
+        alias("com.datastax.cassandra", "cassandra-driver-core")
+    }
+    maven("com.datastax.oss", "native-protocol", "1.4.7")
+    maven("org.apache.cassandra", "cassandra-all", "3.11.5", metadata = ArtifactMetadata(logoUrl = "https://cassandra.apache.org/img/cassandra_logo.png"))
+    maven("com.experlog", "xapool", "1.5.0")
+    maven("com.google.protobuf", "protobuf-java", "3.10.0")
+    maven("com.google.protobuf", "protobuf-java-util", "3.10.0")
+    maven("com.netflix.hystrix", "hystrix-core", "1.5.18", metadata = ArtifactMetadata(logoUrl = "https://netflix.github.com/Hystrix/images/hystrix-logo-tagline-850.png"))
+    maven("com.netflix.archaius", "archaius-core", "0.7.7")
+    maven("org.hsqldb", "hsqldb", "2.5.0", metadata = ArtifactMetadata(logoUrl = "http://hsqldb.org/images/hypersql_logo.png")) {
+        alias("hsqldb", "hsqldb")
+    }
+    val dropwizardMeta = ArtifactMetadata(logoUrl = "http://dropwizard.io/en/stable/_static/dropwizard-hat.png")
+    maven("io.dropwizard", "dropwizard-core", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-testing", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-client", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-auth", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-jackson", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-assets", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-db", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-metrics", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-jdbi", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-configuration", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-jersey", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-views", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-validation", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-logging", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-hibernate", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-lifecycle", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-util", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-jetty", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-servlets", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-migrations", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard", "dropwizard-views-freemarker", "1.3.16", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-core", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-jvm", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-json", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-graphite", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-healthchecks", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-annotation", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-servlets", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-jmx", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-jetty9", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-servlet", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-logback", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-httpclient", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-jersey2", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-ehcache", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-httpasyncclient", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-jcache", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-log4j2", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-jdbi", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-jdbi3", "4.1.1", metadata = dropwizardMeta)
+    maven("io.dropwizard.metrics", "metrics-collectd", "4.1.1", metadata = dropwizardMeta)
+    maven("it.unimi.dsi", "fastutil", "8.3.0")
+    maven("org.javassist", "javassist", "3.26.0-GA") {
+        alias("javassist", "javassist")
+        alias("jboss", "javassist")
+        alias("org.jboss", "javassist")
+    }
+    maven("xom", "xom", "1.3.2")
+    val xercesMeta = ArtifactMetadata(logoUrl = "https://xerces.apache.org/images/apache-xerces.png")
+    maven("xerces", "xercesImpl", "2.12.0", metadata = xercesMeta) {
+        alias("xerces", "xerces")
+    }
+    val jrubyLogo = ArtifactMetadata(logoUrl = "https://www.jruby.org/images/jruby-logo.png")
+    maven("org.jruby", "jruby-core", "9.2.9.0", metadata = jrubyLogo)
+    maven("org.jruby", "dirgra", "0.3", metadata = jrubyLogo)
+    maven("org.jruby.jcodings", "jcodings", "1.0.46", metadata = jrubyLogo)
+    maven("org.jruby.joni", "joni", "2.1.30", metadata = jrubyLogo)
+    maven("org.json", "json", "20190722")
+    maven("org.mongodb.morphia", "morphia", "1.3.2", metadata = ArtifactMetadata(logoUrl = "https://morphia.dev//s/img/logo.png"))
+    val mongoMeta = ArtifactMetadata(logoUrl = "https://webassets.mongodb.com/_com_assets/cms/MongoDB_Logo_FullColorBlack_RGB-4td3yuxzjs.png")
+    maven("org.mongodb", "mongo-java-driver", "3.11.2", metadata = mongoMeta)
+    maven("org.mongodb", "bson", "3.11.2", metadata = mongoMeta)
+    maven("org.mongodb", "mongodb-driver-async", "3.11.2", metadata = mongoMeta)
+    maven("org.mongodb", "mongodb-driver-core", "3.11.2", metadata = mongoMeta)
 }
