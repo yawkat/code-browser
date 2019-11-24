@@ -1,6 +1,13 @@
+<#ftl strip_text=true>
 <#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.FullTextSearchResultView" -->
 <#import "page.ftl" as page>
 <#import "fullTextSearchForm.ftl" as ftsf>
+<#macro resultPart result>
+  <code><pre><@result.renderNextRegionDirective/></pre></code>
+  <#if result.hasMore>
+    <@resultPart result/>
+  </#if>
+</#macro>
 <@page.page title="Full Text Search" artifactId=searchArtifact!'' additionalTitle="Full Text Search" hasSearch=false>
   <div id="noncode">
     <@ftsf.fullTextSearchForm query=query searchArtifact=searchArtifact!'' />
@@ -15,7 +22,7 @@
         <#-- @ftlvariable name="result" type="at.yawk.javabrowser.server.view.FullTextSearchResultView.SourceFileResult" -->
           <li class="fts-result">
             <h2><#if !searchArtifact??><a href="/${result.artifactId}">${result.artifactId}</a> / </#if><a href="/${result.artifactId}/${result.path}">${result.path}</a></h2>
-            <code><pre><@result.renderNextRegionDirective/></pre></code>
+            <@resultPart result/>
           </li>
         </@ConservativeLoopBlock>
       </ul>

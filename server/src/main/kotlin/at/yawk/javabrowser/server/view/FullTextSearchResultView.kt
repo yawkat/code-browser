@@ -29,6 +29,9 @@ class FullTextSearchResultView(
     ) {
         val renderer = partial.createRenderer<HtmlEmitter.Memory>(CONTEXT_LINES, CONTEXT_LINES)
 
+        val hasMore: Boolean
+            get() = renderer.hasMore()
+
         val renderNextRegionDirective = PrinterDirective()
 
         inner class PrinterDirective : TemplateDirectiveModel {
