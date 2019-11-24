@@ -51,7 +51,7 @@ class IndexAutomaton<E : Any>(
                     cache = cache,
                     components = components(entry),
                     finalIndex = i,
-                    request = StateRequest(0, 0, jumps, false)
+                    request = StateRequest(0, 0, jumps, true)
             ))
             cache.clear()
         }
@@ -88,36 +88,39 @@ class IndexAutomaton<E : Any>(
         cache.put(request, builder.state)
 
         val lastComponent = request.componentsIndex >= components.size - 1
-        val lastInComponent = request.stringIndex >= components[request.componentsIndex].length - 1
 
-        if (!lastInComponent ||
-                (lastComponent && request.stringIndex == components[request.componentsIndex].length - 1)) {
+        if (request.componentsIndex < components.size) {
+            val lastInComponent = request.stringIndex == components[request.componentsIndex].length - 1
+
             // normal step
+            val normalStepRequest = if (!lastInComponent)
+                StateRequest(
+                        componentsIndex = request.componentsIndex,
+                        stringIndex = request.stringIndex + 1,
+                        remainingJumps = request.remainingJumps,
+                        justJumped = false
+                )
+            else
+                StateRequest(
+                        componentsIndex = request.componentsIndex + 1,
+                        stringIndex = 0,
+                        remainingJumps = request.remainingJumps,
+                        justJumped = false
+                )
             builder.addTransition(components[request.componentsIndex][request.stringIndex],
-                    fromInput(nfa, cache, components, finalIndex, StateRequest(
-                            componentsIndex = request.componentsIndex,
-                            stringIndex = request.stringIndex + 1,
-                            remainingJumps = request.remainingJumps,
-                            justJumped = false
-                    )))
+                    fromInput(nfa, cache, components, finalIndex, normalStepRequest))
         }
+
         if (!lastComponent) {
-            if (lastInComponent) {
-                // step without jump to next component
-                builder.addTransition(components[request.componentsIndex][request.stringIndex],
-                        fromInput(nfa, cache, components, finalIndex, StateRequest(
-                                componentsIndex = request.componentsIndex + 1,
-                                stringIndex = 0,
-                                remainingJumps = request.remainingJumps,
-                                justJumped = false
-                        )))
-            } else if (request.remainingJumps > 0) {
+            if (request.remainingJumps > 0 || request.justJumped) {
                 // jump to next component
                 builder.addTransition(Automaton.EPSILON,
                         fromInput(nfa, cache, components, finalIndex, StateRequest(
                                 componentsIndex = request.componentsIndex + 1,
                                 stringIndex = 0,
-                                remainingJumps = request.remainingJumps - 1,
+                                remainingJumps =
+                                if (request.justJumped) request.remainingJumps
+                                else request.remainingJumps - 1,
                                 justJumped = true
                         )))
             }
