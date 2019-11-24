@@ -27,6 +27,7 @@ import java.nio.file.FileSystems
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.LinkOption
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.StandardCopyOption
@@ -294,7 +295,12 @@ class Compiler(
     private fun copyDirectory(src: Path, dest: Path) {
         val norm = src.normalize()
         Files.walkFileTree(norm, object : SimpleFileVisitor<Path>() {
+            val visited = HashSet<Path>()
+
             override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
+                if (!visited.add(dir)) {
+                    return FileVisitResult.SKIP_SUBTREE
+                }
                 Files.createDirectories(dest.resolve(norm.relativize(dir).toString()))
                 return FileVisitResult.CONTINUE
             }
@@ -307,6 +313,15 @@ class Compiler(
                     throw e
                 }
                 return FileVisitResult.CONTINUE
+            }
+
+            override fun visitFileFailed(file: Path, exc: IOException): FileVisitResult {
+                // happens for jruby: https://github.com/jruby/jruby/issues/5979
+                if (exc is NoSuchFileException) {
+                    log.warn("Failed to visit $file for copying")
+                    return FileVisitResult.CONTINUE
+                }
+                return super.visitFileFailed(file, exc)
             }
         })
     }
