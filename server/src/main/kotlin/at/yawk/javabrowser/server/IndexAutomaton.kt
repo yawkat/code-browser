@@ -45,7 +45,7 @@ class IndexAutomaton<E : Any> private constructor(private val automata: List<Aut
             /**
              * Chunk size for individual automata. Larger chunk size leads to faster querying at cost of memory consumption.
              *
-             * Rough measurements: https://s.yawk.at/cWLPp345
+             * Rough measurements: https://s.yawk.at/l5G8Up7Z
              */
             chunkSize: Int = 512
     ) : this(Iterables.partition(entries, chunkSize).map { chunk ->
