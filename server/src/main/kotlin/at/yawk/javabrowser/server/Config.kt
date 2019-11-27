@@ -9,5 +9,5 @@ data class Config(
         val database: DbConfig,
         val bindAddress: String,
         val bindPort: Int,
-        val typeIndexChunkSize: Int
+        val typeIndexChunkSize: Int = 32
 )
