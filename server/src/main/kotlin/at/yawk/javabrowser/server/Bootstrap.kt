@@ -35,6 +35,7 @@ fun main(args: Array<String>) {
 
     val guice = Guice.createInjector(Module { binder ->
         binder.bind(DBI::class.java).toInstance(config.database.start(mode = DbConfig.Mode.FRONTEND))
+        binder.bind(Config::class.java).toInstance(config)
         binder.bind(ObjectMapper::class.java).toInstance(
                 ObjectMapper().findAndRegisterModules()
                         .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
