@@ -26,13 +26,14 @@ class SearchResource @Inject constructor(
         private val objectMapper: ObjectMapper,
         artifactUpdater: ArtifactUpdater,
         private val aliasIndex: AliasIndex,
-        private val artifactIndex: ArtifactIndex
+        private val artifactIndex: ArtifactIndex,
+        config: Config
 ) : HttpHandler {
     companion object {
         const val PATTERN = "/api/search/{query}"
     }
 
-    private val searchIndex = SearchIndex<String, String>()
+    private val searchIndex = SearchIndex<String, String>(chunkSize = config.typeIndexChunkSize)
 
     init {
         artifactUpdater.addArtifactUpdateListener { artifactId ->

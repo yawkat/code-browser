@@ -3,6 +3,7 @@ package at.yawk.javabrowser.server
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Ascii
 import com.google.common.collect.Iterators
+import java.io.Serializable
 import java.util.Locale
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
@@ -14,7 +15,12 @@ import java.util.regex.Pattern
 private const val MAX_DEPTH = 5
 private val NO_MATCH_SENTINEL = IntArray(0)
 
-class SearchIndex<K, V> {
+class SearchIndex<K, V>(
+        /**
+         * @see IndexAutomaton
+         */
+        val chunkSize: Int = 512
+) {
     companion object {
         private val SPLIT_PATTERN = Pattern.compile("(?:\\.|[a-z0-9][A-Z]|[a-zA-Z][0-9])")
 
@@ -86,7 +92,7 @@ class SearchIndex<K, V> {
         }
     }
 
-    private class Category<V>(strings: Iterator<Input<V>>) {
+    private inner class Category<V>(strings: Iterator<Input<V>>) {
         val byDepth: List<IndexAutomaton<Entry<V>>>
 
         init {
@@ -194,7 +200,7 @@ class SearchIndex<K, V> {
 
     data class SplitEntry(
             val string: String
-    ) : Comparable<SplitEntry> {
+    ) : Comparable<SplitEntry>, Serializable {
         val componentsLower: Array<String> = split(string).toTypedArray()
 
         // this is a heuristic for finding the first "class name" character. Package names are assumed to be lowercase.

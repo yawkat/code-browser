@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server
 
+import com.google.common.collect.ImmutableList
 import com.google.common.collect.Iterables
 import com.google.common.collect.Iterators
 import org.eclipse.collections.api.LongIterable
@@ -17,13 +18,17 @@ import org.eclipse.collections.api.set.primitive.IntSet
 import org.eclipse.collections.api.set.primitive.MutableIntSet
 import org.eclipse.collections.impl.factory.primitive.CharObjectMaps
 import org.eclipse.collections.impl.factory.primitive.CharSets
+import org.eclipse.collections.impl.factory.primitive.IntByteMaps
 import org.eclipse.collections.impl.factory.primitive.IntIntMaps
 import org.eclipse.collections.impl.factory.primitive.IntLists
+import org.eclipse.collections.impl.factory.primitive.IntLongMaps
 import org.eclipse.collections.impl.factory.primitive.IntSets
+import org.eclipse.collections.impl.factory.primitive.IntShortMaps
 import org.eclipse.collections.impl.factory.primitive.LongLists
 import org.eclipse.collections.impl.factory.primitive.ObjectIntMaps
 import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList
 import org.eclipse.collections.impl.list.mutable.primitive.ShortArrayList
+import java.io.Serializable
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.BitSet
@@ -32,17 +37,19 @@ import java.util.Collections
 /**
  * @author yawkat
  */
-class IndexAutomaton<E : Any>(
-        entries: List<E>,
-        components: (E) -> List<String>,
-        jumps: Int
-) {
-    private companion object {
-        private const val CHUNK_SIZE = 512
-    }
-
-    private val automata = Iterables.partition(entries, CHUNK_SIZE).map { chunk ->
-        val nfa = Automaton(chunk)
+class IndexAutomaton<E : Any> private constructor(private val automata: List<Automaton<E>>) : Serializable {
+    constructor(
+            entries: List<E>,
+            components: (E) -> List<String>,
+            jumps: Int,
+            /**
+             * Chunk size for individual automata. Larger chunk size leads to faster querying at cost of memory consumption.
+             *
+             * Rough measurements: https://s.yawk.at/cWLPp345
+             */
+            chunkSize: Int = 512
+    ) : this(Iterables.partition(entries, chunkSize).map { chunk ->
+        val nfa = Automaton(ImmutableList.copyOf(chunk)) // copy for serialization
         val root = nfa.stateBuilder()
         val cache = ObjectIntMaps.mutable.empty<StateRequest>()
         for ((i, entry) in chunk.withIndex()) {
@@ -63,10 +70,13 @@ class IndexAutomaton<E : Any>(
         dfa.compact()
         dfa.deduplicateFinals()
         dfa
-    }
+    })
 
     fun run(query: String): Iterator<E> = Iterators.concat(
             Iterators.transform(automata.iterator()) { it!!.run(query) ?: Collections.emptyIterator<E>() })
+
+    companion object {
+        private const val serialVersionUID: Long = 1L
 
     private data class StateRequest(
             val componentsIndex: Int,
@@ -75,7 +85,7 @@ class IndexAutomaton<E : Any>(
             val justJumped: Boolean
     )
 
-    private fun fromInput(
+    private fun <E : Any> fromInput(
             nfa: Automaton<E>,
             cache: MutableObjectIntMap<StateRequest>,
             components: List<String>,
@@ -130,6 +140,7 @@ class IndexAutomaton<E : Any>(
         }
         builder.finish()
         return builder.state
+    }
     }
 }
 
@@ -195,11 +206,160 @@ private class StaticBitSet private constructor(private val data: LongArray) {
     override fun equals(other: Any?) = other is StaticBitSet && this.data.contentEquals(other.data)
     override fun hashCode() = data.contentHashCode()
 
-    class IntStaticBitSetMap(private val memberCapacity: Int) {
+    abstract class IntStaticBitSetMap : Serializable {
+        companion object {
+            operator fun invoke(memberCapacity: Int): IntStaticBitSetMap = when {
+                memberCapacity <= 8 -> IntStaticBitSetMapImpl8(memberCapacity)
+                memberCapacity <= 16 -> IntStaticBitSetMapImpl16(memberCapacity)
+                memberCapacity <= 32 -> IntStaticBitSetMapImpl32(memberCapacity)
+                memberCapacity <= 64 -> IntStaticBitSetMapImpl64(memberCapacity)
+                else -> IntStaticBitSetMapImplGeneric(memberCapacity)
+            }
+        }
+
+        abstract fun put(key: Int, value: StaticBitSet)
+
+        abstract operator fun get(key: Int): StaticBitSet?
+
+        abstract fun keySet(): IntSet
+
+        abstract fun containsKey(key: Int): Boolean
+
+        open fun deduplicated(): IntStaticBitSetMap = this
+
+        inline fun forEachKeyValue(crossinline f: (Int, StaticBitSet) -> Unit) {
+            when (this) {
+                is IntStaticBitSetMapImpl8 -> forEachKeyValue0(f)
+                is IntStaticBitSetMapImpl16 -> forEachKeyValue0(f)
+                is IntStaticBitSetMapImpl32 -> forEachKeyValue0(f)
+                is IntStaticBitSetMapImpl64 -> forEachKeyValue0(f)
+                is IntStaticBitSetMapImplGeneric -> forEachKeyValue0(f)
+                else -> throw AssertionError()
+            }
+        }
+    }
+
+    private class IntStaticBitSetMapImpl8(private val memberCapacity: Int) : IntStaticBitSetMap() {
+        private val data = IntByteMaps.mutable.empty()
+
+        private fun createBitSet(value: Byte): StaticBitSet {
+            val res = StaticBitSet(memberCapacity)
+            res.data[0] = value.toLong()
+            return res
+        }
+
+        override fun put(key: Int, value: StaticBitSet) {
+            data.put(key, value.data[0].toByte())
+        }
+
+        override operator fun get(key: Int): StaticBitSet? {
+            if (!data.containsKey(key)) return null
+            return createBitSet(data.get(key))
+        }
+
+        override fun keySet(): IntSet = data.keySet()
+
+        override fun containsKey(key: Int) = data.containsKey(key)
+
+        inline fun forEachKeyValue0(crossinline f: (Int, StaticBitSet) -> Unit) {
+            data.forEachKeyValue { i1, i2 ->
+                f(i1, createBitSet(i2))
+            }
+        }
+    }
+
+    private class IntStaticBitSetMapImpl16(private val memberCapacity: Int) : IntStaticBitSetMap() {
+        private val data = IntShortMaps.mutable.empty()
+
+        private fun createBitSet(value: Short): StaticBitSet {
+            val res = StaticBitSet(memberCapacity)
+            res.data[0] = value.toLong()
+            return res
+        }
+
+        override fun put(key: Int, value: StaticBitSet) {
+            data.put(key, value.data[0].toShort())
+        }
+
+        override operator fun get(key: Int): StaticBitSet? {
+            if (!data.containsKey(key)) return null
+            return createBitSet(data.get(key))
+        }
+
+        override fun keySet(): IntSet = data.keySet()
+
+        override fun containsKey(key: Int) = data.containsKey(key)
+
+        inline fun forEachKeyValue0(crossinline f: (Int, StaticBitSet) -> Unit) {
+            data.forEachKeyValue { i1, i2 ->
+                f(i1, createBitSet(i2))
+            }
+        }
+    }
+
+    private class IntStaticBitSetMapImpl32(private val memberCapacity: Int) : IntStaticBitSetMap() {
+        private val data = IntIntMaps.mutable.empty()
+
+        private fun createBitSet(value: Int): StaticBitSet {
+            val res = StaticBitSet(memberCapacity)
+            res.data[0] = value.toLong()
+            return res
+        }
+
+        override fun put(key: Int, value: StaticBitSet) {
+            data.put(key, value.data[0].toInt())
+        }
+
+        override operator fun get(key: Int): StaticBitSet? {
+            if (!data.containsKey(key)) return null
+            return createBitSet(data.get(key))
+        }
+
+        override fun keySet(): IntSet = data.keySet()
+
+        override fun containsKey(key: Int) = data.containsKey(key)
+
+        inline fun forEachKeyValue0(crossinline f: (Int, StaticBitSet) -> Unit) {
+            data.forEachKeyValue { i1, i2 ->
+                f(i1, createBitSet(i2))
+            }
+        }
+    }
+
+    private class IntStaticBitSetMapImpl64(private val memberCapacity: Int) : IntStaticBitSetMap() {
+        private val data = IntLongMaps.mutable.empty()
+
+        private fun createBitSet(value: Long): StaticBitSet {
+            val res = StaticBitSet(memberCapacity)
+            res.data[0] = value
+            return res
+        }
+
+        override fun put(key: Int, value: StaticBitSet) {
+            data.put(key, value.data[0])
+        }
+
+        override operator fun get(key: Int): StaticBitSet? {
+            if (!data.containsKey(key)) return null
+            return createBitSet(data.get(key))
+        }
+
+        override fun keySet(): IntSet = data.keySet()
+
+        override fun containsKey(key: Int) = data.containsKey(key)
+
+        inline fun forEachKeyValue0(crossinline f: (Int, StaticBitSet) -> Unit) {
+            data.forEachKeyValue { i1, i2 ->
+                f(i1, createBitSet(i2))
+            }
+        }
+    }
+
+    private class IntStaticBitSetMapImplGeneric(private val memberCapacity: Int) : IntStaticBitSetMap() {
         private val data = LongLists.mutable.empty()
         private val indices = IntIntMaps.mutable.empty()
 
-        fun put(key: Int, value: StaticBitSet) {
+        override fun put(key: Int, value: StaticBitSet) {
             val index = indices.getIfAbsent(key, -1)
             if (index == -1) {
                 indices.put(key, data.size())
@@ -211,7 +371,7 @@ private class StaticBitSet private constructor(private val data: LongArray) {
             }
         }
 
-        operator fun get(key: Int): StaticBitSet? {
+        override operator fun get(key: Int): StaticBitSet? {
             val index = indices.getIfAbsent(key, -1)
             if (index == -1) return null
             val res = StaticBitSet(memberCapacity)
@@ -221,11 +381,11 @@ private class StaticBitSet private constructor(private val data: LongArray) {
             return res
         }
 
-        fun keySet(): IntSet = indices.keySet()
+        override fun keySet(): IntSet = indices.keySet()
 
-        fun containsKey(key: Int) = indices.containsKey(key)
+        override fun containsKey(key: Int) = indices.containsKey(key)
 
-        inline fun forEachKeyValue(f: (Int, StaticBitSet) -> Unit) {
+        inline fun forEachKeyValue0(f: (Int, StaticBitSet) -> Unit) {
             val itr = indices.keysView().intIterator()
             while (itr.hasNext()) {
                 val key = itr.next()
@@ -233,9 +393,9 @@ private class StaticBitSet private constructor(private val data: LongArray) {
             }
         }
 
-        fun deduplicated(): IntStaticBitSetMap {
+        override fun deduplicated(): IntStaticBitSetMap {
             val cache = ObjectIntMaps.mutable.empty<StaticBitSet>()
-            val result = IntStaticBitSetMap(memberCapacity)
+            val result = IntStaticBitSetMapImplGeneric(memberCapacity)
             forEachKeyValue { k, v ->
                 val index = cache.getIfAbsent(v, -1)
                 if (index == -1) {
@@ -250,7 +410,7 @@ private class StaticBitSet private constructor(private val data: LongArray) {
     }
 }
 
-private class TransitionSet {
+private class TransitionSet : Serializable {
     companion object {
         private fun encodeTransition(symbol: Char, to: Int): Long {
             return (symbol.toLong() shl 32) or to.toLong()
@@ -449,7 +609,7 @@ private class TransitionSet {
         this.transitions = newTransitions
     }
 
-    private class Alphabet private constructor(private val items: CharList) {
+    private class Alphabet private constructor(private val items: CharList) : Serializable {
         val size: Char
             get() = items.size().toChar()
 
@@ -512,8 +672,10 @@ private class TransitionSet {
     }
 }
 
-private class Automaton<F : Any>(val finals: List<F>) {
+private class Automaton<F : Any>(val finals: List<F>) : Serializable {
     companion object {
+        private const val serialVersionUID: Long = 1L
+
         const val EPSILON = '\u0000'
 
         /**
