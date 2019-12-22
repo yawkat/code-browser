@@ -19,7 +19,7 @@ class Debouncer {
 
     inline fun requestRun(task: () -> Unit) {
         requested = true
-        while (runLock.tryLock()) {
+        while (requested && runLock.tryLock()) {
             try {
                 if (requested) {
                     requested = false
