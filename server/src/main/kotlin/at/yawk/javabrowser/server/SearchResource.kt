@@ -33,7 +33,10 @@ class SearchResource @Inject constructor(
         const val PATTERN = "/api/search/{query}"
     }
 
-    private val searchIndex = SearchIndex<String, String>(chunkSize = config.typeIndexChunkSize)
+    private val searchIndex = SearchIndex<String, String>(
+            chunkSize = config.typeIndexChunkSize,
+            storageDir = config.typeIndexDirectory
+    )
 
     init {
         artifactUpdater.addArtifactUpdateListener { artifactId ->

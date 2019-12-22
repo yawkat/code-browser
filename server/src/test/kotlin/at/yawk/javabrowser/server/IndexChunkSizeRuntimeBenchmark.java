@@ -55,7 +55,8 @@ public class IndexChunkSizeRuntimeBenchmark {
                             entries,
                             splitEntry -> Arrays.asList(splitEntry.getComponentsLower()),
                             i,
-                            chunkSize
+                            chunkSize,
+                            null
                     );
                 }
             }

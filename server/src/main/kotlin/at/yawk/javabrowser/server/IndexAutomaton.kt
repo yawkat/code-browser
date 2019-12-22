@@ -1,5 +1,15 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.numaec.BTreeConfig
+import at.yawk.numaec.BufferBasedCollection
+import at.yawk.numaec.LargeByteBufferAllocator
+import at.yawk.numaec.MutableIntBufferListFactory
+import at.yawk.numaec.MutableIntByteBTreeMapFactory
+import at.yawk.numaec.MutableIntIntBTreeMapFactory
+import at.yawk.numaec.MutableIntLongBTreeMapFactory
+import at.yawk.numaec.MutableIntShortBTreeMapFactory
+import at.yawk.numaec.MutableLongBufferListFactory
+import at.yawk.numaec.MutableShortBufferListFactory
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.Iterables
 import com.google.common.collect.Iterators
@@ -34,10 +44,15 @@ import java.nio.file.Paths
 import java.util.BitSet
 import java.util.Collections
 
+private val btreeConfig = BTreeConfig.builder()
+        .blockSize(4096) // 4K pages
+        .regionSize(64) // allocate 256 pages at once
+        .build()
+
 /**
  * @author yawkat
  */
-class IndexAutomaton<E : Any> private constructor(private val automata: List<Automaton<E>>) : Serializable {
+class IndexAutomaton<E : Any> private constructor(private val automata: List<Automaton<E>>) : Serializable, BufferBasedCollection {
     constructor(
             entries: List<E>,
             components: (E) -> List<String>,
@@ -47,7 +62,8 @@ class IndexAutomaton<E : Any> private constructor(private val automata: List<Aut
              *
              * Rough measurements: https://s.yawk.at/l5G8Up7Z
              */
-            chunkSize: Int = 512
+            chunkSize: Int = 512,
+            storage: LargeByteBufferAllocator? = null
     ) : this(Iterables.partition(entries, chunkSize).map { chunk ->
         val nfa = Automaton(ImmutableList.copyOf(chunk)) // copy for serialization
         val root = nfa.stateBuilder()
@@ -69,11 +85,16 @@ class IndexAutomaton<E : Any> private constructor(private val automata: List<Aut
         val dfa = nfa.nfaToDfa()
         dfa.compact()
         dfa.deduplicateFinals()
+        if (storage != null) dfa.externalize(storage)
         dfa
     })
 
     fun run(query: String): Iterator<E> = Iterators.concat(
             Iterators.transform(automata.iterator()) { it!!.run(query) ?: Collections.emptyIterator<E>() })
+
+    override fun close() {
+        automata.forEach { it.close() }
+    }
 
     companion object {
         private const val serialVersionUID: Long = 1L
@@ -206,7 +227,7 @@ private class StaticBitSet private constructor(private val data: LongArray) {
     override fun equals(other: Any?) = other is StaticBitSet && this.data.contentEquals(other.data)
     override fun hashCode() = data.contentHashCode()
 
-    abstract class IntStaticBitSetMap : Serializable {
+    abstract class IntStaticBitSetMap : Serializable, BufferBasedCollection {
         companion object {
             operator fun invoke(memberCapacity: Int): IntStaticBitSetMap = when {
                 memberCapacity <= 8 -> IntStaticBitSetMapImpl8(memberCapacity)
@@ -227,6 +248,8 @@ private class StaticBitSet private constructor(private val data: LongArray) {
 
         open fun deduplicated(): IntStaticBitSetMap = this
 
+        abstract fun externalize(allocator: LargeByteBufferAllocator)
+
         inline fun forEachKeyValue(crossinline f: (Int, StaticBitSet) -> Unit) {
             when (this) {
                 is IntStaticBitSetMapImpl8 -> forEachKeyValue0(f)
@@ -240,7 +263,7 @@ private class StaticBitSet private constructor(private val data: LongArray) {
     }
 
     private class IntStaticBitSetMapImpl8(private val memberCapacity: Int) : IntStaticBitSetMap() {
-        private val data = IntByteMaps.mutable.empty()
+        private var data = IntByteMaps.mutable.empty()
 
         private fun createBitSet(value: Byte): StaticBitSet {
             val res = StaticBitSet(memberCapacity)
@@ -266,10 +289,18 @@ private class StaticBitSet private constructor(private val data: LongArray) {
                 f(i1, createBitSet(i2))
             }
         }
+
+        override fun close() {
+            (data as? BufferBasedCollection)?.close()
+        }
+
+        override fun externalize(allocator: LargeByteBufferAllocator) {
+            data = MutableIntByteBTreeMapFactory.withAllocatorAndConfig(allocator, btreeConfig).ofAll(data)
+        }
     }
 
     private class IntStaticBitSetMapImpl16(private val memberCapacity: Int) : IntStaticBitSetMap() {
-        private val data = IntShortMaps.mutable.empty()
+        private var data = IntShortMaps.mutable.empty()
 
         private fun createBitSet(value: Short): StaticBitSet {
             val res = StaticBitSet(memberCapacity)
@@ -295,10 +326,18 @@ private class StaticBitSet private constructor(private val data: LongArray) {
                 f(i1, createBitSet(i2))
             }
         }
+
+        override fun close() {
+            (data as? BufferBasedCollection)?.close()
+        }
+
+        override fun externalize(allocator: LargeByteBufferAllocator) {
+            data = MutableIntShortBTreeMapFactory.withAllocatorAndConfig(allocator, btreeConfig).ofAll(data)
+        }
     }
 
     private class IntStaticBitSetMapImpl32(private val memberCapacity: Int) : IntStaticBitSetMap() {
-        private val data = IntIntMaps.mutable.empty()
+        private var data = IntIntMaps.mutable.empty()
 
         private fun createBitSet(value: Int): StaticBitSet {
             val res = StaticBitSet(memberCapacity)
@@ -324,10 +363,18 @@ private class StaticBitSet private constructor(private val data: LongArray) {
                 f(i1, createBitSet(i2))
             }
         }
+
+        override fun close() {
+            (data as? BufferBasedCollection)?.close()
+        }
+
+        override fun externalize(allocator: LargeByteBufferAllocator) {
+            data = MutableIntIntBTreeMapFactory.withAllocatorAndConfig(allocator, btreeConfig).ofAll(data)
+        }
     }
 
     private class IntStaticBitSetMapImpl64(private val memberCapacity: Int) : IntStaticBitSetMap() {
-        private val data = IntLongMaps.mutable.empty()
+        private var data = IntLongMaps.mutable.empty()
 
         private fun createBitSet(value: Long): StaticBitSet {
             val res = StaticBitSet(memberCapacity)
@@ -353,11 +400,19 @@ private class StaticBitSet private constructor(private val data: LongArray) {
                 f(i1, createBitSet(i2))
             }
         }
+
+        override fun close() {
+            (data as? BufferBasedCollection)?.close()
+        }
+
+        override fun externalize(allocator: LargeByteBufferAllocator) {
+            data = MutableIntLongBTreeMapFactory.withAllocatorAndConfig(allocator, btreeConfig).ofAll(data)
+        }
     }
 
     private class IntStaticBitSetMapImplGeneric(private val memberCapacity: Int) : IntStaticBitSetMap() {
-        private val data = LongLists.mutable.empty()
-        private val indices = IntIntMaps.mutable.empty()
+        private var data = LongLists.mutable.empty()
+        private var indices = IntIntMaps.mutable.empty()
 
         override fun put(key: Int, value: StaticBitSet) {
             val index = indices.getIfAbsent(key, -1)
@@ -407,10 +462,20 @@ private class StaticBitSet private constructor(private val data: LongArray) {
             }
             return result
         }
+
+        override fun close() {
+            (data as? BufferBasedCollection)?.close()
+            (indices as? BufferBasedCollection)?.close()
+        }
+
+        override fun externalize(allocator: LargeByteBufferAllocator) {
+            data = MutableLongBufferListFactory.withAllocator(allocator).ofAll(data)
+            indices = MutableIntIntBTreeMapFactory.withAllocatorAndConfig(allocator, btreeConfig).ofAll(indices)
+        }
     }
 }
 
-private class TransitionSet : Serializable {
+private class TransitionSet : Serializable, BufferBasedCollection {
     companion object {
         private fun encodeTransition(symbol: Char, to: Int): Long {
             return (symbol.toLong() shl 32) or to.toLong()
@@ -609,6 +674,27 @@ private class TransitionSet : Serializable {
         this.transitions = newTransitions
     }
 
+    override fun close() {
+        (transitionIndices as? BufferBasedCollection)?.close()
+        (transitions as? BufferBasedCollection)?.close()
+    }
+
+    fun externalize(allocator: LargeByteBufferAllocator) {
+        val oldIndices = transitionIndices
+        transitionIndices = when (oldIndices) {
+            is IntList -> MutableIntBufferListFactory.withAllocator(allocator).ofAll(oldIndices)
+            is ShortList -> MutableShortBufferListFactory.withAllocator(allocator).ofAll(oldIndices)
+            else -> throw IllegalStateException()
+        }
+        val oldTransitions = transitions
+        transitions = when (oldTransitions) {
+            is LongList -> MutableLongBufferListFactory.withAllocator(allocator).ofAll(oldTransitions)
+            is IntList -> MutableIntBufferListFactory.withAllocator(allocator).ofAll(oldTransitions)
+            is ShortList -> MutableShortBufferListFactory.withAllocator(allocator).ofAll(oldTransitions)
+            else -> throw IllegalStateException()
+        }
+    }
+
     private class Alphabet private constructor(private val items: CharList) : Serializable {
         val size: Char
             get() = items.size().toChar()
@@ -672,7 +758,7 @@ private class TransitionSet : Serializable {
     }
 }
 
-private class Automaton<F : Any>(val finals: List<F>) : Serializable {
+private class Automaton<F : Any>(val finals: List<F>) : Serializable, BufferBasedCollection {
     companion object {
         private const val serialVersionUID: Long = 1L
 
@@ -811,5 +897,15 @@ private class Automaton<F : Any>(val finals: List<F>) : Serializable {
 
     fun setFinals(state: Int, finals: StaticBitSet) {
         finalIndices.put(state, finals)
+    }
+
+    fun externalize(allocator: LargeByteBufferAllocator) {
+        transitions.externalize(allocator)
+        finalIndices.externalize(allocator)
+    }
+
+    override fun close() {
+        transitions.close()
+        finalIndices.close()
     }
 }

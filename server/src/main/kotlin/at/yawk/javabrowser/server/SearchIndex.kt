@@ -1,9 +1,12 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.numaec.BumpPointerFileAllocator
+import at.yawk.numaec.BumpPointerRegionAllocator
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Ascii
 import com.google.common.collect.Iterators
 import java.io.Serializable
+import java.nio.file.Path
 import java.util.Locale
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
@@ -19,7 +22,8 @@ class SearchIndex<K, V>(
         /**
          * @see IndexAutomaton
          */
-        val chunkSize: Int = 512
+        val chunkSize: Int = 512,
+        val storageDir: Path? = null
 ) {
     companion object {
         private val SPLIT_PATTERN = Pattern.compile("(?:\\.|[a-z0-9][A-Z]|[a-zA-Z][0-9])")
@@ -51,7 +55,9 @@ class SearchIndex<K, V>(
     private val categories = ConcurrentHashMap<K, Category<V>>()
 
     fun replace(categoryKey: K, strings: Iterator<Input<V>>) {
-        categories[categoryKey] = Category(strings)
+        val old = categories.put(categoryKey, Category(strings))
+        old?.byDepth?.forEach { it.close() }
+        old?.allocator?.close()
     }
 
     fun find(query: String, includedCats: Set<K> = this.categories.keys) = sequence {
@@ -93,6 +99,7 @@ class SearchIndex<K, V>(
     }
 
     private inner class Category<V>(strings: Iterator<Input<V>>) {
+        val allocator = if (storageDir != null) BumpPointerFileAllocator.fromTempDirectory(storageDir) else null
         val byDepth: List<IndexAutomaton<Entry<V>>>
 
         init {
@@ -102,9 +109,22 @@ class SearchIndex<K, V>(
 
             val entriesForQualified = entries.sortedBy { it.name }
             val entriesForSimple = entries.sortedBy { it.simpleName }
-            byDepth = listOf(IndexAutomaton(entriesForSimple, { it.simpleName.componentsLower.asList() }, 0)) +
+            val alignedAllocator = BumpPointerRegionAllocator.builder(allocator)
+                    .regionSize(4 * 1024 * 1024)
+                    .align(4096)
+                    .build()
+            byDepth = listOf(
+                    IndexAutomaton(entriesForSimple,
+                            { it.simpleName.componentsLower.asList() },
+                            0,
+                            chunkSize,
+                            alignedAllocator)) +
                     (0 until MAX_DEPTH).map { jumps ->
-                        IndexAutomaton(entriesForQualified, { it.name.componentsLower.asList() }, jumps)
+                        IndexAutomaton(entriesForQualified,
+                                { it.name.componentsLower.asList() },
+                                jumps,
+                                chunkSize,
+                                alignedAllocator)
                     }
         }
     }

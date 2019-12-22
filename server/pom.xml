@@ -52,6 +52,11 @@
             <artifactId>guice</artifactId>
             <version>4.2.2</version>
         </dependency>
+        <dependency>
+            <groupId>at.yawk.numaec</groupId>
+            <artifactId>numa-eclipse-collections</artifactId>
+            <version>0.1</version>
+        </dependency>
 
         <dependency>
             <groupId>at.yawk.java-browser</groupId>
