@@ -109,10 +109,12 @@ class SearchIndex<K, V>(
 
             val entriesForQualified = entries.sortedBy { it.name }
             val entriesForSimple = entries.sortedBy { it.simpleName }
-            val alignedAllocator = BumpPointerRegionAllocator.builder(allocator)
-                    .regionSize(4 * 1024 * 1024)
-                    .align(4096)
-                    .build()
+            val alignedAllocator = if (allocator != null)
+                BumpPointerRegionAllocator.builder(allocator)
+                        .regionSize(4 * 1024 * 1024)
+                        .align(4096)
+                        .build()
+            else null
             byDepth = listOf(
                     IndexAutomaton(entriesForSimple,
                             { it.simpleName.componentsLower.asList() },
