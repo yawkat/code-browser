@@ -69,7 +69,7 @@ class SearchIndex<K, V>(
             keys.add(cat)
         }
 
-        val returnedNames = HashSet<Entry<V>>()
+        val returnedNames = HashSet<SplitEntry>()
 
         for (depth in 0..MAX_DEPTH) {
             val depthIterators = categoriesFiltered.map { Iterators.peekingIterator(it.byDepth[depth].run(queryLower)) }
@@ -78,7 +78,7 @@ class SearchIndex<K, V>(
                         .filter { depthIterators[it].hasNext() }
                         .minBy { depthIterators[it].peek().name } ?: break
                 val bestEntry = depthIterators[bestIndex].next()
-                if (returnedNames.add(bestEntry)) {
+                if (returnedNames.add(bestEntry.name)) {
                     val name = if (depth == 0) bestEntry.simpleName else bestEntry.name
                     val highlight = Searcher(name.componentsLower, queryLower)
                             // TODO: we get better highlighting with depth - 1 under some circumstances. investigate
@@ -107,8 +107,6 @@ class SearchIndex<K, V>(
                 Entry(it.value, SplitEntry(it.string), SplitEntry(it.string.substring(it.string.lastIndexOf('.') + 1)))
             }.sortedBy { it.name }.toList()
 
-            val entriesForQualified = entries.sortedBy { it.name }
-            val entriesForSimple = entries.sortedBy { it.simpleName }
             val alignedAllocator = if (allocator != null)
                 BumpPointerRegionAllocator.builder(allocator)
                         .regionSize(4 * 1024 * 1024)
@@ -116,13 +114,13 @@ class SearchIndex<K, V>(
                         .build()
             else null
             byDepth = listOf(
-                    IndexAutomaton(entriesForSimple,
+                    IndexAutomaton(entries,
                             { it.simpleName.componentsLower.asList() },
                             0,
                             chunkSize,
                             alignedAllocator)) +
                     (0 until MAX_DEPTH).map { jumps ->
-                        IndexAutomaton(entriesForQualified,
+                        IndexAutomaton(entries,
                                 { it.name.componentsLower.asList() },
                                 jumps,
                                 chunkSize,
