@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.server.typesearch
 
 import org.testng.Assert
 import org.testng.annotations.Test

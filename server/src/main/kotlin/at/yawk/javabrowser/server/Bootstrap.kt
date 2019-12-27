@@ -2,6 +2,7 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.DbConfig
 import at.yawk.javabrowser.DbMigration
+import at.yawk.javabrowser.server.typesearch.SearchResource
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory

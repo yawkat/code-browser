@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.server.typesearch
 
 import java.util.concurrent.TimeUnit
 

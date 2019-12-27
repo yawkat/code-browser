@@ -1,5 +1,12 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.server.typesearch
 
+import at.yawk.javabrowser.server.AliasIndex
+import at.yawk.javabrowser.server.ArtifactIndex
+import at.yawk.javabrowser.server.ArtifactUpdater
+import at.yawk.javabrowser.server.Config
+import at.yawk.javabrowser.server.DependencyDao
+import at.yawk.javabrowser.server.HttpException
+import at.yawk.javabrowser.server.VersionComparator
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.google.common.net.MediaType

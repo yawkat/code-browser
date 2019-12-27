@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.server;
+package at.yawk.javabrowser.server.typesearch;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;

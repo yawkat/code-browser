@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.server.typesearch
 
 import at.yawk.numaec.BumpPointerFileAllocator
 import at.yawk.numaec.BumpPointerRegionAllocator

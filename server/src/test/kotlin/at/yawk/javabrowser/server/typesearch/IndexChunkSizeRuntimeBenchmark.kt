@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.server
+package at.yawk.javabrowser.server.typesearch
 
 import com.google.common.io.MoreFiles
 import org.openjdk.jmh.runner.Runner
