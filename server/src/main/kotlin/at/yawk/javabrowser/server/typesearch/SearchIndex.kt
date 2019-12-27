@@ -135,6 +135,7 @@ class SearchIndex<K, V>(
      */
     @VisibleForTesting
     internal class Searcher(private val groups: Array<String>, private val query: String) {
+        private val memoDepth = IntArray(groups.size * query.length * 2)
         private val memo = arrayOfNulls<IntArray>(groups.size * query.length * 2)
 
         fun search(maxDepth: Int) = memo(0, 0, maxDepth, mustMatchStart = false)
@@ -175,19 +176,28 @@ class SearchIndex<K, V>(
             }
 
             val i = groupsI + queryI * groups.size + (if (mustMatchStart) groups.size * query.length else 0)
-            val present = memo[i]
-            if (present == null) {
-                val computed = impl(groupsI, queryI, maxDepth, mustMatchStart)
-                memo[i] = computed ?: NO_MATCH_SENTINEL
-                return computed
-            } else {
-                if (present === NO_MATCH_SENTINEL) {
-                    return null
+            while (true) {
+                val present = memo[i]
+                if (present == null) {
+                    val computed = impl(groupsI, queryI, maxDepth, mustMatchStart)
+                    memo[i] = computed ?: NO_MATCH_SENTINEL
+                    memoDepth[i] = maxDepth
+                    return computed
                 } else {
-                    if (present.count { it != 0 } > maxDepth) {
-                        return null
+                    if (present === NO_MATCH_SENTINEL) {
+                        if (memoDepth[i] < maxDepth) {
+                            // retry with new depth
+                            memo[i] = null
+                        } else {
+                            return null
+                        }
+                    } else {
+                        if (memoDepth[i] > maxDepth) {
+                            return null
+                        } else {
+                            return present
+                        }
                     }
-                    return present
                 }
             }
         }

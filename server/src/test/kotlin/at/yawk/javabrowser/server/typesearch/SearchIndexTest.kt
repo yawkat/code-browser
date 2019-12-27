@@ -106,12 +106,21 @@ class SearchIndexTest {
     }
 
     @Test
+    fun `searcher - retry with different depth`() {
+        Assert.assertNotNull(
+                SearchIndex.Searcher(arrayOf(
+                        "compressed", "oop", "hash", "map"),
+                        "cohama").search(3)
+        )
+    }
+
+    @Test
     fun `at end, complete with full remaining text`() {
         val searchIndex = SearchIndex<String, Unit>()
         searchIndex.replace("cat1", listOf(
                 SearchIndex.Input("myname.X", Unit),
                 SearchIndex.Input("MyName", Unit) // this entry should match first
-                ).iterator())
+        ).iterator())
         val results = searchIndex.find("myname").toList()
         Assert.assertEquals(results[0].entry.name.string, "MyName")
     }
