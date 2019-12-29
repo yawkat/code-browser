@@ -7,6 +7,7 @@ import org.apache.maven.wagon.authorization.AuthorizationException
 import org.apache.maven.wagon.providers.http.LightweightHttpWagon
 import org.apache.maven.wagon.providers.http.LightweightHttpWagonAuthenticator
 import org.apache.maven.wagon.providers.http.LightweightHttpsWagon
+import org.apache.maven.wagon.repository.Repository
 import org.eclipse.aether.transport.wagon.WagonProvider
 import org.jboss.shrinkwrap.resolver.api.ResolutionException
 import java.io.File
@@ -23,9 +24,9 @@ class ManualWagonProvider : WagonProvider {
     @Throws(Exception::class)
     override fun lookup(roleHint: String): Wagon {
         if (roleHint == "http") {
-            return setAuthenticator(LightweightHttpWagon())
+            return setAuthenticator(CentralOnlyWagonHttp())
         } else if (roleHint == "https") {
-            return setAuthenticator(LightweightHttpsWagon())
+            return setAuthenticator(CentralOnlyWagonHttps())
         } else if (roleHint == "file") {
             throw Exception("unsupported")
         } else if (roleHint == "s3") {
@@ -36,6 +37,28 @@ class ManualWagonProvider : WagonProvider {
     }
 
     override fun release(wagon: Wagon) {
+    }
+
+    private companion object {
+        fun checkRepo(repository: Repository) {
+            if (repository.host != "repo1.maven.org") {
+                throw ResourceDoesNotExistException("Only central allowed")
+            }
+        }
+    }
+
+    private class CentralOnlyWagonHttp : LightweightHttpWagon() {
+        override fun openConnectionInternal() {
+            checkRepo(repository)
+            super.openConnectionInternal()
+        }
+    }
+
+    private class CentralOnlyWagonHttps : LightweightHttpsWagon() {
+        override fun openConnectionInternal() {
+            checkRepo(repository)
+            super.openConnectionInternal()
+        }
     }
 
     // from shrinkwrap

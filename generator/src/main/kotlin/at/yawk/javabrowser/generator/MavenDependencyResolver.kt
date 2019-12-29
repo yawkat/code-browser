@@ -15,7 +15,6 @@ import org.jboss.shrinkwrap.resolver.api.maven.filter.MavenResolutionFilter
 import org.jboss.shrinkwrap.resolver.api.maven.strategy.MavenResolutionStrategy
 import org.jboss.shrinkwrap.resolver.api.maven.strategy.TransitiveExclusionPolicy
 import org.slf4j.bridge.SLF4JBridgeHandler
-import java.net.URL
 
 /**
  * @author yawkat
@@ -36,9 +35,6 @@ class MavenDependencyResolver(val config: Config = Config()) {
             try {
                 var resolver = Maven.configureResolver()
                         .withMavenCentralRepo(true)
-                for (additionalRepository in config.additionalRepositories) {
-                    resolver = resolver.withRemoteRepo(additionalRepository.toString(), additionalRepository, "default")
-                }
                 val s1 = resolver.addDependency(MavenDependencies.createDependency(
                         MavenCoordinates.createCoordinate(
                                 groupId, artifactId, version,
@@ -62,7 +58,6 @@ class MavenDependencyResolver(val config: Config = Config()) {
     }
 
     data class Config(
-            val additionalRepositories: List<URL> = emptyList(),
             // MavenDependencyExclusion doesn't allow versions, so we use MavenCoordinate
             val excludeDependencies: List<MavenCoordinate> = emptyList()
     )
