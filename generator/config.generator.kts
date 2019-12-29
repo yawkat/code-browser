@@ -206,7 +206,6 @@ artifacts {
             alias("asm", "asm-util")
         }
     }
-    maven("cglib", "cglib", "3.3.0")
     maven("joda-time", "joda-time", "2.10")
     maven("org.jboss.resteasy", "resteasy-jaxrs", "3.6.1.Final", metadata = ArtifactMetadata(logoUrl = "http://design.jboss.org/resteasy/logo/images/resteasy_logo_600x.svg"))
     maven("io.projectreactor", "reactor-core", "3.2.1.RELEASE")
