@@ -33,7 +33,7 @@ class ConcurrentPrinter : PrinterWithDependencies {
             val item = queue.take()
             val exhaustiveCheck = when (item) {
                 is Action.AddDependency -> delegate.addDependency(item.dependency)
-                is Action.AddAlias -> delegate.addDependency(item.alias)
+                is Action.AddAlias -> delegate.addAlias(item.alias)
                 is Action.AddSourceFile -> delegate.addSourceFile(item.path, item.sourceFile, item.tokens)
                 is Action.End -> {}
             }
