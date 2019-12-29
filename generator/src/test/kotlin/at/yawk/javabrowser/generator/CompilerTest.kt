@@ -1,9 +1,13 @@
 package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
+import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.DbConfig
 import at.yawk.javabrowser.DbMigration
+import at.yawk.javabrowser.PositionedAnnotation
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import org.jboss.shrinkwrap.resolver.api.maven.coordinate.MavenCoordinates
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
@@ -12,6 +16,7 @@ import org.testng.annotations.AfterMethod
 import org.testng.annotations.BeforeMethod
 import org.testng.annotations.Test
 import ru.yandex.qatools.embed.postgresql.EmbeddedPostgres
+import java.net.URL
 
 /**
  * @author yawkat
@@ -140,5 +145,31 @@ class CompilerTest {
             it.select("select count(*) from bindings where binding like 'org.springframework.web.servlet.i18n.SessionLocaleResolver#resolveLocaleContext(%)'")[0]["count"] as Number
         }.toInt()
         Assert.assertEquals(count, 1)
+    }
+
+    @Test(enabled = false) // takes ~4min to complete
+    fun `android anon class`() {
+        val session = Session(dbi)
+        val compiler = Compiler(dbi, session)
+        compiler.compileAndroid("x",
+                ArtifactConfig.Android(
+                        repos = listOf(
+                                ArtifactConfig.GitRepo(URL("https://android.googlesource.com/platform/frameworks/base"), "android-9.0.0_r35"),
+                                ArtifactConfig.GitRepo(URL("https://android.googlesource.com/platform/system/vold"), "android-9.0.0_r35")
+                        ),
+                        version = "android-9.0.0_r35",
+                        metadata = ArtifactMetadata()
+                ))
+        session.execute()
+
+        val bytes = dbi.withHandle {
+            it.select("select annotations from sourceFiles where path = 'android/bluetooth/BluetoothDevice.java'")[0]["annotations"] as ByteArray
+        }
+        val decls = ObjectMapper().findAndRegisterModules()
+                .readValue<List<PositionedAnnotation>>(bytes)
+                .map { it.annotation }
+                .filterIsInstance<BindingDecl>()
+        val single = decls.single { it.binding == "android.bluetooth.BluetoothDevice\$1" }
+        Assert.assertNotNull(single.parent)
     }
 }

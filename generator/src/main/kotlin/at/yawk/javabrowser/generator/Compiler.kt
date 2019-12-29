@@ -62,7 +62,7 @@ class Compiler(
         private const val NOMINAL_JAVA_VERSION = "java/11"
         private const val ANDROID_JAVA_VERSION = "java/8"
 
-        const val VERSION = 31
+        const val VERSION = 32
 
         fun getArtifactId(artifact: ArtifactConfig) = when (artifact) {
             is ArtifactConfig.OldJava -> "java/${artifact.version}"

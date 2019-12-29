@@ -196,11 +196,10 @@ internal class BindingVisitor(
 
         val binding = Bindings.toString(resolved)
         if (binding != null) {
-            val parent = if (resolved.isLocal) {
-                parentToString(resolved.declaringMember)
-            } else {
-                parentToString(resolved.declaringClass)
-            }
+            // occasionally, for local types, declaringMember can be null if a type involved in declaringMember is not
+            // on the classpath. In that case, fall back to declaringClass. For non-local types, we'll always use
+            // declaringClass.
+            val parent = parentToString(resolved.declaringMember ?: resolved.declaringClass)
             annotatedSourceFile.annotate(nameStartPosition, declAnnotationLength, BindingDecl(
                     binding,
                     parent = parent,
