@@ -124,4 +124,14 @@ class SearchIndexTest {
         val results = searchIndex.find("myname").toList()
         Assert.assertEquals(results[0].entry.name.string, "MyName")
     }
+
+    @Test
+    fun `return of multiple versions`() {
+        val searchIndex = SearchIndex<String, Unit>()
+        for (i in 0 until 10) {
+            searchIndex.replace("java/$i", listOf(SearchIndex.Input("MyName", Unit)).iterator())
+        }
+        val result = searchIndex.find("MyName").toList()
+        Assert.assertEquals(result.size, 10)
+    }
 }

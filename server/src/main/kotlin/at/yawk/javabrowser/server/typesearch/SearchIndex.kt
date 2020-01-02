@@ -69,7 +69,9 @@ class SearchIndex<K, V>(
             keys.add(cat)
         }
 
-        val returnedNames = HashSet<SplitEntry>()
+        // deduplicate entries so that we don't yield entries multiple times with different depths.
+        // don't deduplicate actual entry names since we may need to sort by category before doing that.
+        val returnedEntries = HashSet<Entry<V>>()
 
         for (depth in 0..MAX_DEPTH) {
             val depthIterators = categoriesFiltered.map { Iterators.peekingIterator(it.byDepth[depth].run(queryLower)) }
@@ -78,7 +80,7 @@ class SearchIndex<K, V>(
                         .filter { depthIterators[it].hasNext() }
                         .minBy { depthIterators[it].peek().name } ?: break
                 val bestEntry = depthIterators[bestIndex].next()
-                if (returnedNames.add(bestEntry.name)) {
+                if (returnedEntries.add(bestEntry)) {
                     val name = if (depth == 0) bestEntry.simpleName else bestEntry.name
                     val highlight = Searcher(name.componentsLower, queryLower)
                             // TODO: we get better highlighting with depth - 1 under some circumstances. investigate
@@ -249,7 +251,8 @@ class SearchIndex<K, V>(
         }
     }
 
-    data class Entry<V>(
+    // *NOT* a data class, must use identity hash/equals so entries for different versions
+    class Entry<V>(
             val value: V,
             /**
              * Qualified name of this entry
