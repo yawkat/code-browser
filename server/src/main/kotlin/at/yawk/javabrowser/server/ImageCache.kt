@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import javax.inject.Singleton
 import javax.xml.bind.DatatypeConverter
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -82,6 +83,27 @@ class ImageCache {
         env.out.write(load(CacheKey(url, maxWidth, maxHeight))?.toASCIIString() ?: "")
     }
 
+    private fun scaleImage(image: BufferedImage, maxWidth: Int, maxHeight: Int): BufferedImage {
+        var scaled = image
+        while (true) {
+            var factor = min(maxHeight.toDouble() / scaled.height, maxWidth.toDouble() / scaled.width)
+            if (factor >= 1) break
+            // multi-step scaling. https://community.oracle.com/docs/DOC-983611
+            if (factor < 0.5) factor = 0.5
+            val next = BufferedImage(
+                    (scaled.width * factor).roundToInt(),
+                    (scaled.height * factor).roundToInt(),
+                    BufferedImage.TYPE_INT_ARGB)
+            val gfx = next.createGraphics()
+            gfx.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+            gfx.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+            gfx.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            gfx.drawRenderedImage(scaled, AffineTransform.getScaleInstance(factor, factor))
+            scaled = next
+        }
+        return scaled
+    }
+
     private fun parseImage(key: CacheKey): Entry {
         val connection = URL(key.url).openConnection()
         connection.setRequestProperty("User-Agent", "yawkat/java-browser image cache fetcher")
@@ -94,24 +116,7 @@ class ImageCache {
                 stream.reset()
 
                 val image = ImageIO.read(stream)
-                val scaled: BufferedImage
-                if (key.maxHeight < image.height || key.maxWidth < image.width) {
-                    val factor = Math.min(
-                            key.maxHeight.toDouble() / image.height,
-                            key.maxWidth.toDouble() / image.width
-                    )
-                    scaled = BufferedImage(
-                            (image.width * factor).roundToInt(),
-                            (image.height * factor).roundToInt(),
-                            BufferedImage.TYPE_INT_ARGB)
-                    val gfx = scaled.createGraphics()
-                    gfx.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                    gfx.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-                    gfx.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    gfx.drawRenderedImage(image, AffineTransform.getScaleInstance(factor, factor))
-                } else {
-                    scaled = image
-                }
+                val scaled = scaleImage(image, key.maxWidth, key.maxHeight)
                 val baos = ByteArrayOutputStream()
                 ImageIO.write(scaled, "PNG", baos)
                 return Entry(baos.toByteArray(), MediaType.PNG)
