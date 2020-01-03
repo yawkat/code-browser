@@ -15,6 +15,7 @@ artifacts {
             )),
             url = "https://openjdk.java.net/"
     )
+    oldJava(version = "7", src = "/usr/lib/jvm/java-7-openjdk/src.zip", metadata = openjdkMetadata)
     oldJava(version = "8", src = "/usr/lib/jvm/java-8-openjdk/src.zip", metadata = openjdkMetadata)
     java(version = "10", baseDir = "/usr/lib/jvm/java-10-openjdk", metadata = openjdkMetadata)
     java(version = "11", baseDir = "/usr/lib/jvm/java-11-openjdk", metadata = openjdkMetadata)
