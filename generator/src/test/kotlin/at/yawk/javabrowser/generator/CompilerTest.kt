@@ -9,6 +9,7 @@ import at.yawk.javabrowser.PositionedAnnotation
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.jboss.shrinkwrap.resolver.api.maven.coordinate.MavenCoordinates
+import org.postgresql.util.PSQLException
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.testng.Assert
@@ -17,6 +18,7 @@ import org.testng.annotations.BeforeMethod
 import org.testng.annotations.Test
 import ru.yandex.qatools.embed.postgresql.EmbeddedPostgres
 import java.net.URL
+import java.sql.DriverManager
 
 /**
  * @author yawkat
@@ -25,11 +27,24 @@ class CompilerTest {
     private lateinit var dbi: DBI
     private lateinit var embeddedPostgres: EmbeddedPostgres
 
-    @BeforeMethod
+    @BeforeMethod(timeOut = 1000 * 60)
     fun initDb() {
         embeddedPostgres = EmbeddedPostgres()
         val url = embeddedPostgres.start()
         val config = DbConfig(url, EmbeddedPostgres.DEFAULT_USER, EmbeddedPostgres.DEFAULT_PASSWORD)
+        // wait for db to come up
+        while (true) {
+            try {
+                DriverManager.getConnection(config.url, config.user, config.password).close()
+            } catch (e: PSQLException) {
+                if (e.message.orEmpty().contains("the database system is starting up")) {
+                    Thread.sleep(500)
+                    continue
+                }
+                throw e
+            }
+            break
+        }
         dbi = config.start(mode = DbConfig.Mode.GENERATOR)
         dbi.inTransaction { conn, _ ->
             conn.update("create schema data")
