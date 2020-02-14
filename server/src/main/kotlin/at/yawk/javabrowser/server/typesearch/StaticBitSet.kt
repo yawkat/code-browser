@@ -1,12 +1,12 @@
 package at.yawk.javabrowser.server.typesearch
 
-import at.yawk.numaec.BTreeConfig
 import at.yawk.numaec.BufferBasedCollection
 import at.yawk.numaec.LargeByteBufferAllocator
-import at.yawk.numaec.MutableIntByteBTreeMapFactory
-import at.yawk.numaec.MutableIntIntBTreeMapFactory
-import at.yawk.numaec.MutableIntLongBTreeMapFactory
-import at.yawk.numaec.MutableIntShortBTreeMapFactory
+import at.yawk.numaec.LinearHashMapConfig
+import at.yawk.numaec.MutableIntByteLinearHashMapFactory
+import at.yawk.numaec.MutableIntIntLinearHashMapFactory
+import at.yawk.numaec.MutableIntLongLinearHashMapFactory
+import at.yawk.numaec.MutableIntShortLinearHashMapFactory
 import at.yawk.numaec.MutableLongBufferListFactory
 import org.eclipse.collections.api.set.primitive.IntSet
 import org.eclipse.collections.impl.factory.primitive.IntByteMaps
@@ -17,9 +17,10 @@ import org.eclipse.collections.impl.factory.primitive.LongLists
 import org.eclipse.collections.impl.factory.primitive.ObjectIntMaps
 import java.io.Serializable
 
-private val btreeConfig = BTreeConfig.builder()
-        .blockSize(4096) // 4K pages
-        .regionSize(64) // allocate 256 pages at once
+private val lhtConfig = LinearHashMapConfig.builder()
+        .bucketSize(4096)
+        .regionSize(64)
+        .dontStoreHash()
         .build()
 
 internal class StaticBitSet private constructor(private val data: LongArray) {
@@ -152,8 +153,7 @@ internal class StaticBitSet private constructor(private val data: LongArray) {
         }
 
         override fun externalize(allocator: LargeByteBufferAllocator) {
-            data = MutableIntByteBTreeMapFactory.withAllocatorAndConfig(allocator,
-                    btreeConfig).ofAll(data)
+            data = MutableIntByteLinearHashMapFactory.withAllocatorAndConfig(allocator, lhtConfig).ofAll(data)
         }
     }
 
@@ -190,8 +190,7 @@ internal class StaticBitSet private constructor(private val data: LongArray) {
         }
 
         override fun externalize(allocator: LargeByteBufferAllocator) {
-            data = MutableIntShortBTreeMapFactory.withAllocatorAndConfig(allocator,
-                    btreeConfig).ofAll(data)
+            data = MutableIntShortLinearHashMapFactory.withAllocatorAndConfig(allocator, lhtConfig).ofAll(data)
         }
     }
 
@@ -228,8 +227,7 @@ internal class StaticBitSet private constructor(private val data: LongArray) {
         }
 
         override fun externalize(allocator: LargeByteBufferAllocator) {
-            data = MutableIntIntBTreeMapFactory.withAllocatorAndConfig(allocator,
-                    btreeConfig).ofAll(data)
+            data = MutableIntIntLinearHashMapFactory.withAllocatorAndConfig(allocator, lhtConfig).ofAll(data)
         }
     }
 
@@ -266,8 +264,7 @@ internal class StaticBitSet private constructor(private val data: LongArray) {
         }
 
         override fun externalize(allocator: LargeByteBufferAllocator) {
-            data = MutableIntLongBTreeMapFactory.withAllocatorAndConfig(allocator,
-                    btreeConfig).ofAll(data)
+            data = MutableIntLongLinearHashMapFactory.withAllocatorAndConfig(allocator, lhtConfig).ofAll(data)
         }
     }
 
@@ -331,8 +328,7 @@ internal class StaticBitSet private constructor(private val data: LongArray) {
 
         override fun externalize(allocator: LargeByteBufferAllocator) {
             data = MutableLongBufferListFactory.withAllocator(allocator).ofAll(data)
-            indices = MutableIntIntBTreeMapFactory.withAllocatorAndConfig(allocator,
-                    btreeConfig).ofAll(indices)
+            indices = MutableIntIntLinearHashMapFactory.withAllocatorAndConfig(allocator, lhtConfig).ofAll(indices)
         }
     }
 }
