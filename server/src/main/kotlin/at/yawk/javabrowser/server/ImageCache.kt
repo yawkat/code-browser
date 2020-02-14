@@ -3,6 +3,7 @@ package at.yawk.javabrowser.server
 import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
 import com.google.common.hash.Hashing
+import com.google.common.io.BaseEncoding
 import com.google.common.io.ByteStreams
 import com.google.common.net.MediaType
 import freemarker.core.Environment
@@ -26,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import javax.inject.Singleton
-import javax.xml.bind.DatatypeConverter
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -145,6 +145,6 @@ class ImageCache {
     )
 
     private class Entry(val bytes: ByteArray, val mediaType: MediaType) {
-        val id: String = DatatypeConverter.printHexBinary(Hashing.sha256().hashBytes(bytes).asBytes())
+        val id: String = BaseEncoding.base16().encode(Hashing.sha256().hashBytes(bytes).asBytes())
     }
 }
