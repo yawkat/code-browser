@@ -3,10 +3,9 @@ package at.yawk.javabrowser.generator
 import at.yawk.javabrowser.IntRangeSet
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
-import com.google.common.collect.Range
-import com.google.common.collect.TreeRangeSet
 import org.eclipse.jdt.core.dom.ASTNode
 import org.eclipse.jdt.core.dom.ASTVisitor
+import org.eclipse.jdt.core.dom.Annotation
 import org.eclipse.jdt.core.dom.BlockComment
 import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
@@ -17,6 +16,7 @@ import org.eclipse.jdt.core.dom.Modifier
 import org.eclipse.jdt.core.dom.NormalAnnotation
 import org.eclipse.jdt.core.dom.NumberLiteral
 import org.eclipse.jdt.core.dom.SimpleName
+import org.eclipse.jdt.core.dom.SingleMemberAnnotation
 import org.eclipse.jdt.core.dom.StringLiteral
 import org.eclipse.jdt.core.dom.TagElement
 
@@ -87,10 +87,19 @@ class StyleVisitor(private val annotatedSourceFile: GeneratorSourceFile) : ASTVi
         return true
     }
 
-    override fun visit(node: NormalAnnotation): Boolean {
+    private fun parameterizedAnnotation(node: Annotation) {
         // we just want the name and the @
         annotatedSourceFile.annotate(node.typeName.startPosition - 1, node.typeName.length + 1,
                 Style("annotation"))
+    }
+
+    override fun visit(node: NormalAnnotation): Boolean {
+        parameterizedAnnotation(node)
+        return true
+    }
+
+    override fun visit(node: SingleMemberAnnotation): Boolean {
+        parameterizedAnnotation(node)
         return true
     }
 
