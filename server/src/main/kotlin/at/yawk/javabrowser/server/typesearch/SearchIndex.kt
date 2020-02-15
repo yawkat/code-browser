@@ -2,6 +2,7 @@ package at.yawk.javabrowser.server.typesearch
 
 import at.yawk.numaec.BumpPointerFileAllocator
 import at.yawk.numaec.BumpPointerRegionAllocator
+import at.yawk.numaec.LargeByteBufferAllocator
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.base.Ascii
 import com.google.common.collect.Iterators
@@ -11,6 +12,7 @@ import java.util.Locale
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
+import javax.annotation.concurrent.ThreadSafe
 
 /**
  * @author yawkat
@@ -18,7 +20,8 @@ import java.util.regex.Pattern
 private const val MAX_DEPTH = 5
 private val NO_MATCH_SENTINEL = IntArray(0)
 
-class SearchIndex<K, V>(
+@ThreadSafe
+open class SearchIndex<K, V>(
         /**
          * @see IndexAutomaton
          */
@@ -100,6 +103,13 @@ class SearchIndex<K, V>(
         }
     }
 
+    /**
+     * For testing
+     */
+    protected open fun transformAllocator(allocator: LargeByteBufferAllocator): LargeByteBufferAllocator? {
+        return allocator
+    }
+
     private inner class Category<V>(strings: Iterator<Input<V>>) {
         val allocator = if (storageDir != null) BumpPointerFileAllocator.fromTempDirectory(storageDir) else null
         val byDepth: List<IndexAutomaton<Entry<V>>>
@@ -109,12 +119,12 @@ class SearchIndex<K, V>(
                 Entry(it.value, SplitEntry(it.string), SplitEntry(it.string.substring(it.string.lastIndexOf('.') + 1)))
             }.sortedBy { it.name }.toList()
 
-            val alignedAllocator = if (allocator != null)
-                BumpPointerRegionAllocator.builder(allocator)
+            val alignedAllocator = allocator?.let { transformAllocator(it) }?.let {
+                BumpPointerRegionAllocator.builder(it)
                         .regionSize(4 * 1024 * 1024)
                         .align(4096)
                         .build()
-            else null
+            }
             byDepth = listOf(
                     IndexAutomaton(entries,
                             { it.simpleName.componentsLower.asList() },
