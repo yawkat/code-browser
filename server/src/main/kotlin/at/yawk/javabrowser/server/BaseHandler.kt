@@ -9,6 +9,7 @@ import at.yawk.javabrowser.server.view.View
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
+import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
@@ -211,6 +212,9 @@ class BaseHandler @Inject constructor(
                     declarationTreeHandler.sourceDeclarationTree(diffWith.artifact.id, oldInfo.sourceFile.annotations),
                     declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile.annotations)
             )
+
+            // do not index diff pages
+            exchange.responseHeaders.put(HttpString("X-Robots-Tag"), "noindex")
         }
 
         return SourceFileView(
