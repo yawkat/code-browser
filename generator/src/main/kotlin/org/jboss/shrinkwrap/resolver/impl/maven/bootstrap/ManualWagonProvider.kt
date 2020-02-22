@@ -10,6 +10,7 @@ import org.apache.maven.wagon.providers.http.LightweightHttpsWagon
 import org.apache.maven.wagon.repository.Repository
 import org.eclipse.aether.transport.wagon.WagonProvider
 import org.jboss.shrinkwrap.resolver.api.ResolutionException
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.Field
 import java.security.AccessController
@@ -19,6 +20,9 @@ import java.security.PrivilegedExceptionAction
 /**
  * Supports mock s3 wagon on top of the normal shrinkwrap wagons
  */
+private val log = LoggerFactory.getLogger(
+        "at.yawk.javabrowser.generator.org.jboss.shrinkwrap.resolver.impl.maven.bootstrap.ManualWagonProvider")
+
 @Suppress("unused")
 class ManualWagonProvider : WagonProvider {
     @Throws(Exception::class)
@@ -41,7 +45,8 @@ class ManualWagonProvider : WagonProvider {
 
     private companion object {
         fun checkRepo(repository: Repository) {
-            if (repository.host != "repo1.maven.org") {
+            if (repository.host != "repo1.maven.org" && repository.host != "repo.maven.apache.org") {
+                log.warn("Denying access to repository on host {}", repository.host)
                 throw ResourceDoesNotExistException("Only central allowed")
             }
         }

@@ -15,4 +15,9 @@ class MavenTest {
                         .any { it.matches("com.google.errorprone:.*".toRegex()) }
         )
     }
+
+    @Test
+    fun `central location`() {
+        MavenDependencyResolver().getMavenDependencies("org.jdbi", "jdbi3-testing", "3.8.2")
+    }
 }
