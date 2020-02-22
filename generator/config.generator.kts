@@ -118,6 +118,7 @@ artifacts {
         maven("com.fasterxml.jackson.module", "jackson-module-jaxb-annotations", jacksonVersion)
         maven("com.fasterxml.jackson.jaxrs", "jackson-jaxrs-base", jacksonVersion)
         maven("com.fasterxml.jackson.jaxrs", "jackson-jaxrs-json-provider", jacksonVersion)
+        maven("com.fasterxml.jackson.jr", "jackson-jr-objects", jacksonVersion)
     }
     maven("com.fasterxml.woodstox", "woodstox-core", "6.0.2")
     maven("com.fasterxml", "classmate", "1.5.1")
@@ -226,7 +227,7 @@ artifacts {
     maven("org.apache.httpcomponents", "httpcore", "4.4.12")
     maven("org.apache.httpcomponents", "httpcore-nio", "4.4.12")
 
-    val springMeta = ArtifactMetadata(logoUrl = "https://spring.io/img/spring-by-pivotal-9066b55828deb3c10e27e609af322c40.png")
+    val springMeta = ArtifactMetadata(logoUrl = "https://spring.io/images/spring-logo.svg")
     maven("org.springframework", "spring-context", "5.1.5.RELEASE", metadata = springMeta)
     maven("org.springframework", "spring-aop", "5.1.5.RELEASE", metadata = springMeta)
     maven("org.springframework", "spring-beans", "5.1.5.RELEASE", metadata = springMeta)
