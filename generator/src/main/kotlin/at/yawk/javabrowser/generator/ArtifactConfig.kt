@@ -4,7 +4,6 @@ import at.yawk.javabrowser.ArtifactMetadata
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import java.net.URL
-import java.nio.file.Path
 
 /**
  * @author yawkat
@@ -15,7 +14,6 @@ import java.nio.file.Path
         property = "type"
 )
 @JsonSubTypes(value = [
-    JsonSubTypes.Type(value = ArtifactConfig.OldJava::class, name = "old-java"),
     JsonSubTypes.Type(value = ArtifactConfig.Java::class, name = "java"),
     JsonSubTypes.Type(value = ArtifactConfig.Maven::class, name = "maven"),
     JsonSubTypes.Type(value = ArtifactConfig.Android::class, name = "android")
@@ -23,15 +21,10 @@ import java.nio.file.Path
 sealed class ArtifactConfig {
     abstract val metadata: ArtifactMetadata?
 
-    data class OldJava(
-            val version: String,
-            val src: Path,
-            override val metadata: ArtifactMetadata
-    ) : ArtifactConfig()
-
     data class Java(
             val version: String,
-            val baseDir: Path,
+            val archiveUrl: URL,
+            val jigsaw: Boolean,
             override val metadata: ArtifactMetadata
     ) : ArtifactConfig()
 
@@ -51,6 +44,7 @@ sealed class ArtifactConfig {
     data class Android(
             val repos: List<GitRepo>,
             val version: String,
+            val buildTools: URL,
             override val metadata: ArtifactMetadata
     ) : ArtifactConfig()
 }

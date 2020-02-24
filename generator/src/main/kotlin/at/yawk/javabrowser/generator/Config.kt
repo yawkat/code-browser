@@ -2,8 +2,8 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.DbConfig
+import java.net.URL
 import java.nio.file.Path
-import java.nio.file.Paths
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.ScriptCompilationConfiguration
 import kotlin.script.experimental.api.defaultImports
@@ -21,8 +21,14 @@ data class Config(
         val database: DbConfig,
         val mavenResolver: MavenDependencyResolver.Config,
         val artifacts: List<ArtifactConfig> = listOf(
-                ArtifactConfig.OldJava("8", Paths.get("/usr/lib/jvm/java-8-openjdk/src.zip"), ArtifactMetadata()),
-                ArtifactConfig.Java("10", Paths.get("/usr/lib/jvm/java-10-openjdk"), ArtifactMetadata()),
+                ArtifactConfig.Java("8",
+                        URL("https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk8u_jdk8u/lastSuccessfulBuild/artifact/jdk8u_jdk8u.tar.zst"),
+                        false,
+                        ArtifactMetadata()),
+                ArtifactConfig.Java("10",
+                        URL("https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk10u/lastSuccessfulBuild/artifact/jdk-updates_jdk10u.tar.zst"),
+                        true,
+                        ArtifactMetadata()),
                 ArtifactConfig.Maven("com.google.guava", "guava", "25.1-jre")
         )
 ) {
@@ -61,16 +67,13 @@ data class Config(
             }
 
             inner class ArtifactCollector {
-                fun oldJava(version: String, src: String, metadata: ArtifactMetadata) {
-                    artifacts.add(ArtifactConfig.OldJava(version, Paths.get(src), metadata))
+                fun java(version: String, archiveUrl: String, jigsaw: Boolean, metadata: ArtifactMetadata) {
+                    artifacts.add(ArtifactConfig.Java(version, URL(archiveUrl), jigsaw, metadata))
                 }
 
-                fun java(version: String, baseDir: String, metadata: ArtifactMetadata) {
-                    artifacts.add(ArtifactConfig.Java(version, Paths.get(baseDir), metadata))
-                }
-
-                fun android(version: String, repos: List<ArtifactConfig.GitRepo>, metadata: ArtifactMetadata) {
-                    artifacts.add(ArtifactConfig.Android(repos, version, metadata))
+                fun android(version: String, repos: List<ArtifactConfig.GitRepo>, buildTools: String,
+                            metadata: ArtifactMetadata) {
+                    artifacts.add(ArtifactConfig.Android(repos, version, URL(buildTools), metadata))
                 }
 
                 fun maven(groupId: String, artifactId: String, version: String, metadata: ArtifactMetadata? = null,

@@ -77,9 +77,32 @@ import org.eclipse.jdt.core.dom.VariableDeclarationStatement
 import org.eclipse.jdt.core.dom.WildcardType
 import org.eclipse.jdt.internal.compiler.ast.ReferenceExpression
 import org.eclipse.jdt.internal.compiler.lookup.MethodBinding
+import org.slf4j.LoggerFactory
 import java.lang.Long
 
+private val log = LoggerFactory.getLogger(BindingVisitor::class.java)
+
+internal fun unsafeGetInternalNode(astNode: ASTNode): org.eclipse.jdt.internal.compiler.ast.ASTNode {
+    return unsafeBindingResolverCall(astNode.ast, "getCorrespondingNode", astNode)
+            as org.eclipse.jdt.internal.compiler.ast.ASTNode
+}
+
+private fun unsafeGetMethodBinding(ast: AST, internalBinding: MethodBinding): IMethodBinding? {
+    return unsafeBindingResolverCall(ast, "getMethodBinding", internalBinding) as IMethodBinding?
+}
+
+private inline fun <reified T> unsafeBindingResolverCall(ast: AST, name: String, param: T): Any? {
+    val classDefaultBindingResolver = Class.forName("org.eclipse.jdt.core.dom.DefaultBindingResolver")
+    val getBindingResolver = AST::class.java.getDeclaredMethod("getBindingResolver")
+    getBindingResolver.isAccessible = true
+    val bindingResolver = getBindingResolver.invoke(ast)
+    val getCorrespondingNode = classDefaultBindingResolver.getDeclaredMethod(name, T::class.java)
+    getCorrespondingNode.isAccessible = true
+    return getCorrespondingNode.invoke(bindingResolver, param)
+}
+
 internal class BindingVisitor(
+        private val logTag: String,
         private val sourceFileType: SourceFileType,
         private val ast: CompilationUnit,
         private val annotatedSourceFile: GeneratorSourceFile
@@ -95,6 +118,15 @@ internal class BindingVisitor(
     private var inJavadoc = false
 
     var lastVisited: ASTNode? = null
+
+    private fun buildNodeLogTag() =
+            "$logTag:${lastVisited?.startPosition}_${lastVisited?.length}_${lastVisited?.javaClass?.simpleName}"
+
+    private inline fun warn(msg: () -> String) {
+        if (log.isWarnEnabled) {
+            log.warn("${buildNodeLogTag()}: ${msg()}")
+        }
+    }
 
     override fun preVisit2(node: ASTNode?): Boolean {
         lastVisited = node
@@ -116,7 +148,7 @@ internal class BindingVisitor(
     override fun visit(node: EnumDeclaration) = visitTypeDecl(node)
 
     private fun visitTypeDecl(node: AbstractTypeDeclaration): Boolean {
-        val resolved = node.resolveBinding()
+        val resolved = node.resolveBinding() ?: return true
 
         val superclassType = (node as? TypeDeclaration)?.superclassType
         val interfaceTypes = (node as? TypeDeclaration)?.superInterfaceTypes()
@@ -129,14 +161,23 @@ internal class BindingVisitor(
 
     private fun describeType(resolved: ITypeBinding): BindingDecl.Description.Type {
         var possibleExceptionType: ITypeBinding? = resolved
-        while (possibleExceptionType != null && possibleExceptionType.qualifiedName != "java.lang.Throwable") {
+        var throwable = false
+        while (possibleExceptionType != null) {
+            if (possibleExceptionType.isMember && possibleExceptionType.declaringClass == null) {
+                warn { "No declaring class for possible member exception type ${possibleExceptionType!!.binaryName}" }
+                break
+            }
+            if (possibleExceptionType.qualifiedName == "java.lang.Throwable") {
+                throwable = true
+                break
+            }
             possibleExceptionType = possibleExceptionType.superclass
         }
         // resolved.erasure is null for some reason in some cases
         val erasure = resolved.erasure ?: resolved
         return BindingDecl.Description.Type(
                 kind = when {
-                    possibleExceptionType != null -> BindingDecl.Description.Type.Kind.EXCEPTION
+                    throwable -> BindingDecl.Description.Type.Kind.EXCEPTION
                     resolved.isAnnotation -> BindingDecl.Description.Type.Kind.ANNOTATION
                     resolved.isEnum -> BindingDecl.Description.Type.Kind.ENUM
                     resolved.isInterface -> BindingDecl.Description.Type.Kind.INTERFACE
@@ -232,7 +273,8 @@ internal class BindingVisitor(
                                 modifiers = getModifiers(resolved),
                                 superBindings = overrides.mapNotNull {
                                     val b = Bindings.toString(it) ?: return@mapNotNull null
-                                    BindingDecl.Super(it.declaringClass.name + "." + it.name, b)
+                                    val declaringName = (it.declaringClass ?: return@mapNotNull null).name
+                                    BindingDecl.Super(declaringName + "." + it.name, b)
                                 }
                         )
                 )
@@ -266,9 +308,13 @@ internal class BindingVisitor(
             is AnonymousClassDeclaration -> parentNode.resolveBinding()
             else -> throw AssertionError(parentNode.javaClass.name)
         }
+        if (declaring == null) {
+            warn { "No declaring type binding for initializer block" }
+            return true
+        }
         val static = Modifier.isStatic(node.modifiers)
         // TODO: find a binding for this initializer block
-        val binding = Bindings.toString(declaring) + "#${if (static) "<clinit>" else "<init>"}${initializerCounter++}"
+        val binding = Bindings.toString(declaring) + "#" + (if (static) "<clinit>" else "<init>") + initializerCounter++
         //val internal = unsafeGetInternalNode(node) as org.eclipse.jdt.internal.compiler.ast.Initializer
         //val binding = unsafeGetMethodBinding(node.ast, internal.methodBinding)!!
         annotatedSourceFile.annotate(
@@ -530,8 +576,11 @@ internal class BindingVisitor(
     override fun visit(node: ClassInstanceCreation): Boolean {
         val binding = node.resolveConstructorBinding()
         if (binding != null) {
-            val declaringClass = binding.declaringClass
-            if (binding.isDefaultConstructor) {
+            val declaringClass: ITypeBinding? = binding.declaringClass
+            if (declaringClass == null) {
+                warn { "No declaring class for constructor" }
+            }
+            if (declaringClass != null && binding.isDefaultConstructor) {
                 if (declaringClass.isAnonymous) {
                     if (declaringClass.superclass != null) {
                         val constructor = declaringClass.superclass.declaredMethods.firstOrNull {
@@ -796,15 +845,19 @@ internal class BindingVisitor(
                         makeBindingRef(BindingRefType.SUPER_METHOD, s))
             }
 
-            annotatedSourceFile.annotate(node.startPosition, 0, BindingDecl(
-                    Bindings.toStringKeyBinding(binding),
-                    parent = parentToString(binding.declaringMember),
-                    description = BindingDecl.Description.Lambda(
-                            implementingMethodBinding = describeMethod(binding),
-                            implementingTypeBinding = describeType(binding.declaringClass)
-                    ),
-                    modifiers = BindingDecl.MODIFIER_ANONYMOUS or BindingDecl.MODIFIER_LOCAL
-            ))
+            if (binding.declaringClass != null) {
+                annotatedSourceFile.annotate(node.startPosition, 0, BindingDecl(
+                        Bindings.toStringKeyBinding(binding),
+                        parent = parentToString(binding.declaringMember),
+                        description = BindingDecl.Description.Lambda(
+                                implementingMethodBinding = describeMethod(binding),
+                                implementingTypeBinding = describeType(binding.declaringClass)
+                        ),
+                        modifiers = BindingDecl.MODIFIER_ANONYMOUS or BindingDecl.MODIFIER_LOCAL
+                ))
+            } else {
+                warn { "No declaring class for lambda" }
+            }
         }
         val typeBinding = node.resolveTypeBinding()
         if (typeBinding != null) {
@@ -966,25 +1019,6 @@ internal class BindingVisitor(
             }
         }
         return pos
-    }
-
-    private fun unsafeGetInternalNode(astNode: ASTNode): org.eclipse.jdt.internal.compiler.ast.ASTNode {
-        return unsafeBindingResolverCall(astNode.ast, "getCorrespondingNode", astNode)
-                as org.eclipse.jdt.internal.compiler.ast.ASTNode
-    }
-
-    private fun unsafeGetMethodBinding(ast: AST, internalBinding: MethodBinding): IMethodBinding? {
-        return unsafeBindingResolverCall(ast, "getMethodBinding", internalBinding) as IMethodBinding?
-    }
-
-    private inline fun <reified T> unsafeBindingResolverCall(ast: AST, name: String, param: T): Any? {
-        val classDefaultBindingResolver = Class.forName("org.eclipse.jdt.core.dom.DefaultBindingResolver")
-        val getBindingResolver = AST::class.java.getDeclaredMethod("getBindingResolver")
-        getBindingResolver.isAccessible = true
-        val bindingResolver = getBindingResolver.invoke(ast)
-        val getCorrespondingNode = classDefaultBindingResolver.getDeclaredMethod(name, T::class.java)
-        getCorrespondingNode.isAccessible = true
-        return getCorrespondingNode.invoke(bindingResolver, param)
     }
 
     private fun getModifiers(binding: IBinding): Int {

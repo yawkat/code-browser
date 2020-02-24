@@ -15,12 +15,12 @@ artifacts {
             )),
             url = "https://openjdk.java.net/"
     )
-    oldJava(version = "7", src = "/usr/lib/jvm/java-7-openjdk/src.zip", metadata = openjdkMetadata)
-    oldJava(version = "8", src = "/usr/lib/jvm/java-8-openjdk/src.zip", metadata = openjdkMetadata)
-    java(version = "10", baseDir = "/usr/lib/jvm/java-10-openjdk", metadata = openjdkMetadata)
-    java(version = "11", baseDir = "/usr/lib/jvm/java-11-openjdk", metadata = openjdkMetadata)
-    java(version = "12", baseDir = "/usr/lib/jvm/java-12-openjdk", metadata = openjdkMetadata)
-    java(version = "13", baseDir = "/usr/lib/jvm/java-13-openjdk", metadata = openjdkMetadata)
+    java(version = "6", archiveUrl = "https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk6_jdk6/lastSuccessfulBuild/artifact/jdk6_jdk6.tar.zst", jigsaw = false, metadata = openjdkMetadata)
+    java(version = "7", archiveUrl = "https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk7u_jdk7u/lastSuccessfulBuild/artifact/jdk7u_jdk7u.tar.zst", jigsaw = false, metadata = openjdkMetadata)
+    java(version = "8", archiveUrl = "https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk8u_jdk8u/lastSuccessfulBuild/artifact/jdk8u_jdk8u.tar.zst", jigsaw = false, metadata = openjdkMetadata)
+    for (version in listOf("9", "10", "11", "12", "13", "14")) {
+        java(version = version, archiveUrl = "https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk${version}u/lastSuccessfulBuild/artifact/jdk-updates_jdk${version}u.tar.zst", jigsaw = true, metadata = openjdkMetadata)
+    }
 
     android(
             version = "android-9.0.0_r35",
@@ -34,6 +34,7 @@ artifacts {
                             tag = "android-9.0.0_r35"
                     )
             ),
+            buildTools = "https://dl-ssl.google.com/android/repository/build-tools_r28.0.3-linux.zip",
             metadata = ArtifactMetadata(
                     logoUrl = "https://upload.wikimedia.org/wikipedia/commons/d/db/Android_robot_2014.svg",
                     licenses = listOf(

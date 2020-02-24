@@ -3,10 +3,12 @@ package org.jboss.shrinkwrap.resolver.impl.maven.bootstrap
 import org.apache.maven.wagon.AbstractWagon
 import org.apache.maven.wagon.ResourceDoesNotExistException
 import org.apache.maven.wagon.Wagon
+import org.apache.maven.wagon.authentication.AuthenticationInfo
 import org.apache.maven.wagon.authorization.AuthorizationException
 import org.apache.maven.wagon.providers.http.LightweightHttpWagon
 import org.apache.maven.wagon.providers.http.LightweightHttpWagonAuthenticator
 import org.apache.maven.wagon.providers.http.LightweightHttpsWagon
+import org.apache.maven.wagon.proxy.ProxyInfoProvider
 import org.apache.maven.wagon.repository.Repository
 import org.eclipse.aether.transport.wagon.WagonProvider
 import org.jboss.shrinkwrap.resolver.api.ResolutionException
@@ -27,9 +29,7 @@ private val log = LoggerFactory.getLogger(
 class ManualWagonProvider : WagonProvider {
     @Throws(Exception::class)
     override fun lookup(roleHint: String): Wagon {
-        if (roleHint == "http") {
-            return setAuthenticator(CentralOnlyWagonHttp())
-        } else if (roleHint == "https") {
+        if (roleHint == "http" || roleHint == "https") {
             return setAuthenticator(CentralOnlyWagonHttps())
         } else if (roleHint == "file") {
             throw Exception("unsupported")
@@ -52,17 +52,22 @@ class ManualWagonProvider : WagonProvider {
         }
     }
 
-    private class CentralOnlyWagonHttp : LightweightHttpWagon() {
-        override fun openConnectionInternal() {
-            checkRepo(repository)
-            super.openConnectionInternal()
-        }
-    }
-
     private class CentralOnlyWagonHttps : LightweightHttpsWagon() {
         override fun openConnectionInternal() {
             checkRepo(repository)
             super.openConnectionInternal()
+        }
+
+        override fun connect(repository: Repository,
+                             authenticationInfo: AuthenticationInfo?,
+                             proxyInfoProvider: ProxyInfoProvider?) {
+            checkRepo(repository)
+            // central does not support http anymore
+            // can't just set the protocol field because the url field may already have been set
+            if (repository.url.startsWith("http:")) {
+                repository.url = "https" + repository.url.removePrefix("http")
+            }
+            super.connect(repository, authenticationInfo, proxyInfoProvider)
         }
     }
 

@@ -2,6 +2,12 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.DbConfig
 import at.yawk.javabrowser.DbMigration
+import at.yawk.javabrowser.generator.artifact.compileAndroid
+import at.yawk.javabrowser.generator.artifact.compileJdk
+import at.yawk.javabrowser.generator.artifact.compileMaven
+import at.yawk.javabrowser.generator.artifact.getArtifactId
+import at.yawk.javabrowser.generator.artifact.needsRecompile
+import at.yawk.javabrowser.generator.artifact.resolveMavenMetadata
 import com.google.common.collect.HashMultiset
 import org.slf4j.LoggerFactory
 import java.nio.file.Paths
@@ -31,19 +37,27 @@ fun main(args: Array<String>) {
     }
 
     val session = Session(dbi)
+    val mavenDependencyResolver = MavenDependencyResolver(config.mavenResolver)
 
-    val compiler = Compiler(dbi, session, MavenDependencyResolver(config.mavenResolver))
     val artifactIds = ArrayList<String>()
     for (artifact in config.artifacts) {
-        val id = Compiler.getArtifactId(artifact)
+        val id = getArtifactId(artifact)
 
         artifactIds.add(id)
         try {
-            when (artifact) {
-                is ArtifactConfig.OldJava -> compiler.compileOldJava(id, artifact)
-                is ArtifactConfig.Java -> compiler.compileJava(id, artifact)
-                is ArtifactConfig.Android -> compiler.compileAndroid(id, artifact)
-                is ArtifactConfig.Maven -> compiler.compileMaven(id, artifact)
+            if (needsRecompile(dbi, id)) {
+                val metadata = when (artifact) {
+                    is ArtifactConfig.Java -> artifact.metadata
+                    is ArtifactConfig.Maven -> resolveMavenMetadata(artifact)
+                    is ArtifactConfig.Android -> artifact.metadata
+                }
+                session.withPrinter(id, metadata) { printer ->
+                    when (artifact) {
+                        is ArtifactConfig.Java -> compileJdk(printer, id, artifact)
+                        is ArtifactConfig.Android -> compileAndroid(printer, id, artifact)
+                        is ArtifactConfig.Maven -> compileMaven(mavenDependencyResolver, printer, id, artifact)
+                    }
+                }
             }
         } catch (e: Exception) {
             throw RuntimeException("Failed to compile artifact $artifact", e)

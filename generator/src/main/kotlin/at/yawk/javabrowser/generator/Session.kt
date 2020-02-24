@@ -6,6 +6,7 @@ import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.DbMigration
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsVector
+import at.yawk.javabrowser.generator.artifact.COMPILER_VERSION
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.eclipse.collections.impl.factory.primitive.IntLists
 import org.skife.jdbi.v2.DBI
@@ -112,7 +113,7 @@ class Session(
             for (task in tasks) {
                 log.info("Running ${task.artifactId}")
                 conn.insert("insert into artifacts (id, lastCompileVersion, metadata) values (?, ?, ?)",
-                        task.artifactId, Compiler.VERSION, objectMapper.writeValueAsBytes(task.metadata))
+                        task.artifactId, COMPILER_VERSION, objectMapper.writeValueAsBytes(task.metadata))
 
                 val printerImpl = PrinterImpl(task.artifactId)
                 val concurrentPrinter = ConcurrentPrinter()

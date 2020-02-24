@@ -7,6 +7,7 @@ import org.eclipse.jdt.core.dom.ASTNode
 import org.eclipse.jdt.core.dom.ASTParser
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.FileASTRequestor
+import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -23,6 +24,7 @@ class SourceFileParser(
     var dependencies = emptyList<Path>()
     var includeRunningVmBootclasspath = true
     var pathPrefix = ""
+    var outputClassesTo: Path? = null
 
     fun compile() {
         val parser = ASTParser.newParser(AST.JLS10)
@@ -44,16 +46,17 @@ class SourceFileParser(
                 .filter { it.toString().endsWith(".java") && !Files.isDirectory(it) }
                 .collect(Collectors.toList())
 
+        val requestor = Requestor()
         parser.createASTs(
                 files.map { it.toString() }.toTypedArray(),
                 files.map { "UTF-8" }.toTypedArray(),
                 emptyArray<String>(),
-                Requestor(sourceRoot, printer, pathPrefix),
+                requestor,
                 null
         )
     }
 
-    private class Requestor(val root: Path, val printer: Printer, val pathPrefix: String) : FileASTRequestor() {
+    private inner class Requestor : FileASTRequestor() {
         override fun acceptAST(sourceFilePath: String, ast: CompilationUnit) {
             try {
                 accept0(sourceFilePath, ast)
@@ -63,7 +66,21 @@ class SourceFileParser(
         }
 
         private fun accept0(sourceFilePath: String, ast: CompilationUnit) {
-            val relativePath = pathPrefix + root.relativize(Paths.get(sourceFilePath))
+            val outputClassesTo = outputClassesTo
+            if (outputClassesTo != null) {
+                val internalDeclaration = unsafeGetInternalNode(ast) as CompilationUnitDeclaration
+                for (classFile in internalDeclaration.compilationResult.classFiles) {
+                    val target = outputClassesTo.resolve(String(classFile.fileName()) + ".class").normalize()
+                    if (!target.startsWith(outputClassesTo)) throw AssertionError("Bad class file name")
+                    try {
+                        Files.createDirectories(target.parent)
+                    } catch (ignored: FileAlreadyExistsException) {
+                    }
+                    Files.write(target, classFile.bytes)
+                }
+            }
+
+            val relativePath = pathPrefix + sourceRoot.relativize(Paths.get(sourceFilePath))
 
             val text = Files.readAllBytes(Paths.get(sourceFilePath)).toString(Charsets.UTF_8)
             val annotatedSourceFile = GeneratorSourceFile(text)
@@ -77,11 +94,12 @@ class SourceFileParser(
                 sourceFilePath.endsWith("module-info.java") -> BindingVisitor.SourceFileType.MODULE_INFO
                 else -> BindingVisitor.SourceFileType.REGULAR
             }
-            val bindingVisitor = BindingVisitor(sourceFileType, ast, annotatedSourceFile)
+            val bindingVisitor = BindingVisitor(sourceFilePath, sourceFileType, ast, annotatedSourceFile)
             try {
                 ast.accept(bindingVisitor)
             } catch (e: Exception) {
-                throw RuntimeException("Failed to accept node on character ${bindingVisitor.lastVisited?.startPosition}", e)
+                throw RuntimeException("Failed to accept node on character ${bindingVisitor.lastVisited?.startPosition}",
+                        e)
             }
             KeywordHandler.annotateKeywords(annotatedSourceFile,
                     styleVisitor.noKeywordRanges)
