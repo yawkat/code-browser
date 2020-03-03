@@ -1,5 +1,5 @@
 <#ftl strip_text=true>
-<#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.TypeSearchView" -->
+<#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.LeafArtifactView" -->
 <#import "page.ftl" as page>
 <#import "declarationNode.ftl" as declarationNode>
 <#import "fullTextSearchForm.ftl" as ftsf>

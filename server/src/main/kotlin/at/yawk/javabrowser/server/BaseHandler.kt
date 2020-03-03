@@ -3,8 +3,8 @@ package at.yawk.javabrowser.server
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import at.yawk.javabrowser.server.view.DeclarationNode
 import at.yawk.javabrowser.server.view.IndexView
+import at.yawk.javabrowser.server.view.LeafArtifactView
 import at.yawk.javabrowser.server.view.SourceFileView
-import at.yawk.javabrowser.server.view.TypeSearchView
 import at.yawk.javabrowser.server.view.View
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.undertow.server.HttpHandler
@@ -59,14 +59,14 @@ class BaseHandler @Inject constructor(
         dbi.inTransaction { conn: Handle, _ ->
             val view = when (path) {
                 is ParsedPath.SourceFile -> sourceFile(exchange, conn, path)
-                is ParsedPath.LeafArtifact -> typeSearch(exchange, conn, path)
+                is ParsedPath.LeafArtifact -> leafArtifact(exchange, conn, path)
                 is ParsedPath.Group -> IndexView(path.artifact, siteStatisticsService.statistics)
             }
             ftl.render(exchange, view)
         }
     }
 
-    private fun typeSearch(exchange: HttpServerExchange, conn: Handle, path: ParsedPath): TypeSearchView {
+    private fun leafArtifact(exchange: HttpServerExchange, conn: Handle, path: ParsedPath): LeafArtifactView {
         val diffWith = exchange.queryParameters["diff"]?.peekFirst()?.let { parsePath(it) }
         if (diffWith !is ParsedPath.LeafArtifact?) {
             throw HttpException(StatusCodes.BAD_REQUEST, "Can't diff with that")
@@ -83,12 +83,12 @@ class BaseHandler @Inject constructor(
                 .map {
                     val cmp = VersionComparator.compare(it.id, path.artifact.id)
                     when {
-                        cmp < 0 -> TypeSearchView.Alternative(it, "/${it.id}?diff=${URLEncoder.encode(path.artifact.id, "UTF-8")}")
-                        cmp > 0 -> TypeSearchView.Alternative(it, "/${path.artifact.id}?diff=${URLEncoder.encode(it.id, "UTF-8")}")
-                        else -> TypeSearchView.Alternative(it, null)
+                        cmp < 0 -> LeafArtifactView.Alternative(it, "/${it.id}?diff=${URLEncoder.encode(path.artifact.id, "UTF-8")}")
+                        cmp > 0 -> LeafArtifactView.Alternative(it, "/${path.artifact.id}?diff=${URLEncoder.encode(it.id, "UTF-8")}")
+                        else -> LeafArtifactView.Alternative(it, null)
                     }
                 }
-        return TypeSearchView(
+        return LeafArtifactView(
                 path.artifact,
                 diffWith?.artifact,
                 metadataCache.getArtifactMetadata(path.artifact),
@@ -100,9 +100,9 @@ class BaseHandler @Inject constructor(
         )
     }
 
-    private fun buildDependencyInfo(it: String): TypeSearchView.Dependency {
+    private fun buildDependencyInfo(it: String): LeafArtifactView.Dependency {
         if (artifactIndex.allArtifacts.containsKey(it)) {
-            return TypeSearchView.Dependency(it, "", null)
+            return LeafArtifactView.Dependency(it, "", null)
         }
 
         val matchingAlias = aliasIndex.findAliasedTo(it)
@@ -113,13 +113,13 @@ class BaseHandler @Inject constructor(
 
             val node = artifactIndex.allArtifacts[prefix]
             if (node != null) {
-                return TypeSearchView.Dependency(
+                return LeafArtifactView.Dependency(
                         "$prefix/",
                         parts.subList(i, parts.size).joinToString("/"),
                         matchingAlias)
             }
         }
-        return TypeSearchView.Dependency(null, it, matchingAlias)
+        return LeafArtifactView.Dependency(null, it, matchingAlias)
     }
 
     private fun requestSourceFile(conn: Handle, parsedPath: ParsedPath.SourceFile): ServerSourceFile {
