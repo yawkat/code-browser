@@ -84,3 +84,59 @@
     /* Use rgba instead of a lighter, opaque tone for better mixing with local variable hover */
     background-color: rgba(255, 245, 133, 0.5);
 }
+
+.theme-default .search-dialog {
+    background: white;
+    border: 1px solid #ccc;
+}
+
+.theme-default .fts-result {
+    border-top-color: #ccc;
+}
+
+.theme-default .fts-result code {
+    border-bottom-color: #eee;
+}
+
+.theme-default #header {
+    background-color: #222;
+    color: #AFB1B3;
+}
+
+.theme-default .message-box {
+    border: 1px solid #ccc;
+}
+
+.theme-default .metadata {
+    /* Some logos have a white background, so fade out before they appear. */
+    background: linear-gradient(to right, #eee 0%, #eee 60%, #fff 75%);
+}
+
+.theme-default #tooltip {
+    background: white;
+    border: 1px solid #ccc;
+}
+
+.theme-default :target::before, .theme-default :target {
+    background-color: #64ccc9;
+}
+
+.theme-default .declaration-tree .selected a {
+    background: #ccc;
+}
+
+.theme-default .reference-detail-table {
+    border-color: #ccc;
+}
+
+.theme-default .reference-detail-table td:nth-child(even), .theme-default .reference-detail-table th:nth-child(even) {
+    background: #eee;
+}
+
+.theme-default .reference-detail-list h2, .theme-default .reference-detail-list h3 {
+    background: white;
+}
+
+.theme-default .hit-result-limit {
+    background: #fcc;
+}

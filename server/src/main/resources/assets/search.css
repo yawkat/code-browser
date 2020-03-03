@@ -34,8 +34,6 @@
 
 .search-dialog {
     margin-top: 2em;
-    background: white;
-    border: 1px solid #ccc;
     border-radius: 2px;
     padding: 1em;
 }
@@ -49,13 +47,13 @@
 }
 .fts-result {
     width: auto;
-    border-top: 1px solid #ccc;
+    border-top: 1px solid;
     padding: 1em 0;
 }
 .fts-result code {
     margin-bottom: .5em;
     padding-bottom: .5em;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid;
     display: block;
 }
 .fts-result code:last-child {

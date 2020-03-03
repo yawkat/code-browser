@@ -82,7 +82,64 @@ html.theme-darcula {
     color: #447152;
 }
 
-.highlight {
+.theme-darcula .highlight {
     /* Use rgba instead of a lighter, opaque tone for better mixing with local variable hover */
     background-color: rgba(128, 123, 68, 0.5);
+}
+
+.theme-darcula .search-dialog {
+    background: #2B2B2B;
+    border: 1px solid #545454;
+}
+
+.theme-darcula .fts-result {
+    border-top-color: #545454;
+}
+
+.theme-darcula .fts-result code {
+    border-bottom-color: #333333;
+}
+
+/* header still dark */
+.theme-darcula #header {
+    background-color: #222;
+    color: #AFB1B3;
+}
+
+.theme-darcula .message-box {
+    border: 1px solid #545454;
+}
+
+.theme-darcula .metadata {
+    /* Some logos have a white background, so make this whole section white */
+    background: #fff;
+}
+
+.theme-darcula #tooltip {
+    background: #2B2B2B;
+    border: 1px solid #545454;
+}
+
+.theme-darcula :target::before, .theme-darcula :target {
+    background-color: #336664;
+}
+
+.theme-darcula .declaration-tree .selected a {
+    background: #545454;
+}
+
+.theme-darcula .reference-detail-table {
+    border-color: #545454;
+}
+
+.theme-darcula .reference-detail-table td:nth-child(even), .theme-darcula .reference-detail-table th:nth-child(even) {
+    background: #383838;
+}
+
+.theme-darcula .reference-detail-list h2, .theme-darcula .reference-detail-list h3 {
+    background: #2B2B2B;
+}
+
+.theme-darcula .hit-result-limit {
+    background: #540000;
 }

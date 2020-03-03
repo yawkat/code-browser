@@ -22,8 +22,6 @@ html {
 
 #header {
     top: 0;
-    background-color: #222;
-    color: #AFB1B3;
     width: 100%;
     z-index: 100;
 }
@@ -108,7 +106,6 @@ li {
     display: block;
     margin: 1em auto;
     padding: 1em;
-    border: 1px solid #ccc;
     font-size: 1.2em;
     max-width: 60em;
 }
@@ -116,8 +113,6 @@ li {
 .metadata {
     margin: .5em;
     padding: .5em;
-    /* Some logos have a white background, so fade out before they appear. */
-    background: linear-gradient(to right, #eee 0%, #eee 60%, #fff 75%);
     min-height: 40px;
     max-height: 9.5em;
     overflow: hidden;
@@ -148,9 +143,7 @@ li {
     position: absolute;
     max-width: 50em;
     right: 0;
-    background: white;
     padding: .2em;
-    border: 1px solid #ccc;
     border-radius: 2px;
     font-size: .8em;
 }
@@ -165,10 +158,6 @@ li {
     margin-top: 1em;
 }
 
-:target {
-    background-color: #64ccc9;
-}
-
 /* This ensures the target overlay is at least 2em wide. */
 :target::before {
     content: "";
@@ -176,7 +165,6 @@ li {
     margin-right: -2em;
     display: inline-block;
     z-index: -100;
-    background-color: #64ccc9;
 }
 
 .declaration-icon {
@@ -213,9 +201,6 @@ li {
     width: 100%;
     display: block;
     background: inherit;
-}
-.declaration-tree .selected a {
-    background: #ccc;
 }
 .declaration-tree .line a > * {
     vertical-align: middle;

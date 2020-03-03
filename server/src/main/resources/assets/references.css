@@ -2,7 +2,7 @@
 .reference-detail-table {
     padding: 1em;
     margin: 1em;
-    border: 1px solid #ccc;
+    border: 1px solid;
 }
 .reference-detail-table table {
     text-align: right;
@@ -10,9 +10,6 @@
 }
 .reference-detail-table td, .reference-detail-table th {
     padding: .2em;
-}
-.reference-detail-table td:nth-child(even), .reference-detail-table th:nth-child(even) {
-    background: #eee;
 }
 
 ul.reference-detail-list ul {
@@ -49,7 +46,6 @@ ul.reference-detail-list .source-file li {
 
 .reference-detail-list h2, .reference-detail-list h3 {
     position: sticky;
-    background: white;
 }
 
 ul.reference-detail-list h2 {
@@ -85,5 +81,4 @@ ul.reference-detail-list h4 {
     font-weight: bold;
     padding: 1em;
     margin: 1em;
-    background: #fcc;
 }
