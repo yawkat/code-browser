@@ -548,8 +548,9 @@ internal class BindingVisitor(
                     makeBindingRef(BindingRefType.METHOD_CALL, s))
         }
         val expr = node.expression
-        if (expr is Name && expr.resolveBinding() is ITypeBinding) {
-            visitName0(expr, BindingRefType.STATIC_MEMBER_QUALIFIER)
+        if (expr is Name) {
+            visitName0(expr,
+                    if (expr.resolveBinding() is ITypeBinding) BindingRefType.STATIC_MEMBER_QUALIFIER else null)
         }
         for (typeArgument in node.typeArguments()) {
             visitType0(typeArgument as Type, BindingRefType.TYPE_PARAMETER)
@@ -682,8 +683,10 @@ internal class BindingVisitor(
                 annotatedSourceFile.annotate(node.name, makeBindingRef(fieldAccessTypeForNode(node), s))
         }
         val expr = node.expression
-        if (expr is Name && expr.resolveBinding() is ITypeBinding) {
-            visitName0(expr, BindingRefType.STATIC_MEMBER_QUALIFIER)
+        if (expr is Name) {
+            visitName0(expr,
+                    if (expr.resolveBinding() is ITypeBinding) BindingRefType.STATIC_MEMBER_QUALIFIER
+                    else null)
         }
         return true
     }
@@ -721,8 +724,7 @@ internal class BindingVisitor(
                         (parent as VariableDeclarationFragment).resolveBinding()?.isField == false) &&
                 (parent !is Annotation || node != parent.typeName) &&
                 parent !is Type &&
-                (node.locationInParent != MethodInvocation.EXPRESSION_PROPERTY ||
-                        node.resolveBinding() !is ITypeBinding) &&
+                node.locationInParent != MethodInvocation.EXPRESSION_PROPERTY &&
                 node.locationInParent != FieldAccess.NAME_PROPERTY &&
                 node.locationInParent != ExpressionMethodReference.EXPRESSION_PROPERTY &&
                 node.locationInParent != ExpressionMethodReference.NAME_PROPERTY &&
@@ -756,9 +758,9 @@ internal class BindingVisitor(
 
             if (node is QualifiedName) {
                 val qualifier = node.qualifier
-                if (qualifier.resolveBinding() is ITypeBinding) {
-                    visitName0(qualifier, BindingRefType.STATIC_MEMBER_QUALIFIER)
-                }
+                visitName0(qualifier,
+                        if (qualifier.resolveBinding() is ITypeBinding) BindingRefType.STATIC_MEMBER_QUALIFIER
+                        else null)
             }
         }
         if (binding is ITypeBinding) {

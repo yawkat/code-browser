@@ -1038,6 +1038,20 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `local variable access`() {
+        write("A.java", "class A { public int x; }")
+        write("B.java", "class B { B(A a) { System.out.println(a.x); } }")
+        val entries = compile().getValue("B.java").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<PositionedAnnotation> {
+                    val annotation = it.annotation
+                    annotation is LocalVariableRef && it.start == 38 && it.length == 1
+                })
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")
