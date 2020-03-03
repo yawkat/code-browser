@@ -4,6 +4,7 @@ import at.yawk.javabrowser.server.view.View
 import freemarker.core.HTMLOutputFormat
 import freemarker.ext.beans.BeansWrapperBuilder
 import freemarker.template.Configuration
+import freemarker.template.SimpleScalar
 import freemarker.template.TemplateExceptionHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
@@ -12,9 +13,8 @@ import java.lang.reflect.Modifier
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * @author yawkat
- */
+private val THEMES = setOf("default", "darcula")
+
 @Singleton
 class Ftl @Inject constructor(imageCache: ImageCache) {
     private val configuration = Configuration(Configuration.VERSION_2_3_28)
@@ -37,10 +37,15 @@ class Ftl @Inject constructor(imageCache: ImageCache) {
     }
 
     fun render(exchange: HttpServerExchange, view: View) {
+        val themeCookie = exchange.requestCookies["theme"]?.value
+        val theme = if (themeCookie in THEMES) themeCookie else "default"
+
         val template = configuration.getTemplate(view.templateFile)
         exchange.responseHeaders.put(Headers.CONTENT_TYPE, "text/html")
         OutputStreamWriter(exchange.outputStream).use {
-            template.process(view, it)
+            val processingEnvironment = template.createProcessingEnvironment(view, it)
+            processingEnvironment.setGlobalVariable("theme", SimpleScalar(theme))
+            processingEnvironment.process()
         }
     }
 }

@@ -1,0 +1,88 @@
+html.theme-darcula {
+    background: #2B2B2B;
+    color: #839496;
+}
+
+.theme-darcula code .local-hover {
+    background: #454545;
+}
+
+.theme-darcula code .diff-marker {
+    color: #000 !important;
+}
+
+.theme-darcula code .line, .theme-darcula code .diff-marker {
+    color: #888 !important;
+}
+
+.theme-darcula code .keyword {
+    color: #CC7832;
+}
+
+.theme-darcula code .type-variable {
+    color: #507874;
+}
+
+.theme-darcula code .number-literal {
+    color: #6897BB;
+}
+
+.theme-darcula code .string-literal {
+    color: #6A8759;
+}
+
+.theme-darcula code .annotation {
+    color: #BBB529;
+}
+
+.theme-darcula code .field {
+    color: #9876AA;
+    font-weight: bold;
+}
+
+.theme-darcula code .field.static {
+    font-weight: inherit;
+    font-style: italic;
+}
+
+.theme-darcula code .comment.javadoc {
+    color: #629755;
+}
+
+.theme-darcula code .comment {
+    color: #808080;
+}
+
+.theme-darcula code .variable, .theme-darcula code a:link, .theme-darcula code a:visited {
+    color: inherit;
+    text-decoration-color: #575757;
+}
+
+.theme-darcula a:visited, .theme-darcula a:link {
+    color: #287BDE;
+}
+
+.theme-darcula .deletion, .theme-darcula .decl-diff-DELETION {
+    background-color: #45302B;
+}
+
+.theme-darcula .insertion, .theme-darcula .decl-diff-INSERTION {
+    background-color: #294436;
+}
+
+.theme-darcula .decl-diff-CHANGED_INTERNALLY {
+    background-color: #385570;
+}
+
+.theme-darcula .foreground-old {
+    color: #8F5247;
+}
+
+.theme-darcula .foreground-new {
+    color: #447152;
+}
+
+.highlight {
+    /* Use rgba instead of a lighter, opaque tone for better mixing with local variable hover */
+    background-color: rgba(128, 123, 68, 0.5);
+}

@@ -42,6 +42,21 @@ $(function () {
     $(".size-expander-expand").click(function () {
         $(this).closest(".size-expander-wrapper").removeClass("retracted");
     });
+
+    $("#theme-selector").change(function () {
+        const newTheme = $(this).val();
+        const newThemeClass = "theme-" + newTheme;
+        const html = $("html");
+        html.addClass(newThemeClass);
+        const classes = html.attr("class").split(/\s+/);
+        for (const clazz of classes) {
+            if (clazz.indexOf("theme-") === 0 && clazz !== newThemeClass) {
+                html.removeClass(clazz);
+            }
+        }
+
+        document.cookie = "theme=" + newTheme + "; expires=Fri, 1 Jan 9999 00:00:00 UTC; path=/";
+    });
 });
 
 function expandDeclaration(element) {

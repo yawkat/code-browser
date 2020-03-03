@@ -1,0 +1,86 @@
+/* This theme matches the default intellij theme except that javadoc is blue */
+
+.theme-default code .local-hover {
+    background: #ddd;
+}
+
+.theme-default code .diff-marker {
+    color: #000 !important;
+}
+
+.theme-default code .line, .theme-default code .diff-marker {
+    color: #888 !important;
+}
+
+.theme-default code .keyword {
+    color: #000080;
+    font-weight: bold;
+}
+
+.theme-default code .type-variable {
+    color: #20999D;
+}
+
+.theme-default code .number-literal {
+    color: #00f;
+}
+
+.theme-default code .string-literal {
+    color: #008000;
+}
+
+.theme-default code .annotation {
+    color: #808000;
+}
+
+.theme-default code .field {
+    color: #660E7A;
+    font-weight: bold;
+}
+
+.theme-default code .field.static {
+    font-weight: inherit;
+    font-style: italic;
+}
+
+.theme-default code .comment.javadoc {
+    color: #0033cc;
+}
+
+.theme-default code .comment {
+    color: #808080;
+}
+
+.theme-default code .variable, .theme-default code a:link, .theme-default code a:visited {
+    color: inherit;
+    text-decoration-color: #ccc;
+}
+
+.theme-default a:visited, .theme-default a:link {
+    color: blue;
+}
+
+.theme-default .deletion, .theme-default .decl-diff-DELETION {
+    background-color: #FFD5CC;
+}
+
+.theme-default .insertion, .theme-default .decl-diff-INSERTION {
+    background-color: #BEE6BE;
+}
+
+.theme-default .decl-diff-CHANGED_INTERNALLY {
+    background-color: #CAD9FA;
+}
+
+.theme-default .foreground-old {
+    color: #ff9595;
+}
+
+.theme-default .foreground-new {
+    color: #83de83;
+}
+
+.highlight {
+    /* Use rgba instead of a lighter, opaque tone for better mixing with local variable hover */
+    background-color: rgba(255, 245, 133, 0.5);
+}
