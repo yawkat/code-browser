@@ -8,12 +8,19 @@ import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsVector
 import at.yawk.javabrowser.generator.artifact.COMPILER_VERSION
 import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import org.eclipse.collections.impl.factory.primitive.IntLists
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.TimeUnit
 
 /**
  * @author yawkat
@@ -28,7 +35,7 @@ class Session(
 
     fun withPrinter(artifactId: String,
                     metadata: ArtifactMetadata,
-                    closure: (PrinterWithDependencies) -> Unit) {
+                    closure: suspend (PrinterWithDependencies) -> Unit) {
         tasks.add(Task(artifactId, metadata, closure))
     }
 
@@ -45,12 +52,7 @@ class Session(
 
             log.info("Updating {} artifacts in mode {}", updating.size, mode)
 
-            val executor = Executors.newCachedThreadPool()
-            try {
-                SessionConnection(objectMapper, conn, ourTasks, mode, executor).run()
-            } finally {
-                executor.shutdownNow()
-            }
+            SessionConnection(objectMapper, conn, ourTasks, mode).run()
         }
         // do this outside the tx so some data is already available
         dbi.useHandle { otherTx ->
@@ -75,11 +77,16 @@ class Session(
             val objectMapper: ObjectMapper,
             val conn: Handle,
             val tasks: List<Task>,
-            val mode: UpdateMode,
-            val executor: ExecutorService
+            val mode: UpdateMode
     ) {
+        private val coroutineScope = CoroutineScope(ForkJoinPool.commonPool().asCoroutineDispatcher())
+        //private val coroutineScope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
+        private val concurrencyControl = ParserConcurrencyControl.Impl(maxConcurrentSourceFiles = 1024)
+
         private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
         private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?)")
+
+        private lateinit var dbWriterThread: Thread
 
         fun run() {
 
@@ -110,30 +117,39 @@ class Session(
                 }
             }
 
+            val concurrentPrinter = ConcurrentPrinter()
+            val futures = ArrayList<Deferred<Unit>>()
             for (task in tasks) {
-                log.info("Running ${task.artifactId}")
                 conn.insert("insert into artifacts (id, lastCompileVersion, metadata) values (?, ?, ?)",
                         task.artifactId, COMPILER_VERSION, objectMapper.writeValueAsBytes(task.metadata))
 
                 val printerImpl = PrinterImpl(task.artifactId)
-                val concurrentPrinter = ConcurrentPrinter()
-                val future = executor.submit {
+                val delegate = concurrentPrinter.createDelegate(printerImpl)
+                futures.add(coroutineScope.async {
                     try {
-                        task.closure(concurrentPrinter)
+                        task.closure(delegate)
                     } finally {
-                        concurrentPrinter.finish()
+                        delegate.finish()
                     }
-                }
-                concurrentPrinter.work(printerImpl)
-                future.get() // check exception
-
-                if (!printerImpl.hasFiles) {
-                    throw RuntimeException("No source files on ${task.artifactId}")
-                }
-
-                conn.update("select pg_notify('artifacts', ?)", task.artifactId)
-                log.info("${task.artifactId} is ready")
+                    // wait for completion, possibly with exceptions
+                    printerImpl.complete.await()
+                })
             }
+
+            dbWriterThread = Thread({
+                concurrentPrinter.work()
+                log.info("DB writer done")
+            }, "DB writer thread")
+            dbWriterThread.start()
+            do {
+                TimeUnit.MINUTES.sleep(1)
+                val running = futures.count { !it.isCompleted }
+                log.info("Running tasks: $running")
+            } while (running > 0)
+            runBlocking {
+                futures.awaitAll()
+            }
+            dbWriterThread.join()
 
             if (mode != UpdateMode.MINOR) {
                 DbMigration.createIndices(conn)
@@ -148,19 +164,46 @@ class Session(
             }
         }
 
-        private inner class PrinterImpl(val artifactId: String) : PrinterWithDependencies {
+        private inner class PrinterImpl(val artifactId: String) : ConcurrentPrinter.PrinterWithEnd {
             var hasFiles = false
 
+            val complete = CompletableDeferred<Unit>()
+
+            override val concurrencyControl: ParserConcurrencyControl
+                get() = this@SessionConnection.concurrencyControl
+
+            private fun checkThread() {
+                if (Thread.currentThread() != dbWriterThread) {
+                    throw IllegalStateException("Not on writer thread")
+                }
+            }
+
             override fun addDependency(dependency: String) {
+                checkThread()
                 conn.insert("insert into dependencies (fromArtifactId, toArtifactId) values (?, ?)",
                         artifactId,
                         dependency)
             }
 
             override fun addAlias(alias: String) {
+                checkThread()
                 conn.insert("insert into artifactAliases (artifactId, alias) values (?, ?)",
                         artifactId,
                         alias)
+            }
+
+            override fun finish() {
+                if (!hasFiles) {
+                    log.info("$artifactId completed exceptionally")
+                    // delegate the exception to the right thread so that we interrupt the generation process
+                    complete.completeExceptionally(RuntimeException("No source files on $artifactId"))
+                    return
+                } else {
+                    complete.complete(Unit)
+                }
+
+                conn.update("select pg_notify('artifacts', ?)", artifactId)
+                log.info("$artifactId is ready")
             }
 
             private fun storeTokens(table: String,
@@ -203,6 +246,7 @@ class Session(
             }
 
             override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
+                checkThread()
                 hasFiles = true
                 conn.insert(
                         "insert into sourceFiles (artifactId, path, json, text, annotations) values (?, ?, ?, ?, ?)",
@@ -254,6 +298,6 @@ class Session(
     private class Task(
             val artifactId: String,
             val metadata: ArtifactMetadata,
-            val closure: (PrinterWithDependencies) -> Unit
+            val closure: suspend (PrinterWithDependencies) -> Unit
     )
 }

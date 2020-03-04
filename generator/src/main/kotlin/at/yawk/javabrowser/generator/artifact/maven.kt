@@ -124,19 +124,21 @@ internal fun resolveMavenMetadata(artifact: ArtifactConfig.Maven): ArtifactMetad
     )
 }
 
-fun compileMaven(
+suspend fun compileMaven(
         mavenDependencyResolver: MavenDependencyResolver,
         printer: PrinterWithDependencies,
         artifactId: String,
         artifact: ArtifactConfig.Maven
 ) {
-    val depObjects = mavenDependencyResolver.getMavenDependencies(artifact.groupId,
-            artifact.artifactId,
-            artifact.version)
-            .filter {
-                it.coordinate.groupId != artifact.groupId ||
-                        it.coordinate.artifactId != artifact.artifactId
-            }
+    val depObjects = printer.concurrencyControl.fetchMavenDeps {
+        mavenDependencyResolver.getMavenDependencies(artifact.groupId,
+                artifact.artifactId,
+                artifact.version)
+                .filter {
+                    it.coordinate.groupId != artifact.groupId ||
+                            it.coordinate.artifactId != artifact.artifactId
+                }
+    }
     val depPaths = depObjects.map { (it as MavenResolvedArtifact).asFile().toPath() }
     val depNames = depObjects.map {
         var name = it.coordinate.groupId + "/" + it.coordinate.artifactId + "/" + it.coordinate.version
@@ -144,16 +146,18 @@ fun compileMaven(
         name
     }
     val aliasNames = artifact.aliases.map { getArtifactId(it) }
-    val sourceJar = Maven.resolver()
-            .addDependency(MavenDependencies.createDependency(
-                    MavenCoordinates.createCoordinate(
-                            artifact.groupId, artifact.artifactId, artifact.version,
-                            PackagingType.JAR, "sources"),
-                    ScopeType.COMPILE,
-                    false
-            ))
-            .resolve().withoutTransitivity()
-            .asSingleFile().toPath()
+    val sourceJar = printer.concurrencyControl.fetchMavenDeps {
+        Maven.resolver()
+                .addDependency(MavenDependencies.createDependency(
+                        MavenCoordinates.createCoordinate(
+                                artifact.groupId, artifact.artifactId, artifact.version,
+                                PackagingType.JAR, "sources"),
+                        ScopeType.COMPILE,
+                        false
+                ))
+                .resolve().withoutTransitivity()
+                .asSingleFile().toPath()
+    }
     tempDir { tmp ->
         val src = tmp.resolve("src")
         FileSystems.newFileSystem(sourceJar, null).use {

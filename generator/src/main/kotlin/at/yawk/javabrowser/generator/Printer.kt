@@ -6,6 +6,9 @@ import at.yawk.javabrowser.Tokenizer
  * @author yawkat
  */
 interface Printer {
+    val concurrencyControl: ParserConcurrencyControl
+        get() = ParserConcurrencyControl.NoLimit
+
     fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>)
 
     class SimplePrinter : Printer {

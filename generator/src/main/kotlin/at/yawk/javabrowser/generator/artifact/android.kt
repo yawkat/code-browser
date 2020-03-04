@@ -22,7 +22,7 @@ private const val ANDROID_JAVA_VERSION = "java/8"
 
 private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.artifact.android")
 
-fun compileAndroid(
+suspend fun compileAndroid(
         printer: PrinterWithDependencies,
         artifactId: String,
         artifact: ArtifactConfig.Android

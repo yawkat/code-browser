@@ -14,7 +14,7 @@ import java.util.regex.Pattern
 
 private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.artifact")
 
-fun compileJdk(
+suspend fun compileJdk(
         printer: Printer,
         artifactId: String,
         artifact: ArtifactConfig.Java
@@ -81,7 +81,6 @@ fun compileJdk(
             for (module in sortedModules) {
                 val sourceRoot = tmp.resolve(module)
                 val moduleDeps = dependencies.getValue(module)
-                log.info("Compiling $artifactId module $module at $sourceRoot with dependencies $moduleDeps")
 
                 val parser = SourceFileParser(sourceRoot, printer)
                 // in java.base there are odd circular dependencies in the codegen so we use the vm boot cp
@@ -89,6 +88,7 @@ fun compileJdk(
                 parser.pathPrefix = "$module/"
                 parser.dependencies = moduleDeps.map { binaryRoot(it) }
                 parser.outputClassesTo = binaryRoot(module)
+                parser.artifactId = "$artifactId/$module"
                 parser.compile()
             }
         } else {

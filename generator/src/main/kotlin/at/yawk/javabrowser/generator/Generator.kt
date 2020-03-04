@@ -39,11 +39,19 @@ fun main(args: Array<String>) {
     val session = Session(dbi)
     val mavenDependencyResolver = MavenDependencyResolver(config.mavenResolver)
 
-    val artifactIds = ArrayList<String>()
+    val artifactIds = config.artifacts.map { getArtifactId(it) }.sorted()
+    val duplicate = HashSet<String>()
+    for (i in artifactIds.indices) {
+        if (i > 0 && artifactIds[i] == artifactIds[i - 1]) {
+            duplicate.add(artifactIds[i])
+        }
+    }
+    if (duplicate.isNotEmpty()) {
+        throw RuntimeException("Duplicate artifacts: $duplicate")
+    }
+
     for (artifact in config.artifacts) {
         val id = getArtifactId(artifact)
-
-        artifactIds.add(id)
         try {
             if (needsRecompile(dbi, id)) {
                 val metadata = when (artifact) {

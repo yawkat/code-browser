@@ -8,11 +8,13 @@ import org.eclipse.jdt.core.dom.ASTParser
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.FileASTRequestor
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
+import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.stream.Collectors
 
+private val log = LoggerFactory.getLogger(SourceFileParser::class.java)
 
 /**
  * @author yawkat
@@ -25,8 +27,12 @@ class SourceFileParser(
     var includeRunningVmBootclasspath = true
     var pathPrefix = ""
     var outputClassesTo: Path? = null
+    /**
+     * For logging
+     */
+    var artifactId: String? = null
 
-    fun compile() {
+    suspend fun compile() {
         val parser = ASTParser.newParser(AST.JLS10)
         parser.setCompilerOptions(mapOf(
                 JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
@@ -46,14 +52,18 @@ class SourceFileParser(
                 .filter { it.toString().endsWith(".java") && !Files.isDirectory(it) }
                 .collect(Collectors.toList())
 
-        val requestor = Requestor()
-        parser.createASTs(
-                files.map { it.toString() }.toTypedArray(),
-                files.map { "UTF-8" }.toTypedArray(),
-                emptyArray<String>(),
-                requestor,
-                null
-        )
+        printer.concurrencyControl.runParser(files.size) {
+            log.info("Compiling $sourceRoot with dependencies $dependencies")
+
+            val requestor = Requestor()
+            parser.createASTs(
+                    files.map { it.toString() }.toTypedArray(),
+                    files.map { "UTF-8" }.toTypedArray(),
+                    emptyArray<String>(),
+                    requestor,
+                    null
+            )
+        }
     }
 
     private inner class Requestor : FileASTRequestor() {

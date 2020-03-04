@@ -6,13 +6,11 @@ import at.yawk.javabrowser.generator.SourceFileParser
 import com.google.common.io.MoreFiles
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
-import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 
-const val COMPILER_VERSION = 33
-
-private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.artifact")
+const val COMPILER_VERSION = 34
 
 fun getArtifactId(artifact: ArtifactConfig) = when (artifact) {
     is ArtifactConfig.Java -> "java/${artifact.version}"
@@ -20,7 +18,7 @@ fun getArtifactId(artifact: ArtifactConfig) = when (artifact) {
     is ArtifactConfig.Maven -> "${artifact.groupId}/${artifact.artifactId}/${artifact.version}"
 }
 
-internal fun compile(
+internal suspend fun compile(
         artifactId: String,
         sourceRoot: Path,
         dependencies: List<Path>,
@@ -28,12 +26,11 @@ internal fun compile(
         printer: Printer,
         pathPrefix: String = ""
 ) {
-    log.info("Compiling $artifactId at $sourceRoot with dependencies $dependencies (boot=$includeRunningVmBootclasspath prefix=$pathPrefix)")
-
     val parser = SourceFileParser(sourceRoot, printer)
     parser.includeRunningVmBootclasspath = includeRunningVmBootclasspath
     parser.pathPrefix = pathPrefix
     parser.dependencies = dependencies
+    parser.artifactId = artifactId
     parser.compile()
 }
 
@@ -49,7 +46,7 @@ internal fun needsRecompile(dbi: DBI, artifactId: String): Boolean {
 }
 
 inline fun tempDir(f: (Path) -> Unit) {
-    val tmp = Files.createTempDirectory("compile")
+    val tmp = Files.createTempDirectory(Paths.get("/var/tmp"), "compile")
     var delete = !java.lang.Boolean.getBoolean("at.yawk.javabrowser.generator.keepTempOnError")
     try {
         f(tmp)

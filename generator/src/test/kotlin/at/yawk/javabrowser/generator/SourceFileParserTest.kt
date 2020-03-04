@@ -7,6 +7,7 @@ import at.yawk.javabrowser.LocalVariableRef
 import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
 import com.google.common.io.MoreFiles
+import kotlinx.coroutines.runBlocking
 import org.hamcrest.BaseMatcher
 import org.hamcrest.Description
 import org.hamcrest.Matcher
@@ -64,7 +65,7 @@ class SourceFileParserTest {
     private fun compile(): Map<String, GeneratorSourceFile> {
         val printer = Printer.SimplePrinter()
         val parser = SourceFileParser(src, printer)
-        parser.compile()
+        runBlocking { parser.compile() }
         return printer.sourceFiles
     }
 

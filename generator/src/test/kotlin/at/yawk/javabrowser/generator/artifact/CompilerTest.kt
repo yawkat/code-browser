@@ -8,6 +8,7 @@ import at.yawk.javabrowser.generator.GeneratorSourceFile
 import at.yawk.javabrowser.generator.MavenDependencyResolver
 import at.yawk.javabrowser.generator.Printer
 import at.yawk.javabrowser.generator.PrinterWithDependencies
+import kotlinx.coroutines.runBlocking
 import org.testng.Assert
 import org.testng.annotations.Test
 import java.net.URL
@@ -20,28 +21,59 @@ class CompilerTest {
     @Test
     fun maven() {
         val sourceFileCount = LongAdder()
-        compileMaven(
-                MavenDependencyResolver(),
-                object : PrinterWithDependencies {
-                    override fun addDependency(dependency: String) {
-                    }
+        runBlocking {
+            compileMaven(
+                    MavenDependencyResolver(),
+                    object : PrinterWithDependencies {
+                        override fun addDependency(dependency: String) {
+                        }
 
-                    override fun addAlias(alias: String) {
-                        Assert.fail()
-                    }
+                        override fun addAlias(alias: String) {
+                            Assert.fail()
+                        }
 
-                    override fun addSourceFile(path: String,
-                                               sourceFile: GeneratorSourceFile,
-                                               tokens: List<Tokenizer.Token>) {
-                        sourceFileCount.increment()
-                    }
-                },
-                "com.google.guava/guava/25.1-jre",
-                ArtifactConfig.Maven("com.google.guava",
-                        "guava",
-                        "25.1-jre")
-        )
+                        override fun addSourceFile(path: String,
+                                                   sourceFile: GeneratorSourceFile,
+                                                   tokens: List<Tokenizer.Token>) {
+                            sourceFileCount.increment()
+                        }
+                    },
+                    "com.google.guava/guava/25.1-jre",
+                    ArtifactConfig.Maven("com.google.guava",
+                            "guava",
+                            "25.1-jre")
+            )
+        }
         Assert.assertTrue(sourceFileCount.sum() > 100)
+    }
+
+    @Test
+    fun `spring-instrument`() {
+        val sourceFileCount = LongAdder()
+        runBlocking {
+            compileMaven(
+                    MavenDependencyResolver(),
+                    object : PrinterWithDependencies {
+                        override fun addDependency(dependency: String) {
+                        }
+
+                        override fun addAlias(alias: String) {
+                            Assert.fail()
+                        }
+
+                        override fun addSourceFile(path: String,
+                                                   sourceFile: GeneratorSourceFile,
+                                                   tokens: List<Tokenizer.Token>) {
+                            sourceFileCount.increment()
+                        }
+                    },
+                    "com.google.guava/guava/25.1-jre",
+                    ArtifactConfig.Maven("org.springframework",
+                            "spring-instrument",
+                            "5.1.5.RELEASE")
+            )
+        }
+        Assert.assertEquals(sourceFileCount.sum(), 1)
     }
 
     @Test
@@ -98,117 +130,125 @@ class CompilerTest {
     @Test(enabled = false) // takes ~4min to complete
     fun `android anon class`() {
         var foundFile = false
-        compileAndroid(
-                object : PrinterWithDependencies {
-                    override fun addDependency(dependency: String) {
-                    }
-
-                    override fun addAlias(alias: String) {
-                    }
-
-                    override fun addSourceFile(path: String,
-                                               sourceFile: GeneratorSourceFile,
-                                               tokens: List<Tokenizer.Token>) {
-                        if (path == "android/bluetooth/BluetoothDevice.java") {
-                            val single = sourceFile.entries
-                                    .map { it.annotation }
-                                    .filterIsInstance<BindingDecl>()
-                                    .single { it.binding == "android.bluetooth.BluetoothDevice\$1" }
-                            Assert.assertNotNull(single.parent)
-
-                            foundFile = true
+        runBlocking {
+            compileAndroid(
+                    object : PrinterWithDependencies {
+                        override fun addDependency(dependency: String) {
                         }
-                    }
-                },
-                "x",
-                ArtifactConfig.Android(
-                        repos = listOf(
-                                ArtifactConfig.GitRepo(URL("https://android.googlesource.com/platform/frameworks/base"),
-                                        "android-9.0.0_r35"),
-                                ArtifactConfig.GitRepo(URL("https://android.googlesource.com/platform/system/vold"),
-                                        "android-9.0.0_r35")
-                        ),
-                        buildTools = URL("https://dl-ssl.google.com/android/repository/build-tools_r28.0.3-linux.zip"),
-                        version = "android-9.0.0_r35",
-                        metadata = ArtifactMetadata()
-                ))
+
+                        override fun addAlias(alias: String) {
+                        }
+
+                        override fun addSourceFile(path: String,
+                                                   sourceFile: GeneratorSourceFile,
+                                                   tokens: List<Tokenizer.Token>) {
+                            if (path == "android/bluetooth/BluetoothDevice.java") {
+                                val single = sourceFile.entries
+                                        .map { it.annotation }
+                                        .filterIsInstance<BindingDecl>()
+                                        .single { it.binding == "android.bluetooth.BluetoothDevice\$1" }
+                                Assert.assertNotNull(single.parent)
+
+                                foundFile = true
+                            }
+                        }
+                    },
+                    "x",
+                    ArtifactConfig.Android(
+                            repos = listOf(
+                                    ArtifactConfig.GitRepo(URL("https://android.googlesource.com/platform/frameworks/base"),
+                                            "android-9.0.0_r35"),
+                                    ArtifactConfig.GitRepo(URL("https://android.googlesource.com/platform/system/vold"),
+                                            "android-9.0.0_r35")
+                            ),
+                            buildTools = URL("https://dl-ssl.google.com/android/repository/build-tools_r28.0.3-linux.zip"),
+                            version = "android-9.0.0_r35",
+                            metadata = ArtifactMetadata()
+                    ))
+        }
 
         Assert.assertTrue(foundFile)
     }
 
     @Test(enabled = false)
     fun `java 9`() {
-        compileJdk(
-                object : Printer {
-                    override fun addSourceFile(path: String,
-                                               sourceFile: GeneratorSourceFile,
-                                               tokens: List<Tokenizer.Token>) {
-                    }
-                },
-                "x",
-                ArtifactConfig.Java(
-                        version = "9",
-                        archiveUrl = URL("https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk9u/lastSuccessfulBuild/artifact/jdk-updates_jdk9u.tar.zst"),
-                        jigsaw = true,
-                        metadata = ArtifactMetadata()
-                ))
+        runBlocking {
+            compileJdk(
+                    object : Printer {
+                        override fun addSourceFile(path: String,
+                                                   sourceFile: GeneratorSourceFile,
+                                                   tokens: List<Tokenizer.Token>) {
+                        }
+                    },
+                    "x",
+                    ArtifactConfig.Java(
+                            version = "9",
+                            archiveUrl = URL("https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk9u/lastSuccessfulBuild/artifact/jdk-updates_jdk9u.tar.zst"),
+                            jigsaw = true,
+                            metadata = ArtifactMetadata()
+                    ))
+        }
     }
 
     @Test(enabled = false)
     fun `java 10`() {
         var any = false
-        compileJdk(
-                object : Printer {
-                    override fun addSourceFile(path: String,
-                                               sourceFile: GeneratorSourceFile,
-                                               tokens: List<Tokenizer.Token>) {
-                        any = true
-                    }
-                },
-                "x",
-                ArtifactConfig.Java(
-                        version = "10",
-                        archiveUrl = URL("https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk10u/lastSuccessfulBuild/artifact/jdk-updates_jdk10u.tar.zst"),
-                        jigsaw = true,
-                        metadata = ArtifactMetadata()
-                ))
+        runBlocking {
+            compileJdk(
+                    object : Printer {
+                        override fun addSourceFile(path: String,
+                                                   sourceFile: GeneratorSourceFile,
+                                                   tokens: List<Tokenizer.Token>) {
+                            any = true
+                        }
+                    },
+                    "x",
+                    ArtifactConfig.Java(
+                            version = "10",
+                            archiveUrl = URL("https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk10u/lastSuccessfulBuild/artifact/jdk-updates_jdk10u.tar.zst"),
+                            jigsaw = true,
+                            metadata = ArtifactMetadata()
+                    ))
+        }
         Assert.assertTrue(any)
     }
 
     @Test(enabled = false)
     fun android() {
         var any = false
-        compileAndroid(
-                object : PrinterWithDependencies {
-                    override fun addDependency(dependency: String) {
-                    }
+        runBlocking {
+            compileAndroid(
+                    object : PrinterWithDependencies {
+                        override fun addDependency(dependency: String) {
+                        }
 
-                    override fun addAlias(alias: String) {
-                        Assert.fail()
-                    }
+                        override fun addAlias(alias: String) {
+                            Assert.fail()
+                        }
 
-                    override fun addSourceFile(path: String,
-                                               sourceFile: GeneratorSourceFile,
-                                               tokens: List<Tokenizer.Token>) {
-                        any = true
-                    }
-                },
-                "x",
-                ArtifactConfig.Android(
-                        version = "x",
-                        repos = listOf(
-                                ArtifactConfig.GitRepo(
-                                        url = URL("https://android.googlesource.com/platform/frameworks/base"),
-                                        tag = "android-9.0.0_r35"
-                                ),
-                                ArtifactConfig.GitRepo(
-                                        url = URL("https://android.googlesource.com/platform/system/vold"),
-                                        tag = "android-9.0.0_r35"
-                                )
-                        ),
-                        buildTools = URL("https://dl-ssl.google.com/android/repository/build-tools_r28.0.3-linux.zip"),
-                        metadata = ArtifactMetadata()
-                ))
+                        override fun addSourceFile(path: String,
+                                                   sourceFile: GeneratorSourceFile,
+                                                   tokens: List<Tokenizer.Token>) {
+                            any = true
+                        }
+                    },
+                    "x",
+                    ArtifactConfig.Android(
+                            version = "x",
+                            repos = listOf(
+                                    ArtifactConfig.GitRepo(
+                                            url = URL("https://android.googlesource.com/platform/frameworks/base"),
+                                            tag = "android-9.0.0_r35"
+                                    ),
+                                    ArtifactConfig.GitRepo(
+                                            url = URL("https://android.googlesource.com/platform/system/vold"),
+                                            tag = "android-9.0.0_r35"
+                                    )
+                            ),
+                            buildTools = URL("https://dl-ssl.google.com/android/repository/build-tools_r28.0.3-linux.zip"),
+                            metadata = ArtifactMetadata()
+                    ))
+        }
         Assert.assertTrue(any)
     }
 }
