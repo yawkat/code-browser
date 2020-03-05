@@ -8,7 +8,6 @@ import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsVector
 import at.yawk.javabrowser.generator.artifact.COMPILER_VERSION
 import com.fasterxml.jackson.databind.ObjectMapper
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -20,7 +19,6 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ForkJoinPool
-import java.util.concurrent.TimeUnit
 
 /**
  * @author yawkat
@@ -86,7 +84,7 @@ class Session(
         private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
         private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?)")
 
-        private lateinit var dbWriterThread: Thread
+        private val dbWriter = BackPressureExecutor(16)
 
         fun run() {
 
@@ -117,39 +115,29 @@ class Session(
                 }
             }
 
-            val concurrentPrinter = ConcurrentPrinter()
             val futures = ArrayList<Deferred<Unit>>()
             for (task in tasks) {
                 conn.insert("insert into artifacts (id, lastCompileVersion, metadata) values (?, ?, ?)",
                         task.artifactId, COMPILER_VERSION, objectMapper.writeValueAsBytes(task.metadata))
 
                 val printerImpl = PrinterImpl(task.artifactId)
-                val delegate = concurrentPrinter.createDelegate(printerImpl)
                 futures.add(coroutineScope.async {
                     try {
-                        task.closure(delegate)
+                        task.closure(printerImpl)
                     } finally {
-                        delegate.finish()
+                        printerImpl.finish()
                     }
-                    // wait for completion, possibly with exceptions
-                    printerImpl.complete.await()
                 })
             }
 
-            dbWriterThread = Thread({
-                concurrentPrinter.work()
+            Thread({
+                dbWriter.work()
                 log.info("DB writer done")
-            }, "DB writer thread")
-            dbWriterThread.start()
-            do {
-                TimeUnit.MINUTES.sleep(1)
-                val running = futures.count { !it.isCompleted }
-                log.info("Running tasks: $running")
-            } while (running > 0)
+            }, "DB writer thread").start()
             runBlocking {
                 futures.awaitAll()
             }
-            dbWriterThread.join()
+            dbWriter.shutdownAndWait()
 
             if (mode != UpdateMode.MINOR) {
                 DbMigration.createIndices(conn)
@@ -164,45 +152,36 @@ class Session(
             }
         }
 
-        private inner class PrinterImpl(val artifactId: String) : ConcurrentPrinter.PrinterWithEnd {
+        private inner class PrinterImpl(val artifactId: String) : PrinterWithDependencies {
             var hasFiles = false
-
-            val complete = CompletableDeferred<Unit>()
 
             override val concurrencyControl: ParserConcurrencyControl
                 get() = this@SessionConnection.concurrencyControl
 
-            private fun checkThread() {
-                if (Thread.currentThread() != dbWriterThread) {
-                    throw IllegalStateException("Not on writer thread")
-                }
-            }
-
             override fun addDependency(dependency: String) {
-                checkThread()
-                conn.insert("insert into dependencies (fromArtifactId, toArtifactId) values (?, ?)",
-                        artifactId,
-                        dependency)
+                dbWriter.submit {
+                    conn.insert("insert into dependencies (fromArtifactId, toArtifactId) values (?, ?)",
+                            artifactId,
+                            dependency)
+                }
             }
 
             override fun addAlias(alias: String) {
-                checkThread()
-                conn.insert("insert into artifactAliases (artifactId, alias) values (?, ?)",
-                        artifactId,
-                        alias)
+                dbWriter.submit {
+                    conn.insert("insert into artifactAliases (artifactId, alias) values (?, ?)",
+                            artifactId,
+                            alias)
+                }
             }
 
-            override fun finish() {
+            fun finish() {
                 if (!hasFiles) {
-                    log.info("$artifactId completed exceptionally")
-                    // delegate the exception to the right thread so that we interrupt the generation process
-                    complete.completeExceptionally(RuntimeException("No source files on $artifactId"))
-                    return
-                } else {
-                    complete.complete(Unit)
+                    throw RuntimeException("No source files on $artifactId")
                 }
 
-                conn.update("select pg_notify('artifacts', ?)", artifactId)
+                dbWriter.submit {
+                    conn.update("select pg_notify('artifacts', ?)", artifactId)
+                }
                 log.info("$artifactId is ready")
             }
 
@@ -246,8 +225,11 @@ class Session(
             }
 
             override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
-                checkThread()
                 hasFiles = true
+                dbWriter.submit { addSourceFile0(path, sourceFile, tokens) }
+            }
+
+            private fun addSourceFile0(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
                 conn.insert(
                         "insert into sourceFiles (artifactId, path, json, text, annotations) values (?, ?, ?, ?, ?)",
                         artifactId,
