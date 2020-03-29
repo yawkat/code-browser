@@ -153,6 +153,10 @@ li {
     text-indent: .5em;
 }
 
+#tooltip #super-types, #tooltip #super-types li {
+    display: inline-block;
+}
+
 .missing-lib {
     font-size: .85em;
     margin-top: 1em;

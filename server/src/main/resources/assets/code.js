@@ -121,6 +121,7 @@ function showReferences(targetElement) {
             if (superHtml) {
                 tooltip.append("<b>Extends</b>");
                 tooltip.append(superHtml);
+                tooltip.append("<br>");
             }
             let anyItems = false;
             for (const key of Object.keys(data)) {

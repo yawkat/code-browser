@@ -14,7 +14,7 @@ import java.net.URI
 
 class HtmlEmitter(
         private val bindingResolver: BindingResolver,
-        private val classpath: Map<SourceFilePrinter.Scope, Set<String>>,
+        private val scopes: Map<SourceFilePrinter.Scope, ScopeInfo>,
         private val writer: Writer,
 
         /**
@@ -38,11 +38,16 @@ class HtmlEmitter(
         class Decl(val superBindingUris: List<String?>) : Memory()
     }
 
+    data class ScopeInfo(
+            val artifactId: String,
+            val classpath: Set<String>
+    )
+
     private val SourceFilePrinter.Scope.prefix: String
         get() = if (this == SourceFilePrinter.Scope.OLD) "--- " else ""
 
     override fun computeMemory(scope: SourceFilePrinter.Scope, annotation: SourceAnnotation): Memory {
-        val cp = classpath.getValue(scope)
+        val cp = scopes.getValue(scope).classpath
         return when (annotation) {
             is BindingRef -> Memory.ResolvedBinding(
                     bindingResolver.resolveBinding(cp, annotation.binding).firstOrNull()?.toASCIIString())
@@ -87,7 +92,7 @@ class HtmlEmitter(
                 if (hasOverlay && showDeclaration) {
                     val superUris = (memory as Memory.Decl).superBindingUris
                     val superHtml = if (annotation.superBindings.isNotEmpty()) {
-                        "<ul>" +
+                        "<ul id='super-types'>" +
                                 annotation.superBindings.withIndex().joinToString { (i, binding) ->
                                     "<li>" +
                                             linkBindingStart(scope, superUris[i], refId = null) +
@@ -99,7 +104,7 @@ class HtmlEmitter(
                         ""
                     }
                     html("<a class='show-refs' href='javascript:;' onclick='showReferences(this); return false' data-binding='${Escaper.HTML.escape(
-                            annotation.binding)}' data-super-html='${Escaper.HTML.escape(superHtml)}'></a>")
+                            annotation.binding)}' data-super-html='${Escaper.HTML.escape(superHtml)}' data-artifact-id='${Escaper.HTML.escape(scopes.getValue(scope).artifactId)}'></a>")
                 }
 
                 val id = scope.prefix + annotation.binding
