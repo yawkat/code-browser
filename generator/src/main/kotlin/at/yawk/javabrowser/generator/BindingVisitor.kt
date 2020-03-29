@@ -778,27 +778,17 @@ internal class BindingVisitor(
     }
 
     override fun visit(node: MethodRef): Boolean {
-        val binding = node.resolveBinding()
-        if (binding is IMethodBinding) {
-            val s = Bindings.toString(binding)
-            if (s != null) {
-                annotatedSourceFile.annotate(node.name, makeBindingRef(BindingRefType.JAVADOC, s))
-            }
+        val s = JavadocRenderer.getBinding(node)
+        if (s != null) {
+            annotatedSourceFile.annotate(node.name, makeBindingRef(BindingRefType.JAVADOC, s))
         }
         return false
     }
 
     override fun visit(node: MemberRef): Boolean {
-        val binding = node.resolveBinding()
-        if (binding is IMethodBinding) {
-            val s = Bindings.toString(binding)
-            if (s != null) annotatedSourceFile.annotate(node.name,
-                    makeBindingRef(BindingRefType.JAVADOC, s))
-        } else if (binding is IVariableBinding && binding.isField) {
-            val s = Bindings.toString(binding)
-            if (s != null) annotatedSourceFile.annotate(node.name,
-                    makeBindingRef(BindingRefType.JAVADOC, s))
-        }
+        val s = JavadocRenderer.getBinding(node)
+        if (s != null) annotatedSourceFile.annotate(node.name,
+                makeBindingRef(BindingRefType.JAVADOC, s))
         return false
     }
 
@@ -985,10 +975,6 @@ internal class BindingVisitor(
                             (it as TagElement).tagName == TagElement.TAG_DEPRECATED
                         }) {
                     modifiers = modifiers or BindingDecl.MODIFIER_DEPRECATED
-                }
-                val javadoc = node.javadoc
-                if (javadoc != null) {
-                    javadoc.tags()
                 }
                 annotatedSourceFile.annotate(node.name, BindingDecl(
                         binding = b,

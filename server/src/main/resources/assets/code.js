@@ -109,9 +109,10 @@ function showReferences(targetElement) {
 
     const bindingName = targetElement.getAttribute("data-binding");
     const superHtml = targetElement.getAttribute("data-super-html");
+    const targetArtifactId = targetElement.getAttribute("data-artifact-id");
 
     $.ajax({
-        url: '/api/references/' + encodeURIComponent(bindingName) + "?limit=" + LIMIT,
+        url: '/api/references/' + encodeURIComponent(bindingName) + "?limit=" + LIMIT + "&targetArtifactId=" + encodeURIComponent(targetArtifactId),
         dataType: 'json',
         success: function (data) {
             const tooltip = $("#tooltip");

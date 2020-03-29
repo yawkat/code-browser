@@ -41,7 +41,7 @@ class FullTextSearchResultView(
                                  body: TemplateDirectiveBody?) {
                 val emitter = HtmlEmitter(
                         bindingResolver,
-                        mapOf(SourceFilePrinter.Scope.NORMAL to classpath),
+                        mapOf(SourceFilePrinter.Scope.NORMAL to HtmlEmitter.ScopeInfo(artifactId, classpath)),
                         env.out,
 
                         hasOverlay = false,

@@ -54,13 +54,15 @@ class SourceFileView(
                              params: MutableMap<Any?, Any?>,
                              loopVars: Array<TemplateModel?>,
                              body: TemplateDirectiveBody?) {
+            val newScopeInfo = HtmlEmitter.ScopeInfo(newInfo.artifactId.id, newInfo.classpath)
             val emitter = HtmlEmitter(
                     bindingResolver,
                     if (oldInfo != null)
-                        mapOf(SourceFilePrinter.Scope.OLD to oldInfo.classpath,
-                                SourceFilePrinter.Scope.NEW to newInfo.classpath)
+                        mapOf(SourceFilePrinter.Scope.OLD to
+                                HtmlEmitter.ScopeInfo(oldInfo.artifactId.id, oldInfo.classpath),
+                                SourceFilePrinter.Scope.NEW to newScopeInfo)
                     else
-                        mapOf(SourceFilePrinter.Scope.NORMAL to newInfo.classpath),
+                        mapOf(SourceFilePrinter.Scope.NORMAL to newScopeInfo),
                     env.out,
 
                     hasOverlay = true,
