@@ -212,20 +212,24 @@ li {
 .declaration-tree .expander {
     color: #888;
     background: none !important;
-    font-size: 0.7em;
+    font-size: 0.9em;
     vertical-align: middle;
     display: inline-block;
     position: absolute;
     margin-left: -16px;
     width: 16px;
     height: 16px;
+    line-height: 16px;
     text-align: center;
 }
 .declaration-tree .expander:before {
-    content: '▶';
+    content: '▼';
+    display: block;
+    transform: rotate(-90deg);
+    transition: 50ms linear all;
 }
 .declaration-tree .expanded > .line .expander:before {
-    content: '▼';
+    transform: rotate(0);
 }
 .declaration-tree ul {
     display: none;
