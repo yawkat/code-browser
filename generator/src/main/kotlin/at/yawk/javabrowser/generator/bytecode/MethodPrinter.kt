@@ -149,8 +149,8 @@ class MethodPrinter private constructor(
             printer.append('\n')
         }
 
-        printAnnotations("RuntimeVisibleAnnotations", node.visibleAnnotations)
-        printAnnotations("RuntimeInvisibleAnnotations", node.invisibleAnnotations)
+        printer.printAnnotations("RuntimeVisibleAnnotations", node.visibleAnnotations)
+        printer.printAnnotations("RuntimeInvisibleAnnotations", node.invisibleAnnotations)
         printTypeAnnotations(
                 "RuntimeVisibleTypeAnnotations",
                 node.visibleTypeAnnotations,
@@ -190,71 +190,29 @@ class MethodPrinter private constructor(
             fromCatch: (TryCatchBlockNode) -> List<TypeAnnotationNode>?,
             locals: List<LocalVariableAnnotationNode>?
     ) {
-        if (topLevel == null && locals == null && node.tryCatchBlocks.all { fromCatch(it) == null }) {
-            return
-        }
-
-        printer.indent(2)
-        printer.append(name)
-        printer.append(": \n")
         val allNodes = (topLevel ?: emptyList()) +
                 node.tryCatchBlocks.flatMap { fromCatch(it) ?: emptyList() } +
                 (locals ?: emptyList())
-        for (annotationNode in allNodes) {
-            printer.indent(3)
-            val typeReference = TypeReference(annotationNode.typeRef)
-            printer.append(sortToString(typeReference))
-            val typePath = annotationNode.typePath
-            if (typePath != null) {
-                printer.append(", location=[")
-                for (i in 0 until typePath.length) {
-                    if (i != 0) {
-                        printer.append(", ")
-                    }
-                    printer.append(typePathStepToString(typePath.getStep(i)))
-                    if (typePath.getStep(i) == TypePath.TYPE_ARGUMENT) {
-                        printer.append('(').append(typePath.getStepArgument(i)).append(')')
-                    }
-                }
-                printer.append(']')
-            }
-            if (annotationNode is LocalVariableAnnotationNode) {
-                printer.append(", {")
-                require(annotationNode.start.size == annotationNode.index.size)
-                require(annotationNode.start.size == annotationNode.end.size)
-                for (i in annotationNode.start.indices) {
-                    if (i != 0) printer.append("; ")
-                    val start = annotationNode.start[i]
-                    val end = annotationNode.end[i]
-                    val index = annotationNode.index[i]
-                    val lv = node.localVariables.single { it.start == start && it.end == end && it.index == index }
-                    printer.append("start=")
-                    printLabel(lv.start.label)
-                    printer.append(", end=")
-                    printLabel(lv.end.label)
-                    printer.append(", index=")
-                    printLocalVariable(lv)
-                }
-                printer.append('}')
-            }
-            printer.append('\n')
-            printer.indent(4)
-            val visitor = FullAnnotationPrinter(printer, annotationNode.desc, trailingNewLine = true)
-            annotationNode.accept(visitor)
-        }
-    }
 
-    private fun printAnnotations(name: String, list: List<AnnotationNode>?) {
-        if (list == null) {
-            return
-        }
-
-        printer.indent(2)
-        printer.append(name).append(": \n")
-        for (annotationNode in list) {
-            printer.indent(3)
-            annotationNode.accept(FullAnnotationPrinter(printer, annotationNode.desc, trailingNewLine = true))
-        }
+        printer.printTypeAnnotations(name, allNodes, printLocalScope = { annotationNode ->
+            printer.append(", {")
+            require(annotationNode.start.size == annotationNode.index.size)
+            require(annotationNode.start.size == annotationNode.end.size)
+            for (i in annotationNode.start.indices) {
+                if (i != 0) printer.append("; ")
+                val start = annotationNode.start[i]
+                val end = annotationNode.end[i]
+                val index = annotationNode.index[i]
+                val lv = node.localVariables.single { it.start == start && it.end == end && it.index == index }
+                printer.append("start=")
+                printLabel(lv.start.label)
+                printer.append(", end=")
+                printLabel(lv.end.label)
+                printer.append(", index=")
+                printLocalVariable(lv)
+            }
+            printer.append('}')
+        })
     }
 
     private fun printParameterAnnotations(name: String, parameters: Array<List<AnnotationNode>?>?) {

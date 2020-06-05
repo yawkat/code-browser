@@ -1,78 +1,40 @@
 package at.yawk.javabrowser.generator.bytecode
 
-import at.yawk.javabrowser.Tokenizer
-import at.yawk.javabrowser.generator.GeneratorSourceFile
-import at.yawk.javabrowser.generator.Printer
-import at.yawk.javabrowser.generator.SourceFileParser
-import com.google.common.io.MoreFiles
-import kotlinx.coroutines.runBlocking
 import org.intellij.lang.annotations.Language
-import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.testng.Assert
 import org.testng.annotations.Test
-import java.nio.file.Files
 
 class MethodPrinterTest {
     private fun getMethodOutput(
             @Language("java") code: String,
             interestMethod: String
-    ): String {
-        lateinit var output: BytecodePrinter
-
-        val tmp = Files.createTempDirectory("MethodPrinterTest")
-        try {
-            Files.write(tmp.resolve("Main.java"), code.toByteArray())
-
-            val out = tmp.resolve("out")
-            Files.createDirectory(out)
-            val sourceFileParser = SourceFileParser(tmp, object : Printer {
-                override fun addSourceFile(path: String,
-                                           sourceFile: GeneratorSourceFile,
-                                           tokens: List<Tokenizer.Token>) {
+    ) = getOutput(code) { printer ->
+        object : ClassVisitor(Opcodes.ASM8) {
+            override fun visitMethod(access: Int,
+                                     name: String?,
+                                     descriptor: String,
+                                     signature: String?,
+                                     exceptions: Array<String>?): MethodVisitor? {
+                if (name == interestMethod) {
+                    return MethodPrinter.visitor(
+                            printer = printer,
+                            // technically not true...
+                            methodOwnerType = Type.getType(String::class.java),
+                            sourceFilePath = "Main.java",
+                            access = access,
+                            name = name,
+                            descriptor = descriptor,
+                            signature = signature,
+                            exceptions = exceptions
+                    )
                 }
-            })
-            sourceFileParser.outputClassesTo = out
-            runBlocking {
-                sourceFileParser.compile()
+                return null
             }
-            Files.newDirectoryStream(out).use { classes ->
-                for (cl in classes) {
-                    val classReader = ClassReader(Files.readAllBytes(cl))
-                    classReader.accept(object : ClassVisitor(Opcodes.ASM8) {
-                        override fun visitMethod(access: Int,
-                                                 name: String?,
-                                                 descriptor: String,
-                                                 signature: String?,
-                                                 exceptions: Array<String>?): MethodVisitor? {
-                            if (name == interestMethod) {
-                                output = BytecodePrinter()
-                                return MethodPrinter.visitor(
-                                        printer = output,
-                                        // technically not true...
-                                        methodOwnerType = Type.getType(String::class.java),
-                                        sourceFilePath = "Main.java",
-                                        access = access,
-                                        name = name,
-                                        descriptor = descriptor,
-                                        signature = signature,
-                                        exceptions = exceptions
-                                )
-                            }
-                            return null
-                        }
-                    }, 0)
-                }
-            }
-        } finally {
-            @Suppress("UnstableApiUsage")
-            MoreFiles.deleteRecursively(tmp)
         }
-
-        return output.finishString().trimIndent()
     }
 
     @Test

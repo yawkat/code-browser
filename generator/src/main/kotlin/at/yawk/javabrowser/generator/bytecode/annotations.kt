@@ -3,6 +3,11 @@ package at.yawk.javabrowser.generator.bytecode
 import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
+import org.objectweb.asm.TypePath
+import org.objectweb.asm.TypeReference
+import org.objectweb.asm.tree.AnnotationNode
+import org.objectweb.asm.tree.LocalVariableAnnotationNode
+import org.objectweb.asm.tree.TypeAnnotationNode
 
 
 abstract class BaseAnnotationPrinter(protected val printer: BytecodePrinter) : AnnotationVisitor(Opcodes.ASM8) {
@@ -75,5 +80,58 @@ open class FullAnnotationPrinter(
         }
         first = false
         printer.append(name).append(" = ")
+    }
+}
+
+fun BytecodePrinter.printAnnotations(name: String, list: List<AnnotationNode>?) {
+    if (list == null) {
+        return
+    }
+
+    indent(2)
+    append(name).append(": \n")
+    for (annotationNode in list) {
+        indent(3)
+        annotationNode.accept(FullAnnotationPrinter(this, annotationNode.desc, trailingNewLine = true))
+    }
+}
+
+fun BytecodePrinter.printTypeAnnotations(
+        name: String,
+        allNodes: List<TypeAnnotationNode>,
+        printLocalScope: (LocalVariableAnnotationNode) -> Unit = { throw UnsupportedOperationException() }
+) {
+    if (allNodes.isEmpty()) {
+        return
+    }
+
+    indent(2)
+    append(name)
+    append(": \n")
+    for (annotationNode in allNodes) {
+        indent(3)
+        val typeReference = TypeReference(annotationNode.typeRef)
+        append(sortToString(typeReference))
+        val typePath = annotationNode.typePath
+        if (typePath != null) {
+            append(", location=[")
+            for (i in 0 until typePath.length) {
+                if (i != 0) {
+                    append(", ")
+                }
+                append(typePathStepToString(typePath.getStep(i)))
+                if (typePath.getStep(i) == TypePath.TYPE_ARGUMENT) {
+                    append('(').append(typePath.getStepArgument(i)).append(')')
+                }
+            }
+            append(']')
+        }
+        if (annotationNode is LocalVariableAnnotationNode) {
+            printLocalScope(annotationNode)
+        }
+        append('\n')
+        indent(4)
+        val visitor = FullAnnotationPrinter(this, annotationNode.desc, trailingNewLine = true)
+        annotationNode.accept(visitor)
     }
 }
