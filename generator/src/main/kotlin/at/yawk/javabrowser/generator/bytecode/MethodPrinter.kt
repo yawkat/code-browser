@@ -30,11 +30,13 @@ class MethodPrinter private constructor(
         private val printer: BytecodePrinter,
         private val node: MethodNode,
 
+        private val methodOwnerType: Type,
         private val sourceFilePath: String
 ) {
     companion object {
         fun visitor(
                 printer: BytecodePrinter,
+                methodOwnerType: Type,
                 sourceFilePath: String,
 
                 access: Int,
@@ -45,7 +47,7 @@ class MethodPrinter private constructor(
         ): MethodVisitor = object : MethodNode(Opcodes.ASM8, access, name, descriptor, signature, exceptions) {
             override fun visitEnd() {
                 super.visitEnd()
-                MethodPrinter(printer, this, sourceFilePath).print()
+                MethodPrinter(printer, this, methodOwnerType, sourceFilePath).print()
             }
         }
     }
@@ -55,10 +57,10 @@ class MethodPrinter private constructor(
 
     private fun getLabelName(label: Label) = labels.indexOf(label).toString()
 
-    // TODO: make unique for source file
     @Suppress("UnstableApiUsage")
     private fun getLocalVariableAnnotation(lv: LocalVariableNode) =
             LocalVariableRef(Hashing.goodFastHash(64).newHasher()
+                    .putUnencodedChars(methodOwnerType.descriptor)
                     .putInt(labels.indexOf(lv.start.label))
                     .putInt(labels.indexOf(lv.end.label))
                     .putInt(lv.index)

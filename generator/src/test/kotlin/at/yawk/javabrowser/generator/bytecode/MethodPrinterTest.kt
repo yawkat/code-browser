@@ -11,6 +11,7 @@ import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
 import org.testng.Assert
 import org.testng.annotations.Test
 import java.nio.file.Files
@@ -50,13 +51,15 @@ class MethodPrinterTest {
                             if (name == interestMethod) {
                                 output = BytecodePrinter()
                                 return MethodPrinter.visitor(
-                                        output,
-                                        "Main.java",
-                                        access,
-                                        name,
-                                        descriptor,
-                                        signature,
-                                        exceptions
+                                        printer = output,
+                                        // technically not true...
+                                        methodOwnerType = Type.getType(String::class.java),
+                                        sourceFilePath = "Main.java",
+                                        access = access,
+                                        name = name,
+                                        descriptor = descriptor,
+                                        signature = signature,
+                                        exceptions = exceptions
                                 )
                             }
                             return null
