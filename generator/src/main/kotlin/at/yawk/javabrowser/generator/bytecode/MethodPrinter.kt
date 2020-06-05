@@ -478,7 +478,8 @@ class MethodPrinter private constructor(
                                             descriptor: String,
                                             bootstrapMethodHandle: Handle,
                                             bootstrapMethodArguments: Array<Any>) = insn(Opcodes.INVOKEDYNAMIC) {
-            // todo: link
+            // The semantics of this name and type depend on the invoked bootstrap method. We can't say generally that
+            // the two refer to anything special, so we can't link to anything better than the descriptor here.
             printer.append(' ').append(name).appendDescriptor(Type.getMethodType(descriptor)).append('\n')
             val tag = when (bootstrapMethodHandle.tag) {
                 Opcodes.H_GETFIELD -> "getfield"
@@ -494,10 +495,11 @@ class MethodPrinter private constructor(
             }
             printer.indent(7)
             printer.append("Bootstrap: ").append(tag).append(' ')
-                    // todo: link
-                    .appendJavaName(Type.getObjectType(bootstrapMethodHandle.owner)).append('.')
-                    .append(bootstrapMethodHandle.name).append(':')
-                    .appendDescriptor(Type.getType(bootstrapMethodHandle.desc))
+                    .appendMember(
+                            Type.getObjectType(bootstrapMethodHandle.owner),
+                            bootstrapMethodHandle.name,
+                            Type.getType(bootstrapMethodHandle.desc)
+                    )
                     .append('\n')
             printer.indent(8)
             printer.append("Method arguments:")
@@ -529,9 +531,7 @@ class MethodPrinter private constructor(
                                      name: String,
                                      descriptor: String,
                                      isInterface: Boolean) = insn(opcode) {
-            printer.append(' ').appendDescriptor(Type.getObjectType(owner))
-                    .append('.').append(name) // TODO: link
-                    .append(':').appendDescriptor(Type.getType(descriptor))
+            printer.append(' ').appendMember(Type.getObjectType(owner), name, Type.getType(descriptor))
         }
 
         override fun visitInsn(opcode: Int) = insn(opcode) {}
@@ -554,9 +554,7 @@ class MethodPrinter private constructor(
         }
 
         override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) = insn(opcode) {
-            printer.append(' ').appendInternalName(Type.getObjectType(owner))
-                    .append('.').append(name) // TODO: link field
-                    .append(':').appendDescriptor(Type.getType(descriptor))
+            printer.append(' ').appendMember(Type.getObjectType(owner), name, Type.getType(descriptor))
         }
 
         /**

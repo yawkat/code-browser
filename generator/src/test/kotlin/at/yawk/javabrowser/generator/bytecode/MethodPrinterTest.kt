@@ -584,13 +584,13 @@ void <init>(int, java.lang.String, float, double);
      start local 4 // double d
       0: .line 4
          aload 0 /* this */
-         invokespecial Ljava/lang/Object;.<init>:()V
+         invokespecial java.lang.Object.<init>:()V
       1: .line 5
          iload 1 /* a */
          ifeq 2
          aload 0 /* this */
          iload 1 /* a */
-         invokevirtual LA;.eat:(I)V
+         invokevirtual A.eat:(I)V
       2: .line 6
    StackMap locals: A int java.lang.String float double
    StackMap stack:
@@ -646,7 +646,7 @@ void x();
       1: .line 5
          aload 0 /* this */
          iload 1 /* a */
-         invokevirtual LA;.y:(I)V
+         invokevirtual A.y:(I)V
       2: .line 6
          return
      end local 1 // int a
@@ -782,7 +782,7 @@ void x();
          aload 1 /* s */
          iload 2 /* i */
          dload 3 /* d */
-         invokevirtual LA;.eat:(Ljava/lang/String;ID)V
+         invokevirtual A.eat:(Ljava/lang/String;ID)V
       4: .line 8
          return
      end local 3 // double d
@@ -828,7 +828,7 @@ void x();
       0: .line 5
          new java.lang.Exception
          dup
-         invokespecial Ljava/lang/Exception;.<init>:()V
+         invokespecial java.lang.Exception.<init>:()V
          athrow
       1: .line 6
    StackMap locals:
@@ -887,7 +887,7 @@ void x();
       0: .line 9
          new java.lang.Exception
          dup
-         invokespecial Ljava/lang/Exception;.<init>:()V
+         invokespecial java.lang.Exception.<init>:()V
          athrow
       1: .line 10
    StackMap locals:

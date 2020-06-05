@@ -44,6 +44,18 @@ class BytecodePrinter {
         return this
     }
 
+    /**
+     * Append a field or method reference.
+     *
+     * @param type The type of this member. [Type.METHOD] for methods, any other for fields.
+     */
+    fun appendMember(owner: Type, name: String, type: Type): BytecodePrinter {
+        appendJavaName(owner)
+        append('.').append(name) // TODO: link
+        append(':').appendDescriptor(type)
+        return this
+    }
+
     fun appendInternalName(type: Type): BytecodePrinter {
         require(type.sort == Type.OBJECT || type.sort == Type.ARRAY)
         text.append(type.internalName) // TODO: link
