@@ -3,6 +3,7 @@ package at.yawk.javabrowser.generator.bytecode
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
+import com.google.common.hash.Hasher
 import com.google.common.hash.Hashing
 import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.Attribute
@@ -55,12 +56,36 @@ class MethodPrinter private constructor(
     private val methodType = Type.getMethodType(node.desc)
     private val labels = node.instructions.filterIsInstance<LabelNode>().map { it.label }
 
-    private fun getLabelName(label: Label) = labels.indexOf(label).toString()
+    @Suppress("UnstableApiUsage")
+    private fun Hasher.putLengthPrefixedString(s: String) {
+        putInt(s.length)
+        putUnencodedChars(s)
+    }
+
+    @Suppress("UnstableApiUsage")
+    private fun Hasher.uniqueForMethod(): Hasher {
+        putLengthPrefixedString(methodOwnerType.descriptor)
+        putLengthPrefixedString(node.name)
+        putLengthPrefixedString(node.desc)
+        return this
+    }
+
+    @Suppress("UnstableApiUsage")
+    private fun printLabel(label: Label, padStart: Int = 0) {
+        val index = labels.indexOf(label)
+        val annotation = LocalVariableOrLabelRef(java.lang.Long.toHexString(
+                Hashing.goodFastHash(64).newHasher()
+                        .uniqueForMethod()
+                        .putInt(index)
+                        .hash().asLong()
+        ))
+        printer.annotate(annotation) { printer.append(index.toString().padStart(padStart)) }
+    }
 
     @Suppress("UnstableApiUsage")
     private fun getLocalVariableAnnotation(lv: LocalVariableNode) =
             LocalVariableOrLabelRef(Hashing.goodFastHash(64).newHasher()
-                    .putUnencodedChars(methodOwnerType.descriptor)
+                    .uniqueForMethod()
                     .putInt(labels.indexOf(lv.start.label))
                     .putInt(labels.indexOf(lv.end.label))
                     .putInt(lv.index)
@@ -204,8 +229,10 @@ class MethodPrinter private constructor(
                     val end = annotationNode.end[i]
                     val index = annotationNode.index[i]
                     val lv = node.localVariables.single { it.start == start && it.end == end && it.index == index }
-                    printer.append("start=").append(getLabelName(lv.start.label))
-                    printer.append(", end=").append(getLabelName(lv.end.label))
+                    printer.append("start=")
+                    printLabel(lv.start.label)
+                    printer.append(", end=")
+                    printLabel(lv.end.label)
                     printer.append(", index=")
                     printLocalVariable(lv)
                 }
@@ -299,8 +326,8 @@ class MethodPrinter private constructor(
                         .append("  Signature\n")
                 for (localVariable in localVariables) {
                     printer.indent(4)
-                    printer.append(getLabelName(localVariable.start.label).padStart(5))
-                    printer.append(getLabelName(localVariable.end.label).padStart(5))
+                    printLabel(localVariable.start.label, padStart = 5)
+                    printLabel(localVariable.end.label, padStart = 5)
                     printer.append(localVariable.index.toString().padStart(6))
                     printer.append(localVariable.name.padStart(maxLocalNameLength + 2))
                     printer.append("  ")
@@ -317,9 +344,12 @@ class MethodPrinter private constructor(
                 printer.append("from    to  target  type\n")
                 for (tryCatchBlock in tryCatchBlocks) {
                     printer.indent(4)
-                    printer.append(getLabelName(tryCatchBlock.start.label).padStart(4)).append(' ')
-                    printer.append(getLabelName(tryCatchBlock.end.label).padStart(5)).append(' ')
-                    printer.append(getLabelName(tryCatchBlock.handler.label).padStart(7)).append("  ")
+                    printLabel(tryCatchBlock.start.label, padStart = 4)
+                    printer.append(' ')
+                    printLabel(tryCatchBlock.end.label, padStart = 5)
+                    printer.append(' ')
+                    printLabel(tryCatchBlock.handler.label, padStart = 7)
+                    printer.append("  ")
                     val type = tryCatchBlock.type
                     if (type == null) {
                         printer.append("any")
@@ -334,7 +364,10 @@ class MethodPrinter private constructor(
         private fun printSlotType(type: Any) {
             when (type) {
                 is String -> printer.appendJavaName(Type.getObjectType(type))
-                is Label -> printer.append("new ").append(getLabelName(type))
+                is Label -> {
+                    printer.append("new ")
+                    printLabel(type)
+                }
                 Opcodes.TOP -> throw UnsupportedOperationException("TOP")
                 Opcodes.INTEGER -> printer.append("int")
                 Opcodes.FLOAT -> printer.append("float")
@@ -392,7 +425,8 @@ class MethodPrinter private constructor(
             printer.indent(2)
             val labelHere = nextInstructionLabel
             if (labelHere != null && !nextInstructionLabelPrinted) {
-                printer.append(getLabelName(labelHere).padStart(6)).append(": ")
+                printLabel(labelHere, padStart = 6)
+                printer.append(": ")
                 nextInstructionLabelPrinted = true
             } else {
                 printer.append(" ".repeat(8))
@@ -433,15 +467,13 @@ class MethodPrinter private constructor(
             printer.append(" { // ").append(comment).append('\n')
             for ((k, label) in keys.zip(labels)) {
                 printer.indent(5)
-                // TODO: link to label
                 printer.append(String.format("%${MAX_INT_LENGTH}s", k)).append(": ")
-                printer.append(getLabelName(label))
+                printLabel(label)
                 printer.append('\n')
             }
             printer.indent(5)
-            // TODO: link to label
             printer.append(String.format("%${MAX_INT_LENGTH}s", "default")).append(": ")
-            printer.append(getLabelName(default))
+            printLabel(default)
             printer.append('\n')
             printer.indent(5)
             printer.append('}')
@@ -457,9 +489,8 @@ class MethodPrinter private constructor(
         }
 
         override fun visitJumpInsn(opcode: Int, label: Label) = insn(opcode) {
-            // TODO: link to label
             printer.append(" ")
-            printer.append(getLabelName(label))
+            printLabel(label)
         }
 
         override fun visitLdcInsn(value: Any) = insn(Opcodes.LDC) {
