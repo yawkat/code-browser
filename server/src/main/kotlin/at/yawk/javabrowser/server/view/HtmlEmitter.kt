@@ -4,6 +4,7 @@ import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.LocalVariableRef
 import at.yawk.javabrowser.SourceAnnotation
+import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.Escaper
@@ -112,6 +113,7 @@ class HtmlEmitter(
             }
             is Style -> html("<span class='${annotation.styleClass.joinToString(" ")}'>")
             is LocalVariableRef -> html("<span class='local-variable' data-local-variable='${annotation.id}'>")
+            is SourceLineRef -> TODO()
         }
     }
 
@@ -122,6 +124,7 @@ class HtmlEmitter(
             is BindingRef -> html(linkBindingEnd((memory as Memory.ResolvedBinding).uri))
             is BindingDecl -> html("</a>")
             is Style, is LocalVariableRef -> html("</span>")
+            is SourceLineRef -> TODO()
         }
     }
 

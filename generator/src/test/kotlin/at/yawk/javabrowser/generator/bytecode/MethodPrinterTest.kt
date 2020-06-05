@@ -51,6 +51,7 @@ class MethodPrinterTest {
                                 output = BytecodePrinter()
                                 return MethodPrinter.visitor(
                                         output,
+                                        "Main.java",
                                         access,
                                         name,
                                         descriptor,

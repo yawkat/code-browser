@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
-import java.lang.AssertionError
 
 /**
  * @author yawkat
@@ -14,7 +13,8 @@ import java.lang.AssertionError
     JsonSubTypes.Type(value = BindingRef::class, name = "binding-ref"),
     JsonSubTypes.Type(value = BindingDecl::class, name = "binding-decl"),
     JsonSubTypes.Type(value = Style::class, name = "style"),
-    JsonSubTypes.Type(value = LocalVariableRef::class, name = "lv-ref")
+    JsonSubTypes.Type(value = LocalVariableRef::class, name = "lv-ref"),
+    JsonSubTypes.Type(value = SourceLineRef::class, name = "line-ref")
 ])
 sealed class SourceAnnotation
 
@@ -183,6 +183,11 @@ data class BindingDecl(
 }
 data class Style(val styleClass: Set<String>) : SourceAnnotation()
 data class LocalVariableRef(val id: String) : SourceAnnotation()
+
+/**
+ * @param line 1-indexed
+ */
+data class SourceLineRef(val sourceFile: String, val line: Int) : SourceAnnotation()
 
 @Suppress("FunctionName")
 fun Style(vararg styleClass: String) = Style(setOf(*styleClass))

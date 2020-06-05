@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.generator.bytecode
 
 import at.yawk.javabrowser.LocalVariableRef
+import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
 import com.google.common.hash.Hashing
 import org.objectweb.asm.AnnotationVisitor
@@ -27,11 +28,14 @@ private const val MAX_INT_LENGTH = Int.MIN_VALUE.toString().length
 
 class MethodPrinter private constructor(
         private val printer: BytecodePrinter,
-        private val node: MethodNode
+        private val node: MethodNode,
+
+        private val sourceFilePath: String
 ) {
     companion object {
         fun visitor(
                 printer: BytecodePrinter,
+                sourceFilePath: String,
 
                 access: Int,
                 name: String?,
@@ -41,7 +45,7 @@ class MethodPrinter private constructor(
         ): MethodVisitor = object : MethodNode(Opcodes.ASM8, access, name, descriptor, signature, exceptions) {
             override fun visitEnd() {
                 super.visitEnd()
-                MethodPrinter(printer, this).print()
+                MethodPrinter(printer, this, sourceFilePath).print()
             }
         }
     }
@@ -364,7 +368,9 @@ class MethodPrinter private constructor(
         override fun visitLineNumber(line: Int, start: Label) {
             require(this.nextInstructionLabel == start)
             label()
-            printer.append(".line ").append(line).append('\n') // TODO link
+            printer.annotate(SourceLineRef(sourceFilePath, line)) {
+                printer.append(".line ").append(line).append('\n')
+            }
         }
 
         private fun printVariable(variable: LocalVariableNode, start: Boolean) {
