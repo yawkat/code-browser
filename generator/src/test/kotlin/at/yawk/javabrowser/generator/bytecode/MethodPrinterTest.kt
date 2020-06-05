@@ -118,21 +118,21 @@ public static synchronized void x();
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=2, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 6
-         aload 0 /* this */
-         iconst_1
-         putfield A.a:I
-      1: .line 7
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    2     0  this  LA;
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=2, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 6
+          aload 0 /* this */
+          iconst_1
+          putfield A.a:I
+       1: .line 7
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    2     0  this  LA;
                 """.trimIndent()
         )
     }
@@ -155,28 +155,28 @@ void x();
                 ),
                 """
 int x();
- descriptor: ()I
- flags: (0x0000) 
- Code:
-   stack=1, locals=2, args_size=1
-     start local 0 // A this
-      0: .line 4
-         iconst_1
-         istore 1 /* a */
-     start local 1 // int a
-      1: .line 5
-         iinc 1 /* a */ 1
-      2: .line 6
-         iinc 1 /* a */ -1
-      3: .line 7
-         iload 1 /* a */
-         ireturn
-     end local 1 // int a
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    4     0  this  LA;
-         1    4     1     a  I
+  descriptor: ()I
+  flags: (0x0000) 
+  Code:
+    stack=1, locals=2, args_size=1
+      start local 0 // A this
+       0: .line 4
+          iconst_1
+          istore 1 /* a */
+      start local 1 // int a
+       1: .line 5
+          iinc 1 /* a */ 1
+       2: .line 6
+          iinc 1 /* a */ -1
+       3: .line 7
+          iload 1 /* a */
+          ireturn
+      end local 1 // int a
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    4     0  this  LA;
+          1    4     1     a  I
                 """.trimIndent()
         )
     }
@@ -196,22 +196,22 @@ int x();
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=2, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 4
-         iconst_1
-         iconst_2
-         multianewarray [[I 2
-         pop
-      1: .line 5
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    2     0  this  LA;
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=2, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 4
+          iconst_1
+          iconst_2
+          multianewarray [[I 2
+          pop
+       1: .line 5
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    2     0  this  LA;
 """.trimIndent()
         )
     }
@@ -241,59 +241,59 @@ void x();
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=1, locals=2, args_size=1
-     start local 0 // A this
-      0: .line 4
-         iconst_0
-         istore 1 /* a */
-     start local 1 // int a
-      1: .line 5
-         iload 1 /* a */
-         tableswitch { // 0 - 3
-                 0: 2
-                 1: 3
-                 2: 4
-                 3: 5
-           default: 5
-       }
-      2: .line 6
-   StackMap locals: int
-   StackMap stack:
-         goto 5
-      3: .line 7
-   StackMap locals:
-   StackMap stack:
-         goto 5
-      4: .line 8
-   StackMap locals:
-   StackMap stack:
-         goto 5
-      5: .line 11
-   StackMap locals:
-   StackMap stack:
-         iload 1 /* a */
-         lookupswitch { // 2
-                 0: 6
-               123: 7
-           default: 7
-       }
-      6: .line 12
-   StackMap locals:
-   StackMap stack:
-         goto 7
-      7: .line 15
-   StackMap locals:
-   StackMap stack:
-         return
-     end local 1 // int a
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    8     0  this  LA;
-         1    8     1     a  I
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=1, locals=2, args_size=1
+      start local 0 // A this
+       0: .line 4
+          iconst_0
+          istore 1 /* a */
+      start local 1 // int a
+       1: .line 5
+          iload 1 /* a */
+          tableswitch { // 0 - 3
+                  0: 2
+                  1: 3
+                  2: 4
+                  3: 5
+            default: 5
+        }
+       2: .line 6
+    StackMap locals: int
+    StackMap stack:
+          goto 5
+       3: .line 7
+    StackMap locals:
+    StackMap stack:
+          goto 5
+       4: .line 8
+    StackMap locals:
+    StackMap stack:
+          goto 5
+       5: .line 11
+    StackMap locals:
+    StackMap stack:
+          iload 1 /* a */
+          lookupswitch { // 2
+                  0: 6
+                123: 7
+            default: 7
+        }
+       6: .line 12
+    StackMap locals:
+    StackMap stack:
+          goto 7
+       7: .line 15
+    StackMap locals:
+    StackMap stack:
+          return
+      end local 1 // int a
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    8     0  this  LA;
+          1    8     1     a  I
 """.trimIndent()
         )
     }
@@ -312,27 +312,27 @@ void x();
                 ),
                 """
 void x(int, java.lang.String);
- descriptor: (ILjava/lang/String;)V
- flags: (0x0000) 
- Code:
-   stack=0, locals=3, args_size=3
-     start local 0 // A this
-     start local 1 // int i
-     start local 2 // java.lang.String stuvwxyz
-      0: .line 4
-         return
-     end local 2 // java.lang.String stuvwxyz
-     end local 1 // int i
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot      Name  Signature
-         0    1     0      this  LA;
-         0    1     1         i  I
-         0    1     2  stuvwxyz  Ljava/lang/String;
- MethodParameters:
-       Name  Flags
-   i         
-   stuvwxyz  final
+  descriptor: (ILjava/lang/String;)V
+  flags: (0x0000) 
+  Code:
+    stack=0, locals=3, args_size=3
+      start local 0 // A this
+      start local 1 // int i
+      start local 2 // java.lang.String stuvwxyz
+       0: .line 4
+          return
+      end local 2 // java.lang.String stuvwxyz
+      end local 1 // int i
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot      Name  Signature
+          0    1     0      this  LA;
+          0    1     1         i  I
+          0    1     2  stuvwxyz  Ljava/lang/String;
+  MethodParameters:
+        Name  Flags
+    i         
+    stuvwxyz  final
 """.trimIndent()
         )
     }
@@ -351,19 +351,19 @@ void x(int, java.lang.String);
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=0, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 4
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    1     0  this  LA;
- Exceptions:
-   throws java.lang.Exception
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=0, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 4
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    1     0  this  LA;
+  Exceptions:
+    throws java.lang.Exception
 """.trimIndent()
         )
     }
@@ -383,18 +383,18 @@ void x();
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=0, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 5
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    1     0  this  LA;
- Signature: <T::Ljava/util/List<-Ljava/lang/String;>;>()V
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=0, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 5
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    1     0  this  LA;
+  Signature: <T::Ljava/util/List<-Ljava/lang/String;>;>()V
 """.trimIndent()
         )
     }
@@ -438,21 +438,21 @@ public abstract int x();
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=0, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 9
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    1     0  this  LA;
- RuntimeVisibleAnnotations: 
-   Visible()
- RuntimeInvisibleAnnotations: 
-   Invisible()
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=0, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 9
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    1     0  this  LA;
+  RuntimeVisibleAnnotations: 
+    Visible()
+  RuntimeInvisibleAnnotations: 
+    Invisible()
 """.trimIndent()
         )
     }
@@ -534,24 +534,24 @@ public abstract void x(int, int);
                 ),
                 """
 java.lang.Object x();
- descriptor: ()Ljava/lang/Object;
- flags: (0x0000) 
- Code:
-   stack=1, locals=2, args_size=1
-     start local 0 // A this
-      0: .line 5
-         aconst_null
-         astore 1 /* list */
-     start local 1 // java.util.List list
-      1: .line 6
-         aload 1 /* list */
-         areturn
-     end local 1 // java.util.List list
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    2     0  this  LA;
-         1    2     1  list  Ljava/util/List<Ljava/lang/String;>;
+  descriptor: ()Ljava/lang/Object;
+  flags: (0x0000) 
+  Code:
+    stack=1, locals=2, args_size=1
+      start local 0 // A this
+       0: .line 5
+          aconst_null
+          astore 1 /* list */
+      start local 1 // java.util.List list
+       1: .line 6
+          aload 1 /* list */
+          areturn
+      end local 1 // java.util.List list
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    2     0  this  LA;
+          1    2     1  list  Ljava/util/List<Ljava/lang/String;>;
 """.trimIndent()
         )
     }
@@ -573,46 +573,46 @@ class A {
                 ),
                 """
 void <init>(int, java.lang.String, float, double);
- descriptor: (ILjava/lang/String;FD)V
- flags: (0x0000) 
- Code:
-   stack=2, locals=6, args_size=5
-     start local 0 // A this
-     start local 1 // int a
-     start local 2 // java.lang.String b
-     start local 3 // float c
-     start local 4 // double d
-      0: .line 4
-         aload 0 /* this */
-         invokespecial java.lang.Object.<init>:()V
-      1: .line 5
-         iload 1 /* a */
-         ifeq 2
-         aload 0 /* this */
-         iload 1 /* a */
-         invokevirtual A.eat:(I)V
-      2: .line 6
-   StackMap locals: A int java.lang.String float double
-   StackMap stack:
-         return
-     end local 4 // double d
-     end local 3 // float c
-     end local 2 // java.lang.String b
-     end local 1 // int a
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    3     0  this  LA;
-         0    3     1     a  I
-         0    3     2     b  Ljava/lang/String;
-         0    3     3     c  F
-         0    3     4     d  D
- MethodParameters:
-   Name  Flags
-   a     
-   b     
-   c     
-   d     
+  descriptor: (ILjava/lang/String;FD)V
+  flags: (0x0000) 
+  Code:
+    stack=2, locals=6, args_size=5
+      start local 0 // A this
+      start local 1 // int a
+      start local 2 // java.lang.String b
+      start local 3 // float c
+      start local 4 // double d
+       0: .line 4
+          aload 0 /* this */
+          invokespecial java.lang.Object.<init>:()V
+       1: .line 5
+          iload 1 /* a */
+          ifeq 2
+          aload 0 /* this */
+          iload 1 /* a */
+          invokevirtual A.eat:(I)V
+       2: .line 6
+    StackMap locals: A int java.lang.String float double
+    StackMap stack:
+          return
+      end local 4 // double d
+      end local 3 // float c
+      end local 2 // java.lang.String b
+      end local 1 // int a
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    3     0  this  LA;
+          0    3     1     a  I
+          0    3     2     b  Ljava/lang/String;
+          0    3     3     c  F
+          0    3     4     d  D
+  MethodParameters:
+    Name  Flags
+    a     
+    b     
+    c     
+    d     
 """.trimIndent()
         )
     }
@@ -634,27 +634,27 @@ void <init>(int, java.lang.String, float, double);
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=2, locals=2, args_size=1
-     start local 0 // A this
-      0: .line 4
-         iconst_0
-         istore 1 /* a */
-     start local 1 // int a
-      1: .line 5
-         aload 0 /* this */
-         iload 1 /* a */
-         invokevirtual A.y:(I)V
-      2: .line 6
-         return
-     end local 1 // int a
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    3     0  this  LA;
-         1    3     1     a  I
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=2, locals=2, args_size=1
+      start local 0 // A this
+       0: .line 4
+          iconst_0
+          istore 1 /* a */
+      start local 1 // int a
+       1: .line 5
+          aload 0 /* this */
+          iload 1 /* a */
+          invokevirtual A.y:(I)V
+       2: .line 6
+          return
+      end local 1 // int a
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    3     0  this  LA;
+          1    3     1     a  I
 """.trimIndent()
         )
     }
@@ -677,31 +677,31 @@ void x();
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=1, locals=2, args_size=1
-     start local 0 // A this
-      0: .line 4
-         aconst_null
-         astore 1 /* o */
-     start local 1 // java.lang.Object o
-      1: .line 5
-         aload 1 /* o */
-         instanceof java.lang.String
-         ifeq 3
-      2: .line 6
-         return
-      3: .line 8
-   StackMap locals: java.lang.Object
-   StackMap stack:
-         return
-     end local 1 // java.lang.Object o
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    4     0  this  LA;
-         1    4     1     o  Ljava/lang/Object;
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=1, locals=2, args_size=1
+      start local 0 // A this
+       0: .line 4
+          aconst_null
+          astore 1 /* o */
+      start local 1 // java.lang.Object o
+       1: .line 5
+          aload 1 /* o */
+          instanceof java.lang.String
+          ifeq 3
+       2: .line 6
+          return
+       3: .line 8
+    StackMap locals: java.lang.Object
+    StackMap stack:
+          return
+      end local 1 // java.lang.Object o
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    4     0  this  LA;
+          1    4     1     o  Ljava/lang/Object;
 """.trimIndent()
         )
     }
@@ -721,21 +721,21 @@ void x();
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=1, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 4
-         iconst_0
-         newarray 10
-         pop
-      1: .line 5
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    2     0  this  LA;
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=1, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 4
+          iconst_0
+          newarray 10
+          pop
+       1: .line 5
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    2     0  this  LA;
 """.trimIndent()
         )
     }
@@ -760,41 +760,41 @@ void x();
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=5, locals=5, args_size=1
-     start local 0 // A this
-      0: .line 4
-         ldc "abcdef\t\u00E4\n"
-         astore 1 /* s */
-     start local 1 // java.lang.String s
-      1: .line 5
-         sipush 12345
-         istore 2 /* i */
-     start local 2 // int i
-      2: .line 6
-         ldc 3.14
-         dstore 3 /* d */
-     start local 3 // double d
-      3: .line 7
-         aload 0 /* this */
-         aload 1 /* s */
-         iload 2 /* i */
-         dload 3 /* d */
-         invokevirtual A.eat:(Ljava/lang/String;ID)V
-      4: .line 8
-         return
-     end local 3 // double d
-     end local 2 // int i
-     end local 1 // java.lang.String s
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    5     0  this  LA;
-         1    5     1     s  Ljava/lang/String;
-         2    5     2     i  I
-         3    5     3     d  D
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=5, locals=5, args_size=1
+      start local 0 // A this
+       0: .line 4
+          ldc "abcdef\t\u00E4\n"
+          astore 1 /* s */
+      start local 1 // java.lang.String s
+       1: .line 5
+          sipush 12345
+          istore 2 /* i */
+      start local 2 // int i
+       2: .line 6
+          ldc 3.14
+          dstore 3 /* d */
+      start local 3 // double d
+       3: .line 7
+          aload 0 /* this */
+          aload 1 /* s */
+          iload 2 /* i */
+          dload 3 /* d */
+          invokevirtual A.eat:(Ljava/lang/String;ID)V
+       4: .line 8
+          return
+      end local 3 // double d
+      end local 2 // int i
+      end local 1 // java.lang.String s
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    5     0  this  LA;
+          1    5     1     s  Ljava/lang/String;
+          2    5     2     i  I
+          3    5     3     d  D
 """.trimIndent()
         )
     }
@@ -820,38 +820,38 @@ class A {
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=2, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 5
-         new java.lang.Exception
-         dup
-         invokespecial java.lang.Exception.<init>:()V
-         athrow
-      1: .line 6
-   StackMap locals:
-   StackMap stack: java.lang.Exception
-         pop
-      2: .line 7
-         goto 4
-      3: .line 8
-   StackMap locals:
-   StackMap stack: java.lang.Throwable
-         pop
-      4: .line 9
-   StackMap locals:
-   StackMap stack:
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    5     0  this  LA;
-   Exception table:
-     from    to  target  type
-        0     1       1  Class java.lang.Exception
-        0     3       3  any
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=2, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 5
+          new java.lang.Exception
+          dup
+          invokespecial java.lang.Exception.<init>:()V
+          athrow
+       1: .line 6
+    StackMap locals:
+    StackMap stack: java.lang.Exception
+          pop
+       2: .line 7
+          goto 4
+       3: .line 8
+    StackMap locals:
+    StackMap stack: java.lang.Throwable
+          pop
+       4: .line 9
+    StackMap locals:
+    StackMap stack:
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    5     0  this  LA;
+    Exception table:
+      from    to  target  type
+         0     1       1  Class java.lang.Exception
+         0     3       3  any
 """.trimIndent()
         )
     }
@@ -879,32 +879,32 @@ class A {
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=2, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 9
-         new java.lang.Exception
-         dup
-         invokespecial java.lang.Exception.<init>:()V
-         athrow
-      1: .line 10
-   StackMap locals:
-   StackMap stack: java.lang.Exception
-         pop
-      2: .line 11
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    3     0  this  LA;
-   Exception table:
-     from    to  target  type
-        0     1       1  Class java.lang.Exception
- RuntimeVisibleTypeAnnotations: 
-   EXCEPTION_PARAMETER
-     Ann()
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=2, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 9
+          new java.lang.Exception
+          dup
+          invokespecial java.lang.Exception.<init>:()V
+          athrow
+       1: .line 10
+    StackMap locals:
+    StackMap stack: java.lang.Exception
+          pop
+       2: .line 11
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    3     0  this  LA;
+    Exception table:
+      from    to  target  type
+         0     1       1  Class java.lang.Exception
+  RuntimeVisibleTypeAnnotations: 
+    EXCEPTION_PARAMETER
+      Ann()
 """.trimIndent()
         )
     }
@@ -935,64 +935,64 @@ class A {
                 ),
                 """
 int x();
- descriptor: ()I
- flags: (0x0000) 
- Code:
-   stack=2, locals=4, args_size=1
-     start local 0 // A this
-      0: .line 8
-         iconst_0
-         istore 1 /* i */
-     start local 1 // int i
-      1: .line 10
-         iinc 1 /* i */ 1
-      2: .line 11
-         goto 7
-   StackMap locals: A int
-   StackMap stack: java.lang.Throwable
-      3: astore 2
-      4: .line 12
-         iconst_0
-         istore 3 /* j */
-     start local 3 // int j
-      5: .line 13
-         iload 1 /* i */
-         iload 3 /* j */
-         iadd
-         istore 1 /* i */
-     end local 3 // int j
-      6: .line 14
-         aload 2
-         athrow
-      7: .line 12
-   StackMap locals:
-   StackMap stack:
-         iconst_0
-         istore 3 /* j */
-     start local 3 // int j
-      8: .line 13
-         iload 1 /* i */
-         iload 3 /* j */
-         iadd
-         istore 1 /* i */
-     end local 3 // int j
-      9: .line 15
-         iload 1 /* i */
-         ireturn
-     end local 1 // int i
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0   10     0  this  LA;
-         1   10     1     i  I
-         5    6     3     j  I
-         8    9     3     j  I
-   Exception table:
-     from    to  target  type
-        1     3       3  any
- RuntimeVisibleTypeAnnotations: 
-   LOCAL_VARIABLE, {start=5, end=6, index=3 /* j */; start=8, end=9, index=3 /* j */}
-     Ann()
+  descriptor: ()I
+  flags: (0x0000) 
+  Code:
+    stack=2, locals=4, args_size=1
+      start local 0 // A this
+       0: .line 8
+          iconst_0
+          istore 1 /* i */
+      start local 1 // int i
+       1: .line 10
+          iinc 1 /* i */ 1
+       2: .line 11
+          goto 7
+    StackMap locals: A int
+    StackMap stack: java.lang.Throwable
+       3: astore 2
+       4: .line 12
+          iconst_0
+          istore 3 /* j */
+      start local 3 // int j
+       5: .line 13
+          iload 1 /* i */
+          iload 3 /* j */
+          iadd
+          istore 1 /* i */
+      end local 3 // int j
+       6: .line 14
+          aload 2
+          athrow
+       7: .line 12
+    StackMap locals:
+    StackMap stack:
+          iconst_0
+          istore 3 /* j */
+      start local 3 // int j
+       8: .line 13
+          iload 1 /* i */
+          iload 3 /* j */
+          iadd
+          istore 1 /* i */
+      end local 3 // int j
+       9: .line 15
+          iload 1 /* i */
+          ireturn
+      end local 1 // int i
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0   10     0  this  LA;
+          1   10     1     i  I
+          5    6     3     j  I
+          8    9     3     j  I
+    Exception table:
+      from    to  target  type
+         1     3       3  any
+  RuntimeVisibleTypeAnnotations: 
+    LOCAL_VARIABLE, {start=5, end=6, index=3 /* j */; start=8, end=9, index=3 /* j */}
+      Ann()
 """.trimIndent()
         )
     }
@@ -1019,32 +1019,32 @@ class A {
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=1, locals=2, args_size=1
-     start local 0 // A this
-      0: .line 8
-         aconst_null
-         astore 1 /* o */
-     start local 1 // java.lang.Object o
-      1: .line 9
-         aload 1 /* o */
-         instanceof java.lang.String
-           RuntimeVisibleTypeAnnotation: Ann()
-         ifeq 3
-      2: .line 10
-         return
-      3: .line 12
-   StackMap locals: java.lang.Object
-   StackMap stack:
-         return
-     end local 1 // java.lang.Object o
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    4     0  this  LA;
-         1    4     1     o  Ljava/lang/Object;
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=1, locals=2, args_size=1
+      start local 0 // A this
+       0: .line 8
+          aconst_null
+          astore 1 /* o */
+      start local 1 // java.lang.Object o
+       1: .line 9
+          aload 1 /* o */
+          instanceof java.lang.String
+            RuntimeVisibleTypeAnnotation: Ann()
+          ifeq 3
+       2: .line 10
+          return
+       3: .line 12
+    StackMap locals: java.lang.Object
+    StackMap stack:
+          return
+      end local 1 // java.lang.Object o
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    4     0  this  LA;
+          1    4     1     o  Ljava/lang/Object;
 """.trimIndent()
         )
     }
@@ -1065,32 +1065,32 @@ class A {
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=1, locals=2, args_size=1
-     start local 0 // A this
-      0: .line 4
-         iconst_0
-         istore 1 /* i */
-     start local 1 // int i
-      1: .line 5
-         iload 1 /* i */
-         invokedynamic run(I)Ljava/lang/Runnable;
-           Bootstrap: invokestatic java.lang.invoke.LambdaMetafactory.metafactory:(Ljava/lang/invoke/MethodHandles${'$'}Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;
-             Method arguments:
-               ()V
-               A.lambda${'$'}0(I)V (6)
-               ()V
-         pop
-      2: .line 6
-         return
-     end local 1 // int i
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    3     0  this  LA;
-         1    3     1     i  I
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=1, locals=2, args_size=1
+      start local 0 // A this
+       0: .line 4
+          iconst_0
+          istore 1 /* i */
+      start local 1 // int i
+       1: .line 5
+          iload 1 /* i */
+          invokedynamic run(I)Ljava/lang/Runnable;
+            Bootstrap: invokestatic java.lang.invoke.LambdaMetafactory.metafactory:(Ljava/lang/invoke/MethodHandles${'$'}Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;
+              Method arguments:
+                ()V
+                A.lambda${'$'}0(I)V (6)
+                ()V
+          pop
+       2: .line 6
+          return
+      end local 1 // int i
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    3     0  this  LA;
+          1    3     1     i  I
 """.trimIndent()
         )
     }
@@ -1109,17 +1109,17 @@ class A {
                 ),
                 """
 void x();
- descriptor: ()V
- flags: (0x0000) 
- Code:
-   stack=0, locals=1, args_size=1
-     start local 0 // A this
-      0: .line 4
-         return
-     end local 0 // A this
-   LocalVariableTable:
-     Start  End  Slot  Name  Signature
-         0    1     0  this  LA;
+  descriptor: ()V
+  flags: (0x0000) 
+  Code:
+    stack=0, locals=1, args_size=1
+      start local 0 // A this
+       0: .line 4
+          return
+      end local 0 // A this
+    LocalVariableTable:
+      Start  End  Slot  Name  Signature
+          0    1     0  this  LA;
 """.trimIndent()
         )
     }

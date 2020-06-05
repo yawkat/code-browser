@@ -41,7 +41,7 @@ class MethodPrinter private constructor(
                 sourceFilePath: String,
 
                 access: Int,
-                name: String?,
+                name: String,
                 descriptor: String,
                 signature: String?,
                 exceptions: Array<String>?
@@ -94,8 +94,7 @@ class MethodPrinter private constructor(
     fun print() {
         // abstract java.lang.String x(java.lang.String, java.lang.String);
         printer.indent(1)
-        printer.printSourceModifiers(node.access, Flag.Target.METHOD)
-        printer.append(' ')
+        printer.printSourceModifiers(node.access, Flag.Target.METHOD, trailingSpace = true)
         printer.appendJavaName(methodType.returnType)
         printer.append(' ').append(node.name).append('(')
         for ((i, argumentType) in methodType.argumentTypes.withIndex()) {
@@ -179,7 +178,7 @@ class MethodPrinter private constructor(
                 printer.indent(3)
                 printer.append(parameter.name.padEnd(maxParamNameLength))
                 printer.append("  ")
-                printer.printSourceModifiers(parameter.access, Flag.Target.PARAMETER)
+                printer.printSourceModifiers(parameter.access, Flag.Target.PARAMETER, trailingSpace = false)
                 printer.append('\n')
             }
         }

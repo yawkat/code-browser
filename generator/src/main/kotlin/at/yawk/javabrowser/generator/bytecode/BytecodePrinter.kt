@@ -94,7 +94,7 @@ class BytecodePrinter {
     }
 }
 
-fun BytecodePrinter.printSourceModifiers(access: Int, target: Flag.Target) {
+fun BytecodePrinter.printSourceModifiers(access: Int, target: Flag.Target, trailingSpace: Boolean) {
     annotate(Style("keyword")) {
         var first = true
         for (flag in Flag.FLAGS) {
@@ -105,6 +105,9 @@ fun BytecodePrinter.printSourceModifiers(access: Int, target: Flag.Target) {
                 first = false
                 append(flag.modifier)
             }
+        }
+        if (!first && trailingSpace) {
+            append(' ')
         }
     }
 }
