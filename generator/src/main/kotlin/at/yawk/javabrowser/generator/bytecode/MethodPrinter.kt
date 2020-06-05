@@ -409,7 +409,7 @@ class MethodPrinter private constructor(
 
         override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) =
                 insn(Opcodes.MULTIANEWARRAY) {
-                    printer.append(' ').append(descriptor) // TODO
+                    printer.append(' ').appendDescriptor(Type.getType(descriptor))
                     printer.append(' ').append(numDimensions)
                 }
 
