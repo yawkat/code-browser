@@ -12,6 +12,7 @@ import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.TypePath
 import org.objectweb.asm.TypeReference
+import org.objectweb.asm.tree.AbstractInsnNode
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.LabelNode
 import org.objectweb.asm.tree.LocalVariableAnnotationNode
@@ -81,7 +82,9 @@ class MethodPrinter private constructor(
         printer.indent(2)
         printer.printFlags(node.access, Flag.Target.METHOD)
 
-        node.accept(Code())
+        if (node.instructions.size() > 0) {
+            Code().visitAll()
+        }
 
         if (node.exceptions.isNotEmpty()) {
             printer.indent(2)
@@ -198,7 +201,7 @@ class MethodPrinter private constructor(
                     printer.append("start=").append(getLabelName(lv.start.label))
                     printer.append(", end=").append(getLabelName(lv.end.label))
                     printer.append(", index=")
-                    printLocalVariableWithOptionalName(lv)
+                    printLocalVariable(lv)
                 }
                 printer.append('}')
             }
@@ -240,22 +243,24 @@ class MethodPrinter private constructor(
         }
     }
 
-    private fun printLocalVariableWithOptionalName(lv: LocalVariableNode) {
+    private fun printLocalVariable(lv: LocalVariableNode) {
         val annotation = getLocalVariableAnnotation(lv)
         printer.annotate(annotation) { printer.append(lv.index) }
         lv.name?.let { name ->
-            printer.append(" (")
+            printer.append(" /* ")
             printer.annotate(annotation) { printer.append(name) }
-            printer.append(")")
+            printer.append(" */")
         }
     }
 
     private inner class Code : MethodVisitor(Opcodes.ASM8) {
+        private lateinit var currentInstruction: AbstractInsnNode
+
         private lateinit var currentLabel: Label
         private var nextInstructionLabel: Label? = null
         private var nextInstructionLabelPrinted = false
 
-        override fun visitCode() {
+        fun visitAll() {
             printer.indent(2)
             printer.append("Code:\n")
 
@@ -268,9 +273,14 @@ class MethodPrinter private constructor(
                     .append(", locals=").append(node.maxLocals)
                     .append(", args_size=").append(argsSize)
                     .append('\n')
-        }
 
-        override fun visitEnd() {
+            var insn: AbstractInsnNode? = node.instructions.first
+            while (insn != null) {
+                currentInstruction = insn
+                insn.accept(this)
+                insn = insn.next
+            }
+
             // these still belong to the code section
 
             val localVariables = node.localVariables
@@ -396,7 +406,12 @@ class MethodPrinter private constructor(
                 }
 
         override fun visitVarInsn(opcode: Int, `var`: Int) = insn(opcode) {
-            printer.append(' ').append(`var`) // TODO: resolve variable name where applicable
+            printer.append(' ')
+            val isStore = when (opcode) {
+                Opcodes.ISTORE, Opcodes.FSTORE, Opcodes.LSTORE, Opcodes.DSTORE, Opcodes.ASTORE -> true
+                else -> false
+            }
+            printLocalVariableWithOptionalName(`var`, storeOnly = isStore)
         }
 
         private fun switch(
@@ -526,11 +541,7 @@ class MethodPrinter private constructor(
 
         override fun visitIincInsn(`var`: Int, increment: Int) = insn(Opcodes.IINC) {
             printer.append(' ')
-            val local = node.localVariables.single {
-                it.index == `var` &&
-                        labels.indexOf(currentLabel) in (labels.indexOf(it.start.label) until labels.indexOf(it.end.label))
-            }
-            printLocalVariableWithOptionalName(local)
+            printLocalVariableWithOptionalName(`var`)
             printer.append(' ').append(increment)
         }
 
@@ -538,6 +549,35 @@ class MethodPrinter private constructor(
             printer.append(' ').appendInternalName(Type.getObjectType(owner))
                     .append('.').append(name) // TODO: link field
                     .append(':').appendDescriptor(Type.getType(descriptor))
+        }
+
+        /**
+         * @param storeOnly If this variable is used in a store, it may only be defined immediately after this instruction.
+         */
+        private fun findScopeVariable(index: Int, storeOnly: Boolean = false): LocalVariableNode? {
+            val next = currentInstruction.next
+            val currentLabelIndex = if (storeOnly && next is LabelNode) {
+                labels.indexOf(next.label)
+            } else {
+                labels.indexOf(currentLabel)
+            }
+            // we almost always have a local variable, but there are exceptions like the throwable in a finally block.
+            return node.localVariables.singleOrNull {
+                val startLabelIndex = labels.indexOf(it.start.label)
+                val endLabelIndex = labels.indexOf(it.end.label)
+                val inRange = currentLabelIndex in (startLabelIndex until endLabelIndex)
+                it.index == index && inRange
+            }
+        }
+
+        private fun printLocalVariableWithOptionalName(index: Int, storeOnly: Boolean = false) {
+            val lv = findScopeVariable(index, storeOnly)
+            if (lv != null) {
+                printLocalVariable(lv)
+            } else {
+                // bail :(
+                printer.append(index)
+            }
         }
     }
 }

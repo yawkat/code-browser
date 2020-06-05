@@ -120,7 +120,7 @@ void x();
    stack=2, locals=1, args_size=1
      start local 0 // A this
       0: .line 6
-         aload 0
+         aload 0 /* this */
          iconst_1
          putfield A.a:I
       1: .line 7
@@ -158,14 +158,14 @@ int x();
      start local 0 // A this
       0: .line 4
          iconst_1
-         istore 1
+         istore 1 /* a */
      start local 1 // int a
       1: .line 5
-         iinc 1 (a) 1
+         iinc 1 /* a */ 1
       2: .line 6
-         iinc 1 (a) -1
+         iinc 1 /* a */ -1
       3: .line 7
-         iload 1
+         iload 1 /* a */
          ireturn
      end local 1 // int a
      end local 0 // A this
@@ -244,10 +244,10 @@ void x();
      start local 0 // A this
       0: .line 4
          iconst_0
-         istore 1
+         istore 1 /* a */
      start local 1 // int a
       1: .line 5
-         iload 1
+         iload 1 /* a */
          tableswitch { // 0 - 3
                  0: 2
                  1: 3
@@ -270,7 +270,7 @@ void x();
       5: .line 11
    StackMap locals:
    StackMap stack:
-         iload 1
+         iload 1 /* a */
          lookupswitch { // 2
                  0: 6
                123: 7
@@ -537,10 +537,10 @@ java.lang.Object x();
      start local 0 // A this
       0: .line 5
          aconst_null
-         astore 1
+         astore 1 /* list */
      start local 1 // java.util.List list
       1: .line 6
-         aload 1
+         aload 1 /* list */
          areturn
      end local 1 // java.util.List list
      end local 0 // A this
@@ -579,13 +579,13 @@ void <init>(int, java.lang.String, float, double);
      start local 3 // float c
      start local 4 // double d
       0: .line 4
-         aload 0
+         aload 0 /* this */
          invokespecial Ljava/lang/Object;.<init>:()V
       1: .line 5
-         iload 1
+         iload 1 /* a */
          ifeq 2
-         aload 0
-         iload 1
+         aload 0 /* this */
+         iload 1 /* a */
          invokevirtual LA;.eat:(I)V
       2: .line 6
    StackMap locals: A int java.lang.String float double
@@ -637,11 +637,11 @@ void x();
      start local 0 // A this
       0: .line 4
          iconst_0
-         istore 1
+         istore 1 /* a */
      start local 1 // int a
       1: .line 5
-         aload 0
-         iload 1
+         aload 0 /* this */
+         iload 1 /* a */
          invokevirtual LA;.y:(I)V
       2: .line 6
          return
@@ -680,10 +680,10 @@ void x();
      start local 0 // A this
       0: .line 4
          aconst_null
-         astore 1
+         astore 1 /* o */
      start local 1 // java.lang.Object o
       1: .line 5
-         aload 1
+         aload 1 /* o */
          instanceof java.lang.String
          ifeq 3
       2: .line 6
@@ -763,21 +763,21 @@ void x();
      start local 0 // A this
       0: .line 4
          ldc "abcdef\t\u00E4\n"
-         astore 1
+         astore 1 /* s */
      start local 1 // java.lang.String s
       1: .line 5
          sipush 12345
-         istore 2
+         istore 2 /* i */
      start local 2 // int i
       2: .line 6
          ldc 3.14
-         dstore 3
+         dstore 3 /* d */
      start local 3 // double d
       3: .line 7
-         aload 0
-         aload 1
-         iload 2
-         dload 3
+         aload 0 /* this */
+         aload 1 /* s */
+         iload 2 /* i */
+         dload 3 /* d */
          invokevirtual LA;.eat:(Ljava/lang/String;ID)V
       4: .line 8
          return
@@ -938,10 +938,10 @@ int x();
      start local 0 // A this
       0: .line 8
          iconst_0
-         istore 1
+         istore 1 /* i */
      start local 1 // int i
       1: .line 10
-         iinc 1 (i) 1
+         iinc 1 /* i */ 1
       2: .line 11
          goto 7
    StackMap locals: A int
@@ -949,13 +949,13 @@ int x();
       3: astore 2
       4: .line 12
          iconst_0
-         istore 3
+         istore 3 /* j */
      start local 3 // int j
       5: .line 13
-         iload 1
-         iload 3
+         iload 1 /* i */
+         iload 3 /* j */
          iadd
-         istore 1
+         istore 1 /* i */
      end local 3 // int j
       6: .line 14
          aload 2
@@ -964,16 +964,16 @@ int x();
    StackMap locals:
    StackMap stack:
          iconst_0
-         istore 3
+         istore 3 /* j */
      start local 3 // int j
       8: .line 13
-         iload 1
-         iload 3
+         iload 1 /* i */
+         iload 3 /* j */
          iadd
-         istore 1
+         istore 1 /* i */
      end local 3 // int j
       9: .line 15
-         iload 1
+         iload 1 /* i */
          ireturn
      end local 1 // int i
      end local 0 // A this
@@ -987,7 +987,7 @@ int x();
      from    to  target  type
         1     3       3  any
  RuntimeVisibleTypeAnnotations: 
-   LOCAL_VARIABLE, {start=5, end=6, index=3 (j); start=8, end=9, index=3 (j)}
+   LOCAL_VARIABLE, {start=5, end=6, index=3 /* j */; start=8, end=9, index=3 /* j */}
      Ann()
 """.trimIndent()
         )
@@ -1022,10 +1022,10 @@ void x();
      start local 0 // A this
       0: .line 8
          aconst_null
-         astore 1
+         astore 1 /* o */
      start local 1 // java.lang.Object o
       1: .line 9
-         aload 1
+         aload 1 /* o */
          instanceof java.lang.String
            RuntimeVisibleTypeAnnotation: Ann()
          ifeq 3
@@ -1068,10 +1068,10 @@ void x();
      start local 0 // A this
       0: .line 4
          iconst_0
-         istore 1
+         istore 1 /* i */
      start local 1 // int i
       1: .line 5
-         iload 1
+         iload 1 /* i */
          invokedynamic run(I)Ljava/lang/Runnable;
            Bootstrap: invokestatic java.lang.invoke.LambdaMetafactory.metafactory:(Ljava/lang/invoke/MethodHandles${'$'}Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;
              Method arguments:
