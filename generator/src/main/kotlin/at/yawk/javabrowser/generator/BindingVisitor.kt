@@ -3,7 +3,7 @@ package at.yawk.javabrowser.generator
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
-import at.yawk.javabrowser.LocalVariableRef
+import at.yawk.javabrowser.LocalVariableOrLabelRef
 import com.google.common.hash.Hashing
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTNode
@@ -15,11 +15,13 @@ import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration
 import org.eclipse.jdt.core.dom.ArrayType
 import org.eclipse.jdt.core.dom.Assignment
+import org.eclipse.jdt.core.dom.BreakStatement
 import org.eclipse.jdt.core.dom.CastExpression
 import org.eclipse.jdt.core.dom.ClassInstanceCreation
 import org.eclipse.jdt.core.dom.Comment
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.ConstructorInvocation
+import org.eclipse.jdt.core.dom.ContinueStatement
 import org.eclipse.jdt.core.dom.CreationReference
 import org.eclipse.jdt.core.dom.EnumConstantDeclaration
 import org.eclipse.jdt.core.dom.EnumDeclaration
@@ -36,6 +38,7 @@ import org.eclipse.jdt.core.dom.Initializer
 import org.eclipse.jdt.core.dom.InstanceofExpression
 import org.eclipse.jdt.core.dom.IntersectionType
 import org.eclipse.jdt.core.dom.Javadoc
+import org.eclipse.jdt.core.dom.LabeledStatement
 import org.eclipse.jdt.core.dom.LambdaExpression
 import org.eclipse.jdt.core.dom.MarkerAnnotation
 import org.eclipse.jdt.core.dom.MemberRef
@@ -79,6 +82,7 @@ import org.eclipse.jdt.internal.compiler.ast.ReferenceExpression
 import org.eclipse.jdt.internal.compiler.lookup.MethodBinding
 import org.slf4j.LoggerFactory
 import java.lang.Long
+import java.util.concurrent.ThreadLocalRandom
 
 private val log = LoggerFactory.getLogger(BindingVisitor::class.java)
 
@@ -118,6 +122,8 @@ internal class BindingVisitor(
     private var inJavadoc = false
 
     var lastVisited: ASTNode? = null
+
+    private val labelStack = mutableListOf<Pair<String, LocalVariableOrLabelRef>>()
 
     private fun buildNodeLogTag() =
             "$logTag:${lastVisited?.startPosition}_${lastVisited?.length}_${lastVisited?.javaClass?.simpleName}"
@@ -737,7 +743,10 @@ internal class BindingVisitor(
                 node.locationInParent != SuperMethodReference.QUALIFIER_PROPERTY &&
                 node.locationInParent != ThisExpression.QUALIFIER_PROPERTY &&
                 node.locationInParent != MemberValuePair.NAME_PROPERTY &&
-                node.locationInParent != PackageDeclaration.NAME_PROPERTY) {
+                node.locationInParent != PackageDeclaration.NAME_PROPERTY &&
+                node.locationInParent != LabeledStatement.LABEL_PROPERTY &&
+                node.locationInParent != BreakStatement.LABEL_PROPERTY &&
+                node.locationInParent != ContinueStatement.LABEL_PROPERTY) {
             visitName0(node, null)
         }
     }
@@ -753,7 +762,7 @@ internal class BindingVisitor(
             } else { // local
                 val id = Long.toHexString(Hashing.goodFastHash(64)
                         .hashString(binding.key, Charsets.UTF_8).asLong())
-                annotatedSourceFile.annotate(target, LocalVariableRef(id))
+                annotatedSourceFile.annotate(target, LocalVariableOrLabelRef(id))
             }
 
             if (node is QualifiedName) {
@@ -999,6 +1008,38 @@ internal class BindingVisitor(
             }
         } else {
             visitName0(node.name, BindingRefType.PACKAGE_DECLARATION)
+        }
+        return true
+    }
+
+    override fun visit(node: LabeledStatement): Boolean {
+        val label = node.label.identifier
+        require(labelStack.none { it.first == label })
+        val annotation = LocalVariableOrLabelRef(Long.toHexString(ThreadLocalRandom.current().nextLong()))
+        labelStack.add(label to annotation)
+        annotatedSourceFile.annotate(node.label, annotation)
+        return true
+    }
+
+    override fun endVisit(node: LabeledStatement) {
+        val (removed, _) = labelStack.removeAt(labelStack.size - 1)
+        require(removed == node.label.identifier)
+    }
+
+    override fun visit(node: BreakStatement): Boolean {
+        if (node.label != null) {
+            val label = node.label.identifier
+            val (_, annotation) = labelStack.single { it.first == label }
+            annotatedSourceFile.annotate(node.label, annotation)
+        }
+        return true
+    }
+
+    override fun visit(node: ContinueStatement): Boolean {
+        if (node.label != null) {
+            val label = node.label.identifier
+            val (_, annotation) = labelStack.single { it.first == label }
+            annotatedSourceFile.annotate(node.label, annotation)
         }
         return true
     }

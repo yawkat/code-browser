@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonValue
     JsonSubTypes.Type(value = BindingRef::class, name = "binding-ref"),
     JsonSubTypes.Type(value = BindingDecl::class, name = "binding-decl"),
     JsonSubTypes.Type(value = Style::class, name = "style"),
-    JsonSubTypes.Type(value = LocalVariableRef::class, name = "lv-ref"),
+    JsonSubTypes.Type(value = LocalVariableOrLabelRef::class, name = "lv-ref"),
     JsonSubTypes.Type(value = SourceLineRef::class, name = "line-ref")
 ])
 sealed class SourceAnnotation
@@ -182,7 +182,7 @@ data class BindingDecl(
     }
 }
 data class Style(val styleClass: Set<String>) : SourceAnnotation()
-data class LocalVariableRef(val id: String) : SourceAnnotation()
+data class LocalVariableOrLabelRef(val id: String) : SourceAnnotation()
 
 /**
  * @param line 1-indexed

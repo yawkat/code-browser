@@ -1,6 +1,6 @@
 package at.yawk.javabrowser.generator.bytecode
 
-import at.yawk.javabrowser.LocalVariableRef
+import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
 import com.google.common.hash.Hashing
@@ -59,7 +59,7 @@ class MethodPrinter private constructor(
 
     @Suppress("UnstableApiUsage")
     private fun getLocalVariableAnnotation(lv: LocalVariableNode) =
-            LocalVariableRef(Hashing.goodFastHash(64).newHasher()
+            LocalVariableOrLabelRef(Hashing.goodFastHash(64).newHasher()
                     .putUnencodedChars(methodOwnerType.descriptor)
                     .putInt(labels.indexOf(lv.start.label))
                     .putInt(labels.indexOf(lv.end.label))

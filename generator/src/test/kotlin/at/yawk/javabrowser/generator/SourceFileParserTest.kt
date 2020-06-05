@@ -3,7 +3,7 @@ package at.yawk.javabrowser.generator
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
-import at.yawk.javabrowser.LocalVariableRef
+import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
 import com.google.common.io.MoreFiles
@@ -132,7 +132,7 @@ class SourceFileParserTest {
         val a = "class A { { int variable; variable++; } }"
         write("A.java", a)
         val entries = compileOne().entries
-        val lvr = entries.find { it.annotation is LocalVariableRef }!!.annotation
+        val lvr = entries.find { it.annotation is LocalVariableOrLabelRef }!!.annotation
         MatcherAssert.assertThat(
                 entries,
                 Matchers.hasItem(annotate(a, lvr, "variable"))
@@ -141,6 +141,18 @@ class SourceFileParserTest {
                 entries,
                 Matchers.hasItem(annotate(a, lvr, "variable", 1))
         )
+    }
+
+    @Test
+    fun label() {
+        val a = "class A { { lbl: { break lbl; } lbl: { break lbl; } } }"
+        write("A.java", a)
+        val entries = compileOne().entries
+        val (label1, _, label2, _) = entries.filter { it.annotation is LocalVariableOrLabelRef }.map { it.annotation }
+        MatcherAssert.assertThat(entries, Matchers.hasItem(annotate(a, label1, "lbl", 0)))
+        MatcherAssert.assertThat(entries, Matchers.hasItem(annotate(a, label1, "lbl", 1)))
+        MatcherAssert.assertThat(entries, Matchers.hasItem(annotate(a, label2, "lbl", 2)))
+        MatcherAssert.assertThat(entries, Matchers.hasItem(annotate(a, label2, "lbl", 3)))
     }
 
     @Test
@@ -1048,7 +1060,7 @@ class SourceFileParserTest {
                 entries,
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
-                    annotation is LocalVariableRef && it.start == 38 && it.length == 1
+                    annotation is LocalVariableOrLabelRef && it.start == 38 && it.length == 1
                 })
         )
     }
