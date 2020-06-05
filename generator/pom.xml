@@ -63,6 +63,16 @@
             <artifactId>kotlin-scripting-jvm-host-embeddable</artifactId>
             <version>${kotlin.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>8.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-util</artifactId>
+            <version>8.0.1</version>
+        </dependency>
 
         <dependency>
             <groupId>at.yawk.java-browser</groupId>

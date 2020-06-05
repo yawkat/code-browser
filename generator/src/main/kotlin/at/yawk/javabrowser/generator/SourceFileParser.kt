@@ -36,15 +36,20 @@ class SourceFileParser(
         val parser = ASTParser.newParser(AST.JLS10)
         parser.setCompilerOptions(mapOf(
                 JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
+                JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM to JavaCore.VERSION_10,
                 JavaCore.CORE_ENCODING to "UTF-8",
-                JavaCore.COMPILER_DOC_COMMENT_SUPPORT to JavaCore.ENABLED
+                JavaCore.COMPILER_DOC_COMMENT_SUPPORT to JavaCore.ENABLED,
+                JavaCore.COMPILER_LOCAL_VARIABLE_ATTR to JavaCore.GENERATE,
+                JavaCore.COMPILER_LINE_NUMBER_ATTR to JavaCore.GENERATE,
+                JavaCore.COMPILER_CODEGEN_METHOD_PARAMETERS_ATTR to JavaCore.GENERATE
         ))
         parser.setResolveBindings(true)
         parser.setKind(ASTParser.K_COMPILATION_UNIT)
         parser.setEnvironment(
                 dependencies.map { it.toString() }.toTypedArray(),
-                arrayOf(sourceRoot.toString()),
-                arrayOf("UTF-8"),
+                // source dir arrays. Attention: When these are set, the source bytecode is compiled *without* our
+                // compiler options.
+                emptyArray(), emptyArray(),
                 includeRunningVmBootclasspath)
 
 
