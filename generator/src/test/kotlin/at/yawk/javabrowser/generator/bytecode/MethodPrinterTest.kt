@@ -344,7 +344,7 @@ void x();
                         interestMethod = "x"
                 ),
                 """
-void x();
+<T extends java.util.List<? super java.lang.String>> void x();
   descriptor: ()V
   flags: (0x0000) 
   Code:
@@ -434,7 +434,7 @@ void x();
                         interestMethod = "x"
                 ),
                 """
-public abstract Map x();
+public abstract Map<? extends java.lang.String, java.lang.Object[]> x();
   descriptor: ()LMap;
   flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
   Signature: ()LMap<+Ljava/lang/String;[Ljava/lang/Object;>;
@@ -1082,6 +1082,33 @@ void x();
     LocalVariableTable:
       Start  End  Slot  Name  Signature
           0    1     0  this  LA;
+""".trimIndent()
+        )
+    }
+
+    @Test
+    fun `generic type`() {
+        Assert.assertEquals(
+                getMethodOutput(
+                        """
+import java.util.List;
+interface A {
+    <E extends Exception> List<String> x(List<E> l, int i) throws E;
+}
+                        """,
+                        interestMethod = "x"
+                ),
+                """
+public abstract <E extends java.lang.Exception> java.util.List<java.lang.String> x(java.util.List<E>, int) throws E;
+  descriptor: (Ljava/util/List;I)Ljava/util/List;
+  flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+  Exceptions:
+    throws java.lang.Exception
+  Signature: <E:Ljava/lang/Exception;>(Ljava/util/List<TE;>;I)Ljava/util/List<Ljava/lang/String;>;^TE;
+  MethodParameters:
+    Name  Flags
+    l     
+    i     
 """.trimIndent()
         )
     }

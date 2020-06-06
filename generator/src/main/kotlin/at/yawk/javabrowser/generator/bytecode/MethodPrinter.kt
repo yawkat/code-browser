@@ -13,7 +13,6 @@ import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
 import org.objectweb.asm.TypePath
-import org.objectweb.asm.TypeReference
 import org.objectweb.asm.tree.AbstractInsnNode
 import org.objectweb.asm.tree.AnnotationNode
 import org.objectweb.asm.tree.LabelNode
@@ -95,13 +94,18 @@ class MethodPrinter private constructor(
         // abstract java.lang.String x(java.lang.String, java.lang.String);
         printer.indent(1)
         printer.printSourceModifiers(node.access, Flag.Target.METHOD, trailingSpace = true)
-        printer.appendJavaName(methodType.returnType)
-        printer.append(' ').append(node.name).append('(')
-        for ((i, argumentType) in methodType.argumentTypes.withIndex()) {
-            if (i != 0) printer.append(", ")
-            printer.appendJavaName(argumentType)
+        if (node.signature != null) {
+            printer.printMethodSignature(node.signature, node.access, node.name)
+        } else {
+            printer.appendJavaName(methodType.returnType)
+            printer.append(' ').append(node.name).append('(')
+            for ((i, argumentType) in methodType.argumentTypes.withIndex()) {
+                if (i != 0) printer.append(", ")
+                printer.appendJavaName(argumentType)
+            }
+            printer.append(")")
         }
-        printer.append(");\n")
+        printer.append(";\n")
 
         // descriptor: (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
         printer.indent(2)
@@ -125,6 +129,7 @@ class MethodPrinter private constructor(
                 if (i != 0) printer.append(", ")
                 printer.appendJavaName(Type.getObjectType(exception))
             }
+            printer.append('\n')
         }
 
         if (node.signature != null) {
