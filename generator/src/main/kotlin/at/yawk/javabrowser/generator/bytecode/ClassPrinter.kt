@@ -5,7 +5,6 @@ import org.objectweb.asm.Attribute
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.FieldVisitor
 import org.objectweb.asm.MethodVisitor
-import org.objectweb.asm.ModuleVisitor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.RecordComponentVisitor
 import org.objectweb.asm.Type
@@ -77,6 +76,11 @@ class ClassPrinter private constructor(
 
     override fun visitEnd() {
         super.visitEnd()
+
+        if (module != null) {
+            printModuleBody(printer, module)
+        }
+
         printer.append("}\n")
 
         if (this.signature != null) {
@@ -124,6 +128,10 @@ class ClassPrinter private constructor(
         printer.printAnnotations("RuntimeInvisibleAnnotations", invisibleAnnotations)
         printer.printTypeAnnotations("RuntimeVisibleTypeAnnotations", visibleTypeAnnotations)
         printer.printTypeAnnotations("RuntimeInvisibleTypeAnnotations", invisibleTypeAnnotations)
+
+        if (module != null) {
+            printModuleAttributes(printer, module)
+        }
     }
 
     private var firstMember = true
@@ -160,10 +168,6 @@ class ClassPrinter private constructor(
                 printField(printer, this)
             }
         }
-    }
-
-    override fun visitModule(name: String?, access: Int, version: String?): ModuleVisitor {
-        TODO()
     }
 
     override fun visitRecordComponent(name: String?, descriptor: String?, signature: String?): RecordComponentVisitor {

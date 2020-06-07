@@ -41,6 +41,6 @@ data class Flag(
     }
 
     enum class Target {
-        CLASS, FIELD, METHOD, PARAMETER, MODULE, REQUIRES
+        CLASS, FIELD, METHOD, PARAMETER, MODULE, REQUIRES, EXPORTS, OPENS
     }
 }

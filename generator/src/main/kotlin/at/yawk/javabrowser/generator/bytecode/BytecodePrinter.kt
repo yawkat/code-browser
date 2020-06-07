@@ -68,6 +68,12 @@ class BytecodePrinter {
         return this
     }
 
+    fun appendJavaPackageName(type: Type): BytecodePrinter {
+        require(type.sort != Type.METHOD)
+        text.append(type.className) // do not link - package name, not class name
+        return this
+    }
+
     fun appendGenericSignature(signature: String): BytecodePrinter {
         // TODO: link
         text.append(signature)
@@ -86,11 +92,12 @@ class BytecodePrinter {
         }
     }
 
-    tailrec fun indent(depth: Int) {
+    tailrec fun indent(depth: Int): BytecodePrinter {
         if (depth > 0) {
             text.append("  ")
-            indent(depth - 1)
+            return indent(depth - 1)
         }
+        return this
     }
 }
 
