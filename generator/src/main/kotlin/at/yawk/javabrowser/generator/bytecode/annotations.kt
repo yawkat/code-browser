@@ -98,10 +98,10 @@ fun BytecodePrinter.printAnnotations(name: String, list: List<AnnotationNode>?) 
 
 fun BytecodePrinter.printTypeAnnotations(
         name: String,
-        allNodes: List<TypeAnnotationNode>,
+        allNodes: List<TypeAnnotationNode>?,
         printLocalScope: (LocalVariableAnnotationNode) -> Unit = { throw UnsupportedOperationException() }
 ) {
-    if (allNodes.isEmpty()) {
+    if (allNodes.isNullOrEmpty()) {
         return
     }
 

@@ -73,7 +73,7 @@ class A {
                 """,
                 interestField = "i"
         ), """
-int i;
+final int i;
   descriptor: I
   flags: (0x0010) ACC_FINAL
   ConstantValue: 5

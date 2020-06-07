@@ -10,9 +10,11 @@ import org.intellij.lang.annotations.Language
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import java.nio.file.Files
+import java.nio.file.Path
 
 fun getOutput(
         @Language("java") code: String,
+        filter: (Path) -> Boolean = { true },
         visitor: (BytecodePrinter) -> ClassVisitor
 ): String {
     val output = BytecodePrinter()
@@ -34,7 +36,7 @@ fun getOutput(
             sourceFileParser.compile()
         }
         Files.newDirectoryStream(out).use { classes ->
-            for (cl in classes) {
+            for (cl in classes.filter(filter)) {
                 val classReader = ClassReader(Files.readAllBytes(cl))
                 classReader.accept(visitor(output), 0)
             }
