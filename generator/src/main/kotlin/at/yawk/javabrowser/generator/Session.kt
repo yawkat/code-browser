@@ -231,10 +231,9 @@ class Session(
 
             private fun addSourceFile0(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
                 conn.insert(
-                        "insert into sourceFiles (artifactId, path, json, text, annotations) values (?, ?, ?, ?, ?)",
+                        "insert into sourceFiles (artifactId, path, text, annotations) values (?, ?, ?, ?)",
                         artifactId,
                         path,
-                        objectMapper.writeValueAsBytes(sourceFile), // TODO: remove
                         sourceFile.text.toByteArray(Charsets.UTF_8),
                         objectMapper.writeValueAsBytes(sourceFile.entries)
                 )

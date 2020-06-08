@@ -21,7 +21,6 @@ create table if not exists sourceFiles
 (
     artifactId                  varchar references artifacts,
     path                        varchar  not null,
-    json                        bytea    not null, -- TODO: remove
     text                        bytea    not null,
     annotations                 bytea    not null,
     primary key (artifactId, path)
