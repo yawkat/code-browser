@@ -31,11 +31,11 @@ class BackPressureExecutor(backlog: Int) {
                 next()
             } catch (e: Throwable) {
                 log.error("Failure in executor task", e)
-                endFuture.completeExceptionally(e)
                 shutdown = true
                 while (true) {
                     queue.poll() ?: break
                 }
+                endFuture.completeExceptionally(e)
                 return
             }
         }

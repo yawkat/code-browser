@@ -5,29 +5,37 @@ import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.generator.Bindings
 import org.objectweb.asm.Attribute
-import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassReader
 import org.objectweb.asm.FieldVisitor
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.RecordComponentVisitor
 import org.objectweb.asm.Type
+import org.objectweb.asm.content
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
-
-private val Type.simpleName: String
-    get() = className.let { it.substring(it.lastIndexOf('.') + 1) }
+import java.nio.ByteOrder
 
 class ClassPrinter private constructor(
         private val printer: BytecodePrinter,
-        private val sourceFilePath: String
-
+        private val sourceFilePath: String,
+        private val classFile: ClassReader
 // we extend class node to make some stuff easier but we don't use it for fields or methods
 ) : ClassNode(Opcodes.ASM8) {
+    /**
+     * Special JDT-generated data
+     */
+    private val jdtInformation = JdtInformation()
+
     companion object {
-        fun visitor(
+        fun accept(
                 printer: BytecodePrinter,
-                sourceFilePath: String
-        ): ClassVisitor = ClassPrinter(printer, sourceFilePath)
+                sourceFilePath: String,
+                reader: ClassReader
+        ) {
+            val classPrinter = ClassPrinter(printer, sourceFilePath, reader)
+            reader.accept(classPrinter, 0)
+        }
     }
 
     override fun visit(version: Int,
@@ -50,16 +58,8 @@ class ClassPrinter private constructor(
                 (interfaces?.asList() ?: emptyList())
         printer.annotate(BindingDecl(
                 binding = binding,
-                description = BindingDecl.Description.Type(
-                        kind = when {
-                            // TODO
-                            isInterface -> BindingDecl.Description.Type.Kind.INTERFACE
-                            else -> BindingDecl.Description.Type.Kind.CLASS
-                        },
-                        binding = binding,
-                        simpleName = Type.getObjectType(name).simpleName
-                ),
-                modifiers = access,
+                description = typeDescription(Type.getObjectType(name)),
+                modifiers = asmAccessToSourceAnnotation(access),
                 parent = null,
                 superBindings = superTypeNames.map { Type.getObjectType(it) }.map {
                     BindingDecl.Super(name = it.simpleName, binding = Bindings.toStringClass(it))
@@ -183,6 +183,7 @@ class ClassPrinter private constructor(
                 printer = printer,
                 methodOwnerType = Type.getObjectType(this.name),
                 sourceFilePath = sourceFilePath,
+                jdtInformation = jdtInformation,
                 access = access,
                 name = name,
                 descriptor = descriptor,
@@ -201,7 +202,7 @@ class ClassPrinter private constructor(
         return object : FieldNode(Opcodes.ASM8, access, name, descriptor, signature, value) {
             override fun visitEnd() {
                 super.visitEnd()
-                printField(printer, this)
+                printField(printer, Type.getObjectType(this@ClassPrinter.name), this)
             }
         }
     }
@@ -211,8 +212,17 @@ class ClassPrinter private constructor(
     }
 
     override fun visitAttribute(attribute: Attribute) {
-        if (attribute.type != "MissingTypes" && attribute.type != "InconsistentHierarchy") {
-            throw UnsupportedOperationException(attribute.type)
+        when (attribute.type) {
+            "MissingTypes" -> {
+                val indices = attribute.content.order(ByteOrder.BIG_ENDIAN).asShortBuffer()
+                val buffer = CharArray(classFile.maxStringLength)
+                val numberMissingTypes = indices.get()
+                for (i in 0 until numberMissingTypes) {
+                    jdtInformation.missingTypes.add(classFile.readConst(indices.get().toInt(), buffer) as Type)
+                }
+            }
+            "InconsistentHierarchy" -> {}
+            else -> throw UnsupportedOperationException(attribute.type)
         }
     }
 }

@@ -81,6 +81,10 @@ object Bindings {
             builder.append(argumentType.className)
         }
         builder.append(')')
+        // need to include the return type or we'll get collisions
+        if (type.returnType != Type.VOID_TYPE) {
+            builder.append(type.returnType.className)
+        }
         return builder.toString()
     }
 }

@@ -12,8 +12,8 @@ class MethodPrinterTest {
     private fun getMethodOutput(
             @Language("java") code: String,
             interestMethod: String
-    ) = getOutput(code) { printer ->
-        object : ClassVisitor(Opcodes.ASM8) {
+    ) = getOutput(code) { printer, file ->
+        val visitor = object : ClassVisitor(Opcodes.ASM8) {
             override fun visitMethod(access: Int,
                                      name: String?,
                                      descriptor: String,
@@ -25,6 +25,7 @@ class MethodPrinterTest {
                             // technically not true...
                             methodOwnerType = Type.getType(String::class.java),
                             sourceFilePath = "Main.java",
+                            jdtInformation = JdtInformation(),
                             access = access,
                             name = name,
                             descriptor = descriptor,
@@ -35,6 +36,7 @@ class MethodPrinterTest {
                 return null
             }
         }
+        file.accept(visitor, 0)
     }
 
     @Test

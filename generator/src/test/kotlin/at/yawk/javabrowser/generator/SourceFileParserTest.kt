@@ -1079,6 +1079,20 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `bytecode missing type`() {
+        write("A.java", "interface A { X x(); }")
+        val entries = compile().getValue("A.class").entries
+        MatcherAssert.assertThat(
+                entries,
+                // expect no method binding for x
+                Matchers.not(Matchers.hasItem(matches<PositionedAnnotation> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl && annotation.binding.contains('x')
+                }))
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")

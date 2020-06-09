@@ -174,6 +174,8 @@ class Session(
                     conn.update("set search_path to data")
                 }
             }
+
+            log.info("Connection done")
         }
 
         private inner class PrinterImpl(val artifactId: String) : PrinterWithDependencies {

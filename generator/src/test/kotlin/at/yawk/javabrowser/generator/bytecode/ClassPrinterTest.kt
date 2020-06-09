@@ -10,8 +10,8 @@ class ClassPrinterTest {
     private fun getClassOutput(
             @Language("java") code: String,
             interestClass: String
-    ) = getOutput(code, filter = { it.endsWith("$interestClass.class") }) { printer ->
-        ClassPrinter.visitor(printer, "")
+    ) = getOutput(code, filter = { it.endsWith("$interestClass.class") }) { printer, file ->
+        ClassPrinter.accept(printer, "", file)
     }
 
     @Test

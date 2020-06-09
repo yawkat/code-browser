@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingDecl
 import org.objectweb.asm.Opcodes
 import java.util.EnumSet
 
@@ -43,4 +44,10 @@ data class Flag(
     enum class Target {
         CLASS, FIELD, METHOD, PARAMETER, MODULE, REQUIRES, EXPORTS, OPENS
     }
+}
+
+fun asmAccessToSourceAnnotation(asm: Int): Int {
+    var transformed = asm and 0xffff
+    if ((asm and Opcodes.ACC_DEPRECATED) != 0) transformed = transformed or BindingDecl.MODIFIER_DEPRECATED
+    return transformed
 }

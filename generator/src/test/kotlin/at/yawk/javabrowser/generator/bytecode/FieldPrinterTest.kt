@@ -4,6 +4,7 @@ import org.intellij.lang.annotations.Language
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.FieldVisitor
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
 import org.objectweb.asm.tree.FieldNode
 import org.testng.Assert
 import org.testng.annotations.Test
@@ -12,8 +13,19 @@ class FieldPrinterTest {
     private fun getFieldOutput(
             @Language("java") code: String,
             interestField: String
-    ) = getOutput(code) { printer ->
-        object : ClassVisitor(Opcodes.ASM8) {
+    ) = getOutput(code) { printer, file ->
+        val visitor = object : ClassVisitor(Opcodes.ASM8) {
+            lateinit var type: Type
+
+            override fun visit(version: Int,
+                               access: Int,
+                               name: String,
+                               signature: String?,
+                               superName: String?,
+                               interfaces: Array<out String>?) {
+                type = Type.getObjectType(name)
+            }
+
             override fun visitField(access: Int,
                                     name: String,
                                     descriptor: String,
@@ -24,11 +36,12 @@ class FieldPrinterTest {
                     override fun visitEnd() {
                         super.visitEnd()
 
-                        printField(printer, this)
+                        printField(printer, type, this)
                     }
                 }
             }
         }
+        file.accept(visitor, 0)
     }
 
     @Test

@@ -1,9 +1,11 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
+import at.yawk.javabrowser.generator.Bindings
 import com.google.common.hash.Hasher
 import com.google.common.hash.Hashing
 import org.objectweb.asm.AnnotationVisitor
@@ -27,18 +29,20 @@ import kotlin.math.max
 
 private const val MAX_INT_LENGTH = Int.MIN_VALUE.toString().length
 
-class MethodPrinter private constructor(
+internal class MethodPrinter private constructor(
         private val printer: BytecodePrinter,
         private val node: MethodNode,
 
         private val methodOwnerType: Type,
-        private val sourceFilePath: String
+        private val sourceFilePath: String,
+        private val jdtInformation: JdtInformation
 ) {
     companion object {
         fun visitor(
                 printer: BytecodePrinter,
                 methodOwnerType: Type,
                 sourceFilePath: String,
+                jdtInformation: JdtInformation,
 
                 access: Int,
                 name: String,
@@ -48,7 +52,7 @@ class MethodPrinter private constructor(
         ): MethodVisitor = object : MethodNode(Opcodes.ASM8, access, name, descriptor, signature, exceptions) {
             override fun visitEnd() {
                 super.visitEnd()
-                MethodPrinter(printer, this, methodOwnerType, sourceFilePath).print()
+                MethodPrinter(printer, this, methodOwnerType, sourceFilePath, jdtInformation).print()
             }
         }
     }
@@ -95,11 +99,36 @@ class MethodPrinter private constructor(
         // abstract java.lang.String x(java.lang.String, java.lang.String);
         printer.indent(1)
         printer.printSourceModifiers(node.access, Flag.Target.METHOD, trailingSpace = true)
+
+        // clinit and init are the only two methods where toStringMethod may collide
+        val decl = if (node.name == "<clinit>" || jdtInformation.isMissing(methodType)) null else BindingDecl(
+                binding = Bindings.toStringMethod(
+                        declaring = methodOwnerType,
+                        name = node.name,
+                        type = methodType
+                ),
+                superBindings = emptyList(),
+                parent = Bindings.toStringClass(methodOwnerType),
+                modifiers = asmAccessToSourceAnnotation(node.access),
+                description = BindingDecl.Description.Method(
+                        name = node.name,
+                        returnTypeBinding = typeDescription(methodType.returnType),
+                        parameterTypeBindings = methodType.argumentTypes.map { typeDescription(it) }
+                )
+        )
+
         if (node.signature != null) {
+            // TODO: annotate
             printer.printMethodSignature(node.signature, node.access, node.name)
         } else {
             printer.appendJavaName(methodType.returnType, BindingRefType.RETURN_TYPE)
-            printer.append(' ').append(node.name).append('(')
+            printer.append(' ')
+            if (decl == null) {
+                printer.append(node.name)
+            } else {
+                printer.annotate(decl) { printer.append(node.name) }
+            }
+            printer.append('(')
             for ((i, argumentType) in methodType.argumentTypes.withIndex()) {
                 if (i != 0) printer.append(", ")
                 printer.appendJavaName(argumentType, BindingRefType.PARAMETER_TYPE)

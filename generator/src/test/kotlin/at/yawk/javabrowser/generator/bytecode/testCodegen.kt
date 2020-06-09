@@ -9,14 +9,13 @@ import com.google.common.io.MoreFiles
 import kotlinx.coroutines.runBlocking
 import org.intellij.lang.annotations.Language
 import org.objectweb.asm.ClassReader
-import org.objectweb.asm.ClassVisitor
 import java.nio.file.Files
 import java.nio.file.Path
 
 fun getOutput(
         @Language("java") code: String,
         filter: (Path) -> Boolean = { true },
-        visitor: (BytecodePrinter) -> ClassVisitor
+        visitor: (BytecodePrinter, ClassReader) -> Unit
 ): String {
     val output = BytecodePrinter()
 
@@ -40,7 +39,7 @@ fun getOutput(
         Files.newDirectoryStream(out).use { classes ->
             for (cl in classes.filter(filter)) {
                 val classReader = ClassReader(Files.readAllBytes(cl))
-                classReader.accept(visitor(output), 0)
+                visitor(output, classReader)
             }
         }
     } finally {

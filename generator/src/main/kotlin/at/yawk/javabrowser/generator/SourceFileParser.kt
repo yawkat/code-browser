@@ -105,7 +105,7 @@ class SourceFileParser(
                     if (printBytecode) {
                         val bytecodePrinter = BytecodePrinter()
                         val reader = ClassReader(classFile.bytes)
-                        reader.accept(ClassPrinter.visitor(bytecodePrinter, sourceRelativePath), 0)
+                        ClassPrinter.accept(bytecodePrinter, sourceRelativePath, reader)
                         printer.addSourceFile(
                                 pathPrefix + classRelativePath,
                                 sourceFile = bytecodePrinter.finish(),
