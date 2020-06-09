@@ -30,6 +30,12 @@ class FullTextSearchResource @Inject constructor(
     override fun handleRequest(exchange: HttpServerExchange) {
         val query = exchange.queryParameters["query"]?.peekFirst()
                 ?: throw HttpException(StatusCodes.NOT_FOUND, "Query not given")
+        val realmName = exchange.queryParameters["realm"]?.peekFirst() ?: Realm.SOURCE.name
+        val realm = try {
+            Realm.valueOf(realmName)
+        } catch (e: IllegalArgumentException) {
+            throw HttpException(404, "Unknown realm")
+        }
         val searchArtifact = exchange.queryParameters["artifactId"]?.peekFirst()?.let {
             val parsed = artifactIndex.parse(it)
             if (parsed.remainingPath != null) throw HttpException(404, "No such artifact")
@@ -102,14 +108,16 @@ select sourceFiles.artifactId artifactId,
        text,
        annotations
 from $table sfl
-         left join sourceFiles on sfl.artifactId = sourceFiles.artifactId and sfl.sourceFile = sourceFiles.path
-where lexemes @@ cast(:query as tsquery) and (:searchArtifact is null or sfl.artifactId = :searchArtifact)
-group by sourceFiles.artifactId, sourceFiles.path
+         left join sourceFiles on sfl.realm = sourceFiles.realm and sfl.artifactId = sourceFiles.artifactId and sfl.sourceFile = sourceFiles.path
+where sfl.realm = :realm and lexemes @@ cast(:query as tsquery) and (:searchArtifact is null or sfl.artifactId = :searchArtifact)
+-- group by primary key
+group by sourceFiles.realm, sourceFiles.artifactId, sourceFiles.path
                     """
             )
                     // prepare immediately so that int arrays are transmitted as binary
                     .addStatementCustomizer(PrepareStatementImmediately)
                     .setFetchSize(50)
+                    .bind("realm", realm.id)
                     .bind("query", tsQuery.toString())
                     .bind("searchArtifact", searchArtifact?.id)
                     .map { _, r, _ ->
