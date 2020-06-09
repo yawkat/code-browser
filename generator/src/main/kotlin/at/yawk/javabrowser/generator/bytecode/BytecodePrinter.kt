@@ -16,7 +16,11 @@ class BytecodePrinter {
 
     internal fun finishString() = text.toString()
 
-    fun finish() = GeneratorSourceFile(finishString(), annotations)
+    fun finish(): GeneratorSourceFile {
+        val sourceFile = GeneratorSourceFile(finishString(), annotations)
+        sourceFile.bake()
+        return sourceFile
+    }
 
     fun annotate(start: Int, length: Int, annotation: SourceAnnotation) {
         annotations.add(PositionedAnnotation(start, length, annotation))
@@ -39,9 +43,13 @@ class BytecodePrinter {
 
     fun appendConstant(value: Any) {
         if (value is String) {
-            text.append('"').append(StringEscapeUtils.escapeJava(value)).append('"')
+            annotate(Style("string-literal")) {
+                text.append('"').append(StringEscapeUtils.escapeJava(value)).append('"')
+            }
         } else {
-            text.append(value)
+            annotate(Style("number-literal")) {
+                text.append(value)
+            }
         }
     }
 

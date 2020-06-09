@@ -83,7 +83,9 @@ internal class MethodPrinter private constructor(
                         .putInt(index)
                         .hash().asLong()
         ))
-        printer.annotate(annotation) { printer.append(index.toString().padStart(padStart)) }
+        printer.annotate(Style("number-literal")) {
+            printer.annotate(annotation) { printer.append(index.toString().padStart(padStart)) }
+        }
     }
 
     @Suppress("UnstableApiUsage")
@@ -274,9 +276,11 @@ internal class MethodPrinter private constructor(
         val annotation = getLocalVariableAnnotation(lv)
         printer.annotate(annotation) { printer.append(lv.index) }
         lv.name?.let { name ->
-            printer.append(" /* ")
-            printer.annotate(annotation) { printer.append(name) }
-            printer.append(" */")
+            printer.annotate(Style("comment")) {
+                printer.append(" /* ")
+                printer.annotate(annotation) { printer.append(name) }
+                printer.append(" */")
+            }
         }
     }
 
@@ -322,8 +326,10 @@ internal class MethodPrinter private constructor(
                     printer.indent(4)
                     printLabel(localVariable.start.label, padStart = 5)
                     printLabel(localVariable.end.label, padStart = 5)
-                    printer.append(localVariable.index.toString().padStart(6))
-                    printer.append(localVariable.name.padStart(maxLocalNameLength + 2))
+                    printer.annotate(getLocalVariableAnnotation(localVariable)) {
+                        printer.append(localVariable.index.toString().padStart(6))
+                        printer.append(localVariable.name.padStart(maxLocalNameLength + 2))
+                    }
                     printer.append("  ")
                     if (localVariable.signature != null) {
                         printer.appendGenericSignature(localVariable.signature)
@@ -404,8 +410,10 @@ internal class MethodPrinter private constructor(
         override fun visitLineNumber(line: Int, start: Label) {
             require(this.nextInstructionLabel == start)
             label()
-            printer.annotate(SourceLineRef(sourceFilePath, line)) {
-                printer.append(".line ").append(line).append('\n')
+            printer.annotate(Style("comment")) {
+                printer.annotate(SourceLineRef(sourceFilePath, line)) {
+                    printer.append(".line ").append(line).append('\n')
+                }
             }
         }
 
@@ -413,11 +421,13 @@ internal class MethodPrinter private constructor(
             printer.indent(4)
             printer.append(if (start) "start" else "end").append(" local ")
             printer.annotate(getLocalVariableAnnotation(variable)) { printer.append(variable.index) }
-            printer.append(" // ")
-                    .appendJavaName(Type.getType(variable.desc), BindingRefType.LOCAL_VARIABLE_TYPE, duplicate = true)
-                    .append(' ')
-            printer.annotate(getLocalVariableAnnotation(variable)) { printer.append(variable.name) }
-            printer.append('\n')
+            printer.annotate(Style("comment")) {
+                printer.append(" // ")
+                        .appendJavaName(Type.getType(variable.desc), BindingRefType.LOCAL_VARIABLE_TYPE, duplicate = true)
+                        .append(' ')
+                printer.annotate(getLocalVariableAnnotation(variable)) { printer.append(variable.name) }
+                printer.append('\n')
+            }
         }
 
         override fun visitAttribute(attribute: Attribute?) {
@@ -439,7 +449,9 @@ internal class MethodPrinter private constructor(
         private inline fun insn(opcode: Int, f: () -> Unit) {
             label()
             nextInstructionLabel = null
-            printer.append(getMnemonic(opcode))
+            printer.annotate(Style("")) {
+                printer.append(getMnemonic(opcode))
+            }
             f()
             printer.append('\n')
         }
