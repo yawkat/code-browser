@@ -32,7 +32,6 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     SUPER_CONSTRUCTOR_CALL(1, "Super constructor call"),
     SUPER_METHOD_CALL(2, "Super method call"),
     METHOD_CALL(3, "Method call"),
-    @Deprecated("Replaced by FIELD_READ and FIELD_WRITE") FIELD_ACCESS(4, "Field access"),
     FIELD_READ(27, "Field read"),
     FIELD_WRITE(28, "Field write"),
     FIELD_READ_WRITE(29, "Field read+write"),
@@ -59,7 +58,17 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     THIS_REFERENCE_QUALIFIER(23, "this reference qualifier"),
     SUPER_REFERENCE_QUALIFIER(24, "super reference qualifier"),
     ANNOTATION_MEMBER_VALUE(25, "Annotation member value"),
-    PACKAGE_DECLARATION(31, "Package declaration");
+    PACKAGE_DECLARATION(31, "Package declaration"),
+    MEMBER_REFERENCE_QUALIFIER(32, "Type qualifier for member reference"),
+    ENCLOSING_METHOD(33, "Enclosing method"),
+    NEST_MEMBER(34, "Nest member"),
+    NEST_HOST(35, "Nest host"),
+    INNER_CLASS(36, "Inner class"),
+    INDY_TYPE(37, "invokedynamic type"),
+    INDY_BOOTSTRAP(38, "invokedynamic bootstrap method"),
+    MAIN_CLASS(39, "Main class"),
+    SPI_PROVIDER(40, "SPI provider"),
+    ;
 
     companion object {
         private val byId: List<BindingRefType?>

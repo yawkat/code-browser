@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
@@ -97,11 +98,11 @@ class MethodPrinter private constructor(
         if (node.signature != null) {
             printer.printMethodSignature(node.signature, node.access, node.name)
         } else {
-            printer.appendJavaName(methodType.returnType)
+            printer.appendJavaName(methodType.returnType, BindingRefType.RETURN_TYPE)
             printer.append(' ').append(node.name).append('(')
             for ((i, argumentType) in methodType.argumentTypes.withIndex()) {
                 if (i != 0) printer.append(", ")
-                printer.appendJavaName(argumentType)
+                printer.appendJavaName(argumentType, BindingRefType.PARAMETER_TYPE)
             }
             printer.append(")")
         }
@@ -110,7 +111,9 @@ class MethodPrinter private constructor(
         // descriptor: (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
         printer.indent(2)
         printer.append("descriptor: ")
-        printer.appendDescriptor(methodType)
+        printer.appendMethodDescriptor(
+                methodType,
+                paramRefType = BindingRefType.PARAMETER_TYPE, returnRefType = BindingRefType.RETURN_TYPE, duplicate = true)
         printer.append('\n')
 
         printer.indent(2)
@@ -127,7 +130,7 @@ class MethodPrinter private constructor(
             printer.annotate(Style("keyword")) { printer.append("throws ") }
             for ((i, exception) in node.exceptions.withIndex()) {
                 if (i != 0) printer.append(", ")
-                printer.appendJavaName(Type.getObjectType(exception))
+                printer.appendJavaName(Type.getObjectType(exception), BindingRefType.THROWS_DECLARATION)
             }
             printer.append('\n')
         }
@@ -176,12 +179,12 @@ class MethodPrinter private constructor(
             printer.indent(2)
             printer.append("MethodParameters:\n")
             // for table padding
-            val maxParamNameLength = max(parameters.map { it.name.length }.max()!!, 4)
+            val maxParamNameLength = max(parameters.map { it.name?.length ?: 0 }.max()!!, 4)
             printer.indent(3)
             printer.append("Name".padStart(maxParamNameLength)).append("  Flags\n")
             for (parameter in parameters) {
                 printer.indent(3)
-                printer.append(parameter.name.padEnd(maxParamNameLength))
+                printer.append((parameter.name ?: "").padEnd(maxParamNameLength))
                 printer.append("  ")
                 printer.printSourceModifiers(parameter.access, Flag.Target.PARAMETER, trailingSpace = false)
                 printer.append('\n')
@@ -293,7 +296,11 @@ class MethodPrinter private constructor(
                     printer.append(localVariable.index.toString().padStart(6))
                     printer.append(localVariable.name.padStart(maxLocalNameLength + 2))
                     printer.append("  ")
-                    printer.appendDescriptor(Type.getType(localVariable.signature ?: localVariable.desc))
+                    if (localVariable.signature != null) {
+                        printer.appendGenericSignature(localVariable.signature)
+                    } else {
+                        printer.appendDescriptor(Type.getType(localVariable.desc), BindingRefType.LOCAL_VARIABLE_TYPE)
+                    }
                     printer.append('\n')
                 }
             }
@@ -316,7 +323,10 @@ class MethodPrinter private constructor(
                     if (type == null) {
                         printer.append("any")
                     } else {
-                        printer.append("Class ").appendJavaName(Type.getObjectType(type))
+                        printer.append("Class ").appendJavaName(
+                                Type.getObjectType(type),
+                                // this might be a duplicate of a local var or it might not be. whatever
+                                BindingRefType.LOCAL_VARIABLE_TYPE)
                     }
                     printer.append('\n')
                 }
@@ -325,12 +335,12 @@ class MethodPrinter private constructor(
 
         private fun printSlotType(type: Any) {
             when (type) {
-                is String -> printer.appendJavaName(Type.getObjectType(type))
+                is String -> printer.appendJavaName(Type.getObjectType(type), BindingRefType.LOCAL_VARIABLE_TYPE)
                 is Label -> {
                     printer.append("new ")
                     printLabel(type)
                 }
-                Opcodes.TOP -> throw UnsupportedOperationException("TOP")
+                Opcodes.TOP -> printer.append("top")
                 Opcodes.INTEGER -> printer.append("int")
                 Opcodes.FLOAT -> printer.append("float")
                 Opcodes.LONG -> printer.append("long")
@@ -374,7 +384,9 @@ class MethodPrinter private constructor(
             printer.indent(4)
             printer.append(if (start) "start" else "end").append(" local ")
             printer.annotate(getLocalVariableAnnotation(variable)) { printer.append(variable.index) }
-            printer.append(" // ").appendJavaName(Type.getType(variable.desc)).append(' ')
+            printer.append(" // ")
+                    .appendJavaName(Type.getType(variable.desc), BindingRefType.LOCAL_VARIABLE_TYPE, duplicate = true)
+                    .append(' ')
             printer.annotate(getLocalVariableAnnotation(variable)) { printer.append(variable.name) }
             printer.append('\n')
         }
@@ -405,7 +417,8 @@ class MethodPrinter private constructor(
 
         override fun visitMultiANewArrayInsn(descriptor: String, numDimensions: Int) =
                 insn(Opcodes.MULTIANEWARRAY) {
-                    printer.append(' ').appendDescriptor(Type.getType(descriptor))
+                    // TYPE_PARAMETER is the ref type used in the source files for arrays too
+                    printer.append(' ').appendDescriptor(Type.getType(descriptor), BindingRefType.TYPE_PARAMETER)
                     printer.append(' ').append(numDimensions)
                 }
 
@@ -464,7 +477,13 @@ class MethodPrinter private constructor(
         }
 
         override fun visitTypeInsn(opcode: Int, type: String) = insn(opcode) {
-            printer.append(' ').appendJavaName(Type.getObjectType(type))
+            printer.append(' ').appendJavaName(Type.getObjectType(type), when (opcode) {
+                Opcodes.NEW -> BindingRefType.CONSTRUCTOR_CALL
+                Opcodes.ANEWARRAY -> BindingRefType.TYPE_PARAMETER
+                Opcodes.INSTANCEOF -> BindingRefType.INSTANCE_OF
+                Opcodes.CHECKCAST -> BindingRefType.CAST
+                else -> throw AssertionError()
+            })
         }
 
         override fun visitInvokeDynamicInsn(name: String,
@@ -473,7 +492,8 @@ class MethodPrinter private constructor(
                                             bootstrapMethodArguments: Array<Any>) = insn(Opcodes.INVOKEDYNAMIC) {
             // The semantics of this name and type depend on the invoked bootstrap method. We can't say generally that
             // the two refer to anything special, so we can't link to anything better than the descriptor here.
-            printer.append(' ').append(name).appendDescriptor(Type.getMethodType(descriptor)).append('\n')
+            printer.append(' ').append(name).appendDescriptor(Type.getMethodType(descriptor), BindingRefType.INDY_TYPE)
+                    .append('\n')
             val tag = when (bootstrapMethodHandle.tag) {
                 Opcodes.H_GETFIELD -> "getfield"
                 Opcodes.H_GETSTATIC -> "getstatic"
@@ -491,7 +511,8 @@ class MethodPrinter private constructor(
                     .appendMember(
                             Type.getObjectType(bootstrapMethodHandle.owner),
                             bootstrapMethodHandle.name,
-                            Type.getType(bootstrapMethodHandle.desc)
+                            Type.getType(bootstrapMethodHandle.desc),
+                            BindingRefType.INDY_BOOTSTRAP
                     )
                     .append('\n')
             printer.indent(8)
@@ -524,7 +545,8 @@ class MethodPrinter private constructor(
                                      name: String,
                                      descriptor: String,
                                      isInterface: Boolean) = insn(opcode) {
-            printer.append(' ').appendMember(Type.getObjectType(owner), name, Type.getType(descriptor))
+            printer.append(' ')
+                    .appendMember(Type.getObjectType(owner), name, Type.getType(descriptor), BindingRefType.METHOD_CALL)
         }
 
         override fun visitInsn(opcode: Int) = insn(opcode) {}
@@ -547,7 +569,11 @@ class MethodPrinter private constructor(
         }
 
         override fun visitFieldInsn(opcode: Int, owner: String, name: String, descriptor: String) = insn(opcode) {
-            printer.append(' ').appendMember(Type.getObjectType(owner), name, Type.getType(descriptor))
+            printer.append(' ').appendMember(Type.getObjectType(owner), name, Type.getType(descriptor), when (opcode) {
+                Opcodes.GETSTATIC, Opcodes.GETFIELD -> BindingRefType.FIELD_READ
+                Opcodes.PUTSTATIC, Opcodes.PUTFIELD -> BindingRefType.FIELD_WRITE
+                else -> throw AssertionError()
+            })
         }
 
         /**

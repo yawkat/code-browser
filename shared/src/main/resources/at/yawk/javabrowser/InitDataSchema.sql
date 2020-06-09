@@ -19,22 +19,29 @@ alter table artifacts
 
 create table if not exists sourceFiles
 (
+    realm                       smallint not null,
     artifactId                  varchar references artifacts,
     path                        varchar  not null,
     text                        bytea    not null,
     annotations                 bytea    not null,
-    primary key (artifactId, path)
-);
+    primary key (realm, artifactId, path)
+)
+partition by list (realm);
+
+create table if not exists _sourceFiles0 partition of sourceFiles for values in (0);
+create table if not exists _sourceFiles1 partition of sourceFiles for values in (1);
 
 -- own table because for large source files there may be multiple of these (tsvector is limited to 16k positions)
+-- todo: partition by realm
 create table if not exists sourceFileLexemesBase
 (
+    realm           smallint not null,
     artifactId      varchar  not null,
     sourceFile      varchar  not null,
     lexemes         tsvector not null,
     starts          int4[]   not null,
     lengths         int4[]   not null,
-    foreign key (artifactId, sourceFile) references sourceFiles
+    foreign key (realm, artifactId, sourceFile) references sourceFiles
 );
 
 -- separate tables for the separate indices
@@ -45,6 +52,7 @@ create table if not exists sourceFileLexemesNoSymbols () inherits (sourceFileLex
 
 create table if not exists bindings
 (
+    realm       smallint not null,
     artifactId  varchar references artifacts,
     binding     varchar not null,
     description bytea   null, -- json
@@ -52,15 +60,20 @@ create table if not exists bindings
     sourceFile  varchar not null,
     isType      bool    not null,
     modifiers   int4    not null, -- at.yawk.javabrowser.BindingDecl#modifiers
-    primary key (artifactId, binding),
-    foreign key (artifactId, sourceFile) references sourceFiles,
-    foreign key (artifactId, parent) references bindings
-);
+    primary key (realm, artifactId, binding),
+    foreign key (realm, artifactId, sourceFile) references sourceFiles,
+    foreign key (realm, artifactId, parent) references bindings
+)
+partition by list (realm);
+
+create table if not exists _bindings0 partition of bindings for values in (0);
+create table if not exists _bindings1 partition of bindings for values in (1);
 
 -- BINDING REFERENCES
 
 create table if not exists binding_references
 (
+    realm            smallint not null,
     targetBinding    varchar not null,
     type             int     not null,
     sourceArtifactId varchar not null,
@@ -68,9 +81,13 @@ create table if not exists binding_references
     sourceFileLine   int     not null,
     sourceFileId     int     not null,
 
-    foreign key (sourceArtifactId, sourceFile) references sourceFiles,
-    primary key (sourceArtifactId, sourceFile, sourceFileId)
-);
+    foreign key (realm, sourceArtifactId, sourceFile) references sourceFiles,
+    primary key (realm, sourceArtifactId, sourceFile, sourceFileId)
+)
+partition by list (realm);
+
+create table if not exists _binding_references0 partition of binding_references for values in (0);
+create table if not exists _binding_references1 partition of binding_references for values in (1);
 
 -- DEPENDENCIES
 
@@ -95,9 +112,9 @@ create table if not exists artifactAliases
 -- BINDING REFERENCE COUNTS
 
 create materialized view if not exists binding_references_count_view as
-select targetBinding, type, sourceArtifactId, count(*) as count
+select realm, targetBinding, type, sourceArtifactId, count(*) as count
 from binding_references
-group by (targetBinding, type, sourceArtifactId);
+group by (realm, targetBinding, type, sourceArtifactId);
 
 -- PACKAGES
 
@@ -133,7 +150,7 @@ order by artifactId, name;
 -- The package column may be NULL to denote the "top-level" package.
 create materialized view if not exists type_count_by_depth_view as
 with types_and_packages (artifactId, name) as (
-    select artifactId, binding as name from bindings where parent is null
+    select artifactId, binding as name from bindings where parent is null and realm = 0
     union distinct
     select artifactId, name from packages_view
 )

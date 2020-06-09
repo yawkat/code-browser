@@ -1,16 +1,22 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingRef
+import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
+import at.yawk.javabrowser.generator.GeneratorSourceFile
 import org.apache.commons.lang3.StringEscapeUtils
-import org.objectweb.asm.Type
 
 class BytecodePrinter {
     private val annotations: MutableList<PositionedAnnotation> = ArrayList()
     private val text = StringBuilder()
 
+    private var runningRefCounter = 0
+
     internal fun finishString() = text.toString()
+
+    fun finish() = GeneratorSourceFile(finishString(), annotations)
 
     fun annotate(start: Int, length: Int, annotation: SourceAnnotation) {
         annotations.add(PositionedAnnotation(start, length, annotation))
@@ -39,48 +45,9 @@ class BytecodePrinter {
         }
     }
 
-    fun appendDescriptor(type: Type): BytecodePrinter {
-        text.append(type.descriptor) // TODO: link
-        return this
-    }
-
-    /**
-     * Append a field or method reference.
-     *
-     * @param type The type of this member. [Type.METHOD] for methods, any other for fields.
-     */
-    fun appendMember(owner: Type, name: String, type: Type): BytecodePrinter {
-        appendJavaName(owner)
-        append('.').append(name) // TODO: link
-        append(':').appendDescriptor(type)
-        return this
-    }
-
-    fun appendInternalName(type: Type): BytecodePrinter {
-        require(type.sort == Type.OBJECT || type.sort == Type.ARRAY)
-        text.append(type.internalName) // TODO: link
-        return this
-    }
-
-    fun appendJavaName(type: Type): BytecodePrinter {
-        require(type.sort != Type.METHOD)
-        text.append(type.className) // TODO: link
-        return this
-    }
-
-    fun appendJavaPackageName(type: Type): BytecodePrinter {
-        require(type.sort != Type.METHOD)
-        text.append(type.className) // do not link - package name, not class name
-        return this
-    }
-
-    fun appendGenericSignature(signature: String): BytecodePrinter {
-        // TODO: link
-        text.append(signature)
-        return this
-    }
-
     fun position() = text.length
+
+    fun createBindingRef(type: BindingRefType, target: String) = BindingRef(type, target, runningRefCounter++)
 
     inline fun annotate(annotation: SourceAnnotation, ignoreEmpty: Boolean = true, f: () -> Unit) {
         val start = position()
@@ -120,12 +87,14 @@ fun BytecodePrinter.printSourceModifiers(access: Int, target: Flag.Target, trail
 }
 
 fun BytecodePrinter.printFlags(access: Int, target: Flag.Target) {
+    val bytecodeAccess = access and 0xffff // mask asm-specific flags (deprecated, record)
+
     // flags: (0x0420) ACC_SUPER, ACC_ABSTRACT
-    append("flags: (0x").append(String.format("%04x", access)).append(") ")
+    append("flags: (0x").append(String.format("%04x", bytecodeAccess)).append(") ")
     var accessFound = 0
     var first = true
     for (flag in Flag.FLAGS) {
-        if (target in flag.targets && (flag.opcode and access) != 0) {
+        if (target in flag.targets && (flag.opcode and bytecodeAccess) != 0) {
             if (!first) append(", ")
             first = false
             append(flag.id)
@@ -133,7 +102,7 @@ fun BytecodePrinter.printFlags(access: Int, target: Flag.Target) {
         }
     }
     append('\n')
-    if (accessFound != access) {
-        throw AssertionError("Invalid or unknown access modifier in ${access.toString(16)} for $target")
+    if (accessFound != bytecodeAccess) {
+        throw AssertionError("Invalid or unknown access modifier in ${bytecodeAccess.toString(16)} for $target")
     }
 }

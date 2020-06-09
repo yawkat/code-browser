@@ -31,6 +31,7 @@ internal suspend fun compile(
     parser.pathPrefix = pathPrefix
     parser.dependencies = dependencies
     parser.artifactId = artifactId
+    parser.printBytecode = true
     parser.compile()
 }
 

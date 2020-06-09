@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.generator.GeneratorSourceFile
 import at.yawk.javabrowser.generator.Printer
@@ -28,7 +29,8 @@ fun getOutput(
         val sourceFileParser = SourceFileParser(tmp, object : Printer {
             override fun addSourceFile(path: String,
                                        sourceFile: GeneratorSourceFile,
-                                       tokens: List<Tokenizer.Token>) {
+                                       tokens: List<Tokenizer.Token>,
+                                       realm: Realm) {
             }
         })
         sourceFileParser.outputClassesTo = out

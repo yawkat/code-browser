@@ -1,6 +1,9 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.Style
+import at.yawk.javabrowser.generator.Bindings
 import org.objectweb.asm.Attribute
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.FieldVisitor
@@ -10,6 +13,9 @@ import org.objectweb.asm.RecordComponentVisitor
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
+
+private val Type.simpleName: String
+    get() = className.let { it.substring(it.lastIndexOf('.') + 1) }
 
 class ClassPrinter private constructor(
         private val printer: BytecodePrinter,
@@ -38,7 +44,30 @@ class ClassPrinter private constructor(
                 if (isInterface) access and Opcodes.ACC_ABSTRACT.inv() else access,
                 Flag.Target.CLASS, trailingSpace = true)
         printer.append(if (isInterface) "interface " else "class ")
-        printer.appendJavaName(Type.getObjectType(name))
+
+        val binding = Bindings.toStringClass(Type.getObjectType(name))
+        val superTypeNames = (if (superName == null) emptyList() else listOf(superName)) +
+                (interfaces?.asList() ?: emptyList())
+        printer.annotate(BindingDecl(
+                binding = binding,
+                description = BindingDecl.Description.Type(
+                        kind = when {
+                            // TODO
+                            isInterface -> BindingDecl.Description.Type.Kind.INTERFACE
+                            else -> BindingDecl.Description.Type.Kind.CLASS
+                        },
+                        binding = binding,
+                        simpleName = Type.getObjectType(name).simpleName
+                ),
+                modifiers = access,
+                parent = null,
+                superBindings = superTypeNames.map { Type.getObjectType(it) }.map {
+                    BindingDecl.Super(name = it.simpleName, binding = Bindings.toStringClass(it))
+                }
+        )) {
+            printer.append(Type.getObjectType(name).className)
+        }
+
         if (signature != null) {
             printer.printJavaSignature(signature, access = access, isTypeSignature = false)
             printer.append('\n')
@@ -46,7 +75,7 @@ class ClassPrinter private constructor(
             if (superName != null && superName != "java/lang/Object") {
                 printer.append(' ')
                 printer.annotate(Style("keyword")) { printer.append("extends") }
-                printer.append(' ').appendJavaName(Type.getObjectType(superName))
+                printer.append(' ').appendJavaName(Type.getObjectType(superName), BindingRefType.SUPER_TYPE)
             }
             if (!interfaces.isNullOrEmpty()) {
                 printer.append(' ')
@@ -54,7 +83,7 @@ class ClassPrinter private constructor(
                 printer.append(' ')
                 for ((i, itf) in interfaces.withIndex()) {
                     if (i != 0) printer.append(", ")
-                    printer.appendJavaName(Type.getObjectType(itf))
+                    printer.appendJavaName(Type.getObjectType(itf), BindingRefType.SUPER_TYPE)
                 }
             }
             printer.append('\n')
@@ -66,10 +95,14 @@ class ClassPrinter private constructor(
         printer.indent(1)
         printer.append("flags: ").printFlags(access, Flag.Target.CLASS)
         printer.indent(1)
-        printer.append("this_class: ").appendJavaName(Type.getObjectType(name)).append('\n')
+        printer.append("this_class: ")
+                .appendJavaName(Type.getObjectType(name), refType = BindingRefType.UNCLASSIFIED, duplicate = true)
+                .append('\n')
         if (superName != null) {
             printer.indent(1)
-            printer.append("super_class: ").appendJavaName(Type.getObjectType(superName)).append('\n')
+            printer.append("super_class: ")
+                    .appendJavaName(Type.getObjectType(superName), refType = BindingRefType.SUPER_TYPE, duplicate = true)
+                    .append('\n')
         }
         printer.append("{\n")
     }
@@ -92,22 +125,24 @@ class ClassPrinter private constructor(
         }
         if (this.outerMethod != null) {
             printer.append("EnclosingMethod: ")
-                    .appendMember(Type.getObjectType(this.outerClass), this.outerMethod, Type.getMethodType(this.outerMethodDesc))
+                    .appendMember(Type.getObjectType(this.outerClass), this.outerMethod, Type.getMethodType(this.outerMethodDesc), refType = BindingRefType.ENCLOSING_METHOD)
                     .append('\n')
         } else if (this.outerClass != null) {
             printer.append("EnclosingMethod: ")
-                    .appendJavaName(Type.getObjectType(this.outerClass))
+                    .appendJavaName(Type.getObjectType(this.outerClass), BindingRefType.ENCLOSING_METHOD)
                     .append('\n')
         }
         if (!this.nestMembers.isNullOrEmpty()) {
             printer.append("NestMembers:\n")
             for (nestMember in this.nestMembers) {
                 printer.indent(1)
-                printer.appendJavaName(Type.getObjectType(nestMember))
+                printer.appendJavaName(Type.getObjectType(nestMember), BindingRefType.NEST_MEMBER)
             }
         }
         if (this.nestHostClass != null) {
-            printer.append("NestHost: ").appendJavaName(Type.getObjectType(this.nestHostClass)).append('\n')
+            printer.append("NestHost: ")
+                    .appendJavaName(Type.getObjectType(this.nestHostClass), BindingRefType.NEST_HOST)
+                    .append('\n')
         }
         if (!this.innerClasses.isNullOrEmpty()) {
             printer.append("InnerClasses:\n")
@@ -117,9 +152,10 @@ class ClassPrinter private constructor(
                 if (innerClass.innerName != null) {
                     printer.append(innerClass.innerName).append(" = ")
                 }
-                printer.appendJavaName(Type.getObjectType(innerClass.name))
+                printer.appendJavaName(Type.getObjectType(innerClass.name), BindingRefType.INNER_CLASS)
                 if (innerClass.outerName != null) {
-                    printer.append(" of ").appendJavaName(Type.getObjectType(innerClass.outerName))
+                    printer.append(" of ")
+                            .appendJavaName(Type.getObjectType(innerClass.outerName), BindingRefType.INNER_CLASS)
                 }
                 printer.append('\n')
             }
@@ -174,7 +210,9 @@ class ClassPrinter private constructor(
         throw UnsupportedOperationException()
     }
 
-    override fun visitAttribute(attribute: Attribute?) {
-        throw UnsupportedOperationException()
+    override fun visitAttribute(attribute: Attribute) {
+        if (attribute.type != "MissingTypes" && attribute.type != "InconsistentHierarchy") {
+            throw UnsupportedOperationException(attribute.type)
+        }
     }
 }

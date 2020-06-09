@@ -89,6 +89,7 @@ suspend fun compileJdk(
                 parser.dependencies = moduleDeps.map { binaryRoot(it) }
                 parser.outputClassesTo = binaryRoot(module)
                 parser.artifactId = "$artifactId/$module"
+                parser.printBytecode = true
                 parser.compile()
             }
         } else {

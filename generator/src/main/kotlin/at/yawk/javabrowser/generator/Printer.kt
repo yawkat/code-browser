@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator
 
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 
 /**
@@ -9,12 +10,13 @@ interface Printer {
     val concurrencyControl: ParserConcurrencyControl
         get() = ParserConcurrencyControl.NoLimit
 
-    fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>)
+    fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>, realm: Realm)
 
     class SimplePrinter : Printer {
         val sourceFiles: MutableMap<String, GeneratorSourceFile> = HashMap()
 
-        override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
+        override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>,
+                                   realm: Realm) {
             sourceFiles[path] = sourceFile
         }
     }

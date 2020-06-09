@@ -1,6 +1,9 @@
 package at.yawk.javabrowser.generator
 
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
+import at.yawk.javabrowser.generator.bytecode.BytecodePrinter
+import at.yawk.javabrowser.generator.bytecode.ClassPrinter
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTNode
@@ -8,6 +11,7 @@ import org.eclipse.jdt.core.dom.ASTParser
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.FileASTRequestor
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
+import org.objectweb.asm.ClassReader
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -31,6 +35,7 @@ class SourceFileParser(
      * For logging
      */
     var artifactId: String? = null
+    var printBytecode: Boolean = false
 
     suspend fun compile() {
         val parser = ASTParser.newParser(AST.JLS10)
@@ -81,21 +86,35 @@ class SourceFileParser(
         }
 
         private fun accept0(sourceFilePath: String, ast: CompilationUnit) {
+            val sourceRelativePath = pathPrefix + sourceRoot.relativize(Paths.get(sourceFilePath))
+
             val outputClassesTo = outputClassesTo
-            if (outputClassesTo != null) {
+            if (outputClassesTo != null || printBytecode) {
                 val internalDeclaration = unsafeGetInternalNode(ast) as CompilationUnitDeclaration
                 for (classFile in internalDeclaration.compilationResult.classFiles) {
-                    val target = outputClassesTo.resolve(String(classFile.fileName()) + ".class").normalize()
-                    if (!target.startsWith(outputClassesTo)) throw AssertionError("Bad class file name")
-                    try {
-                        Files.createDirectories(target.parent)
-                    } catch (ignored: FileAlreadyExistsException) {
+                    val classRelativePath = String(classFile.fileName()) + ".class"
+                    if (outputClassesTo != null) {
+                        val target = outputClassesTo.resolve(classRelativePath).normalize()
+                        if (!target.startsWith(outputClassesTo)) throw AssertionError("Bad class file name")
+                        try {
+                            Files.createDirectories(target.parent)
+                        } catch (ignored: FileAlreadyExistsException) {
+                        }
+                        Files.write(target, classFile.bytes)
                     }
-                    Files.write(target, classFile.bytes)
+                    if (printBytecode) {
+                        val bytecodePrinter = BytecodePrinter()
+                        val reader = ClassReader(classFile.bytes)
+                        reader.accept(ClassPrinter.visitor(bytecodePrinter, sourceRelativePath), 0)
+                        printer.addSourceFile(
+                                pathPrefix + classRelativePath,
+                                sourceFile = bytecodePrinter.finish(),
+                                tokens = emptyList(), // TODO
+                                realm = Realm.BYTECODE
+                        )
+                    }
                 }
             }
-
-            val relativePath = pathPrefix + sourceRoot.relativize(Paths.get(sourceFilePath))
 
             val text = Files.readAllBytes(Paths.get(sourceFilePath)).toString(Charsets.UTF_8)
             val annotatedSourceFile = GeneratorSourceFile(text)
@@ -123,7 +142,7 @@ class SourceFileParser(
 
             val tokens = Tokenizer.tokenize(text).toList()
 
-            printer.addSourceFile(relativePath, annotatedSourceFile, tokens)
+            printer.addSourceFile(sourceRelativePath, annotatedSourceFile, tokens, Realm.SOURCE)
         }
     }
 }

@@ -2,6 +2,7 @@ package at.yawk.javabrowser.generator.artifact
 
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.generator.ArtifactConfig
 import at.yawk.javabrowser.generator.GeneratorSourceFile
@@ -34,7 +35,8 @@ class CompilerTest {
 
                         override fun addSourceFile(path: String,
                                                    sourceFile: GeneratorSourceFile,
-                                                   tokens: List<Tokenizer.Token>) {
+                                                   tokens: List<Tokenizer.Token>,
+                                                   realm: Realm) {
                             sourceFileCount.increment()
                         }
                     },
@@ -63,7 +65,8 @@ class CompilerTest {
 
                         override fun addSourceFile(path: String,
                                                    sourceFile: GeneratorSourceFile,
-                                                   tokens: List<Tokenizer.Token>) {
+                                                   tokens: List<Tokenizer.Token>,
+                                                   realm: Realm) {
                             sourceFileCount.increment()
                         }
                     },
@@ -141,7 +144,8 @@ class CompilerTest {
 
                         override fun addSourceFile(path: String,
                                                    sourceFile: GeneratorSourceFile,
-                                                   tokens: List<Tokenizer.Token>) {
+                                                   tokens: List<Tokenizer.Token>,
+                                                   realm: Realm) {
                             if (path == "android/bluetooth/BluetoothDevice.java") {
                                 val single = sourceFile.entries
                                         .map { it.annotation }
@@ -177,7 +181,8 @@ class CompilerTest {
                     object : Printer {
                         override fun addSourceFile(path: String,
                                                    sourceFile: GeneratorSourceFile,
-                                                   tokens: List<Tokenizer.Token>) {
+                                                   tokens: List<Tokenizer.Token>,
+                                                   realm: Realm) {
                         }
                     },
                     "x",
@@ -198,7 +203,8 @@ class CompilerTest {
                     object : Printer {
                         override fun addSourceFile(path: String,
                                                    sourceFile: GeneratorSourceFile,
-                                                   tokens: List<Tokenizer.Token>) {
+                                                   tokens: List<Tokenizer.Token>,
+                                                   realm: Realm) {
                             any = true
                         }
                     },
@@ -228,7 +234,8 @@ class CompilerTest {
 
                         override fun addSourceFile(path: String,
                                                    sourceFile: GeneratorSourceFile,
-                                                   tokens: List<Tokenizer.Token>) {
+                                                   tokens: List<Tokenizer.Token>,
+                                                   realm: Realm) {
                             any = true
                         }
                     },

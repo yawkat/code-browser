@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingRefType
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ModuleNode
 
@@ -13,7 +14,9 @@ internal fun printModuleAttributes(printer: BytecodePrinter, module: ModuleNode)
     }
     printer.indent(1).printFlags(module.access, Flag.Target.MODULE)
     if (module.mainClass != null) {
-        printer.indent(1).append("MainClass: ").appendJavaName(Type.getObjectType(module.mainClass)).append('\n')
+        printer.indent(1).append("MainClass: ")
+                .appendJavaName(Type.getObjectType(module.mainClass), BindingRefType.MAIN_CLASS)
+                .append('\n')
     }
     if (!module.packages.isNullOrEmpty()) {
         printer.indent(1).append("Packages:\n")
@@ -53,10 +56,12 @@ internal fun printModuleBody(printer: BytecodePrinter, module: ModuleNode) {
             modules = { modules }
     )
     for (provide in module.provides ?: emptyList()) {
-        printer.indent(1).append("provides ").appendJavaName(Type.getObjectType(provide.service)).append(" with \n")
+        printer.indent(1).append("provides ")
+                .appendJavaName(Type.getObjectType(provide.service), BindingRefType.SPI_PROVIDER)
+                .append(" with \n")
         for ((i, impl) in provide.providers.withIndex()) {
             printer.indent(2)
-            printer.appendJavaName(Type.getObjectType(impl))
+            printer.appendJavaName(Type.getObjectType(impl), BindingRefType.SPI_PROVIDER)
             if (i == provide.providers.lastIndex) {
                 printer.append(";\n")
             } else {

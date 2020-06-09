@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingRefType
 import org.objectweb.asm.AnnotationVisitor
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -20,7 +21,13 @@ abstract class BaseAnnotationPrinter(protected val printer: BytecodePrinter) : A
 
     override fun visitEnum(name: String?, descriptor: String, value: String) {
         member(name)
-        printer.appendDescriptor(Type.getType(descriptor)).append('.').append(value) // TODO link enum value
+        val enumType = Type.getType(descriptor)
+        printer.appendMember(
+                enumType,
+                value,
+                enumType,
+                BindingRefType.ANNOTATION_MEMBER_VALUE
+        )
     }
 
     override fun visit(name: String?, value: Any) {
@@ -63,7 +70,7 @@ open class FullAnnotationPrinter(
     private var first = true
 
     init {
-        printer.appendJavaName(Type.getType(descriptor)).append('(')
+        printer.appendJavaName(Type.getType(descriptor), BindingRefType.ANNOTATION_TYPE).append('(')
     }
 
     override fun visitEnd() {

@@ -113,7 +113,7 @@ class HtmlEmitter(
             }
             is Style -> html("<span class='${annotation.styleClass.joinToString(" ")}'>")
             is LocalVariableOrLabelRef -> html("<span class='local-variable' data-local-variable='${annotation.id}'>")
-            is SourceLineRef -> TODO()
+            is SourceLineRef -> {} // TODO
         }
     }
 
@@ -124,7 +124,7 @@ class HtmlEmitter(
             is BindingRef -> html(linkBindingEnd((memory as Memory.ResolvedBinding).uri))
             is BindingDecl -> html("</a>")
             is Style, is LocalVariableOrLabelRef -> html("</span>")
-            is SourceLineRef -> TODO()
+            is SourceLineRef -> {} // TODO
         }
     }
 

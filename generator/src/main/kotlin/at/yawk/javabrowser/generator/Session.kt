@@ -4,6 +4,7 @@ import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.DbMigration
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsVector
 import at.yawk.javabrowser.generator.artifact.COMPILER_VERSION
@@ -24,6 +25,29 @@ import java.util.concurrent.ForkJoinPool
  * @author yawkat
  */
 private val log = LoggerFactory.getLogger(Session::class.java)
+
+private inline fun finallyWithSuppressed(
+        tryBlock: () -> Unit,
+        finallyBlock: () -> Unit
+) {
+    var exc: Throwable? = null
+    try {
+        tryBlock()
+    } catch (t: Throwable) {
+        exc = t
+        throw t
+    } finally {
+        if (exc == null) {
+            finallyBlock()
+        } else {
+            try {
+                finallyBlock()
+            } catch (t: Throwable) {
+                exc.addSuppressed(t)
+            }
+        }
+    }
+}
 
 class Session(
         private val dbi: DBI,
@@ -78,11 +102,12 @@ class Session(
             val mode: UpdateMode
     ) {
         private val coroutineScope = CoroutineScope(ForkJoinPool.commonPool().asCoroutineDispatcher())
+
         //private val coroutineScope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
         private val concurrencyControl = ParserConcurrencyControl.Impl(maxConcurrentSourceFiles = 1024)
 
-        private val refBatch = conn.prepareBatch("insert into binding_references (targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?)")
-        private val declBatch = conn.prepareBatch("insert into bindings (artifactId, binding, sourceFile, isType, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        private val refBatch = conn.prepareBatch("insert into binding_references (realm, targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        private val declBatch = conn.prepareBatch("insert into bindings (realm, artifactId, binding, sourceFile, isType, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 
         private val dbWriter = BackPressureExecutor(16)
 
@@ -122,11 +147,10 @@ class Session(
 
                 val printerImpl = PrinterImpl(task.artifactId)
                 futures.add(coroutineScope.async {
-                    try {
-                        task.closure(printerImpl)
-                    } finally {
-                        printerImpl.finish()
-                    }
+                    finallyWithSuppressed(
+                            tryBlock = { task.closure(printerImpl) },
+                            finallyBlock = { printerImpl.finish() }
+                    )
                 })
             }
 
@@ -186,6 +210,7 @@ class Session(
             }
 
             private fun storeTokens(table: String,
+                                    realm: Realm,
                                     artifactId: String,
                                     sourceFile: String,
                                     tokens: List<Tokenizer.Token>) {
@@ -197,7 +222,8 @@ class Session(
                     if (start.isEmpty) return
 
                     conn.update(
-                            "insert into $table (artifactId, sourceFile, lexemes, starts, lengths) values (?, ?, ?::tsvector, ?, ?)",
+                            "insert into $table (realm, artifactId, sourceFile, lexemes, starts, lengths) values (?, ?, ?, ?::tsvector, ?, ?)",
+                            realm.id,
                             artifactId,
                             sourceFile,
                             lexemes.toSql(),
@@ -224,22 +250,29 @@ class Session(
                 flush()
             }
 
-            override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
+            override fun addSourceFile(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>,
+                                       realm: Realm) {
                 hasFiles = true
-                dbWriter.submit { addSourceFile0(path, sourceFile, tokens) }
+                dbWriter.submit { addSourceFile0(path, sourceFile, tokens, realm) }
             }
 
-            private fun addSourceFile0(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>) {
+            private fun addSourceFile0(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>,
+                                       realm: Realm) {
                 conn.insert(
-                        "insert into sourceFiles (artifactId, path, text, annotations) values (?, ?, ?, ?)",
+                        "insert into sourceFiles (realm, artifactId, path, text, annotations) values (?, ?, ?, ?, ?)",
+                        realm.id,
                         artifactId,
                         path,
                         sourceFile.text.toByteArray(Charsets.UTF_8),
                         objectMapper.writeValueAsBytes(sourceFile.entries)
                 )
 
-                storeTokens("sourceFileLexemes", artifactId, path, tokens)
-                storeTokens("sourceFileLexemesNoSymbols", artifactId, path, tokens.filter { !it.symbol })
+                if (realm == Realm.SOURCE) {
+                    storeTokens("sourceFileLexemes", realm, artifactId, path, tokens)
+                    storeTokens("sourceFileLexemesNoSymbols", realm, artifactId, path, tokens.filter { !it.symbol })
+                } else {
+                    require(tokens.isEmpty()) // TODO
+                }
 
                 val lineNumberTable = LineNumberTable(sourceFile.text)
 
@@ -247,6 +280,7 @@ class Session(
                     val annotation = entry.annotation
                     if (annotation is BindingRef) {
                         refBatch.add(
+                                realm.id,
                                 annotation.binding,
                                 annotation.type.id,
                                 artifactId,
@@ -256,6 +290,7 @@ class Session(
                         )
                     } else if (annotation is BindingDecl) {
                         declBatch.add(
+                                realm.id,
                                 artifactId,
                                 annotation.binding,
                                 path,

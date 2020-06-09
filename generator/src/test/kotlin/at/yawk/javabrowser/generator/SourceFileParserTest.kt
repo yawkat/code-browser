@@ -65,11 +65,12 @@ class SourceFileParserTest {
     private fun compile(): Map<String, GeneratorSourceFile> {
         val printer = Printer.SimplePrinter()
         val parser = SourceFileParser(src, printer)
+        parser.printBytecode = true
         runBlocking { parser.compile() }
         return printer.sourceFiles
     }
 
-    private fun compileOne() = compile().values.single()
+    private fun compileOne() = compile().filter { it.key.endsWith(".java") }.values.single()
 
     @Test
     fun superMethodCall() {
@@ -1061,6 +1062,19 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is LocalVariableOrLabelRef && it.start == 38 && it.length == 1
+                })
+        )
+    }
+
+    @Test
+    fun `bytecode simple`() {
+        write("A.java", "interface A {}")
+        val entries = compile().getValue("A.class").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<PositionedAnnotation> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl && annotation.binding == "A"
                 })
         )
     }

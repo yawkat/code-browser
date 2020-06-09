@@ -1,7 +1,10 @@
 package at.yawk.javabrowser.generator
 
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
+
+private val log = LoggerFactory.getLogger(BackPressureExecutor::class.java)
 
 class BackPressureExecutor(backlog: Int) {
     companion object {
@@ -27,7 +30,12 @@ class BackPressureExecutor(backlog: Int) {
             try {
                 next()
             } catch (e: Throwable) {
+                log.error("Failure in executor task", e)
                 endFuture.completeExceptionally(e)
+                shutdown = true
+                while (true) {
+                    queue.poll() ?: break
+                }
                 return
             }
         }
