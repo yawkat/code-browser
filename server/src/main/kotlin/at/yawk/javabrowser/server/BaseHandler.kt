@@ -83,9 +83,9 @@ class BaseHandler @Inject constructor(
 
         val topLevelPackages: Iterator<DeclarationNode>
         if (diffWith == null) {
-            topLevelPackages = declarationTreeHandler.packageTree(conn, path.artifact.id)
+            topLevelPackages = declarationTreeHandler.packageTree(conn, Realm.SOURCE, path.artifact.id)
         } else {
-            topLevelPackages = declarationTreeHandler.packageTreeDiff(conn, diffWith.artifact.id, path.artifact.id)
+            topLevelPackages = declarationTreeHandler.packageTreeDiff(conn, Realm.SOURCE, diffWith.artifact.id, path.artifact.id)
         }
         val alternatives = path.artifact.parent!!.children.values
                 .sortedWith(Comparator.comparing(Function { it.id }, VersionComparator))
@@ -215,7 +215,7 @@ class BaseHandler @Inject constructor(
         val oldInfo: SourceFileView.FileInfo?
         if (diffWith == null) {
             oldInfo = null
-            declarations = declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile.annotations)
+            declarations = declarationTreeHandler.sourceDeclarationTree(parsedPath.realm!!, parsedPath.artifact.id, sourceFile.annotations)
         } else {
             val oldSourceFile = requestSourceFile(conn, diffWith)
             @Suppress("USELESS_CAST")
@@ -227,8 +227,8 @@ class BaseHandler @Inject constructor(
                     sourceFilePath = diffWith.sourceFilePath
             )
             declarations = DeclarationTreeDiff.diffUnordered(
-                    declarationTreeHandler.sourceDeclarationTree(diffWith.artifact.id, oldInfo.sourceFile.annotations),
-                    declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile.annotations)
+                    declarationTreeHandler.sourceDeclarationTree(diffWith.realm, diffWith.artifact.id, oldInfo.sourceFile.annotations),
+                    declarationTreeHandler.sourceDeclarationTree(parsedPath.realm!!, parsedPath.artifact.id, sourceFile.annotations)
             )
 
             // do not index diff pages
@@ -237,7 +237,7 @@ class BaseHandler @Inject constructor(
 
         return SourceFileView(
                 newInfo = SourceFileView.FileInfo(
-                        realm = parsedPath.realm!!,
+                        realm = parsedPath.realm,
                         artifactId = parsedPath.artifact,
                         classpath = dependencies.toSet() + parsedPath.artifact.id,
                         sourceFile = sourceFile,

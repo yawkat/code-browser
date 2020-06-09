@@ -2,6 +2,7 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.PositionedAnnotation
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.server.view.DeclarationNode
 import at.yawk.javabrowser.server.view.DeclarationNodeView
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -34,11 +35,14 @@ class DeclarationTreeHandler @Inject constructor(
             val path: String
     )
 
-    private fun getSourceFile(conn: Handle, artifactId: String, binding: String): SourceFileResult? {
+    private fun getSourceFile(conn: Handle, realm: Realm, artifactId: String, binding: String): SourceFileResult? {
         val result = conn.select(
-                "select description, path, annotations from bindings " +
-                        "left join sourceFiles on sourceFiles.artifactId = bindings.artifactId and sourceFiles.path = bindings.sourceFile " +
-                        "where bindings.artifactId = ? and bindings.binding = ?",
+                """
+select description, path, annotations 
+from bindings 
+left join sourceFiles on sourceFiles.realm = bindings.realm and sourceFiles.artifactId = bindings.artifactId and sourceFiles.path = bindings.sourceFile 
+where bindings.realm = ? and bindings.artifactId = ? and bindings.binding = ?""",
+                realm.id,
                 artifactId,
                 binding)
         if (result.isEmpty()) {
@@ -59,6 +63,14 @@ class DeclarationTreeHandler @Inject constructor(
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
+        val realmName = exchange.queryParameters["realm"]?.peekFirst()
+                ?: throw HttpException(404, "Need to pass realm")
+        val realm = try {
+            Realm.valueOf(realmName)
+        } catch (e: IllegalArgumentException) {
+            throw HttpException(404, "Realm not found")
+        }
+
         val artifactId = exchange.queryParameters["artifactId"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass artifact ID")
         val binding = exchange.queryParameters["binding"]?.peekFirst()
@@ -66,14 +78,14 @@ class DeclarationTreeHandler @Inject constructor(
         val diffArtifactId = exchange.queryParameters["diff"]?.peekFirst()
 
         dbi.inTransaction { conn: Handle, _ ->
-            val new = getSourceFile(conn, artifactId, binding)
-            val oldFile = diffArtifactId?.let { getSourceFile(conn, it, binding) }
+            val new = getSourceFile(conn, realm, artifactId, binding)
+            val oldFile = diffArtifactId?.let { getSourceFile(conn, realm, it, binding) }
 
             if (new != null || oldFile != null) {
                 val tree: Iterator<DeclarationNode>
 
                 if (diffArtifactId == null) {
-                    tree = sourceDeclarationTree(artifactId, new!!.annotations, fullSourceFilePath = new.path)
+                    tree = sourceDeclarationTree(realm, artifactId, new!!.annotations, fullSourceFilePath = new.path)
                 } else {
                     val fullPath =
                             when {
@@ -85,10 +97,10 @@ class DeclarationTreeHandler @Inject constructor(
                     tree = DeclarationTreeDiff.diffUnordered(
                             new =
                             if (new == null) Collections.emptyIterator()
-                            else sourceDeclarationTree(artifactId, new.annotations, fullSourceFilePath = fullPath),
+                            else sourceDeclarationTree(realm, artifactId, new.annotations, fullSourceFilePath = fullPath),
                             old =
                             if (oldFile == null) Collections.emptyIterator()
-                            else sourceDeclarationTree(artifactId, oldFile.annotations, fullSourceFilePath = fullPath)
+                            else sourceDeclarationTree(realm, artifactId, oldFile.annotations, fullSourceFilePath = fullPath)
                     )
                 }
                 for (topLevelType in tree) {
@@ -100,9 +112,9 @@ class DeclarationTreeHandler @Inject constructor(
                 throw HttpException(404, "Binding not found - is it a top-level declaration?")
             } else {
                 // the binding must be a package
-                var iterator = packageTree(conn, artifactId, binding)
+                var iterator = packageTree(conn, realm, artifactId, binding)
                 if (diffArtifactId != null) {
-                    val old = packageTree(conn, diffArtifactId, binding)
+                    val old = packageTree(conn, realm, diffArtifactId, binding)
                     iterator = DeclarationTreeDiff.diffOrdered(old, iterator, DatabasePackageTreeComparator)
                 }
                 if (!iterator.hasNext()) throw HttpException(404, "Binding not found")
@@ -133,7 +145,7 @@ class DeclarationTreeHandler @Inject constructor(
         }
     }
 
-    fun packageTree(conn: Handle, artifactId: String, packageName: String? = null): Iterator<DeclarationNode> {
+    fun packageTree(conn: Handle, realm: Realm, artifactId: String, packageName: String? = null): Iterator<DeclarationNode> {
         val itemsByDepth = conn.createQuery("select depth, typeCount from type_count_by_depth_view where artifactId = ? and (package = ? or ?)")
                 .bind(0, artifactId)
                 .bind(1, packageName)
@@ -153,19 +165,21 @@ class DeclarationTreeHandler @Inject constructor(
                 """
                     select name, description, modifiers, sourceFile 
                     from (
-                        select artifactId, binding as name, description, modifiers, sourceFile from bindings where parent is null 
+                        select artifactId, binding as name, description, modifiers, sourceFile from bindings where realm = ? and parent is null 
                         union select artifactId, name, NULL as description, 0 as modifiers, NULL as sourceFile from packages_view where not exists(select 1 from bindings where bindings.artifactId = packages_view.artifactId and binding = packages_view.name)
                     ) sq where artifactId = ? and name like ? and count_dots(name) < ? order by name
                     """)
-                .bind(0, artifactId)
-                .bind(1, if (packageName == null) "%" else "$packageName.%")
-                .bind(2, depth + (packageName?.count { it == '.' } ?: -1))
+                .bind(0, realm.id)
+                .bind(1, artifactId)
+                .bind(2, if (packageName == null) "%" else "$packageName.%")
+                .bind(3, depth + (packageName?.count { it == '.' } ?: -1))
                 .map { _, rs, _ ->
                     val binding = rs.getString(1)
                     val description: ByteArray? = rs.getBytes(2)
                     val modifiers = rs.getInt(3)
                     val sourceFile: String? = rs.getString(4)
                     DeclarationNode(
+                            realm = realm,
                             artifactId = artifactId,
                             binding = binding,
                             fullSourceFilePath = sourceFile?.let { "/$artifactId/$it" },
@@ -181,10 +195,10 @@ class DeclarationTreeHandler @Inject constructor(
         return PrefixIterator(types, "")
     }
 
-    fun packageTreeDiff(conn: Handle, artifactIdOld: String, artifactIdNew: String, packageName: String? = null): Iterator<DeclarationNode> {
+    fun packageTreeDiff(conn: Handle, realm: Realm, artifactIdOld: String, artifactIdNew: String, packageName: String? = null): Iterator<DeclarationNode> {
         return DeclarationTreeDiff.diffOrdered(
-                packageTree(conn, artifactIdOld, packageName),
-                packageTree(conn, artifactIdNew, packageName),
+                packageTree(conn, realm, artifactIdOld, packageName),
+                packageTree(conn, realm, artifactIdNew, packageName),
                 DatabasePackageTreeComparator
         )
     }
@@ -199,6 +213,7 @@ class DeclarationTreeHandler @Inject constructor(
             /* work around kotlinc bug: Passing a captured variable to the constructor is broken */
             val flat_capture: PeekingIterator<BindingDecl>,
             val fullSourceFilePath_capture: String?,
+            val realm_capture: Realm,
             val artifactId_capture: String,
 
             val parent: String?
@@ -209,6 +224,7 @@ class DeclarationTreeHandler @Inject constructor(
             val newItr = copy(parent = item.binding)
             registerSubIterator(newItr)
             return DeclarationNode(
+                    realm = realm_capture,
                     artifactId = artifactId_capture,
                     binding = item.binding,
                     description = item.description,
@@ -226,12 +242,13 @@ class DeclarationTreeHandler @Inject constructor(
     }
 
     fun sourceDeclarationTree(
+            realm: Realm,
             artifactId: String,
             annotations: Sequence<PositionedAnnotation>,
             fullSourceFilePath: String? = null
     ): Iterator<DeclarationNode> {
         val flat = Iterators.peekingIterator(annotations.mapNotNull { it.annotation as?BindingDecl }.iterator())
 
-        return SourceDeclarationTreeItr(flat, fullSourceFilePath, artifactId, null)
+        return SourceDeclarationTreeItr(flat, fullSourceFilePath, realm, artifactId, null)
     }
 }

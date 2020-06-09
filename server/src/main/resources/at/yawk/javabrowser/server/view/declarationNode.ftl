@@ -111,7 +111,7 @@
     <#if node.children?has_content || canLoadChildren>
       <a href="#" onclick="expandDeclaration(this); return false" class="expander"
       <#if canLoadChildren>
-        data-load-children-from="/declarationTree?artifactId=${node.artifactId?url}&binding=${node.binding?url}<#if diffArtifactId?? && diffArtifactId != "">&diff=${diffArtifactId?url}</#if>"
+        data-load-children-from="/declarationTree?realm=${node.realm}&artifactId=${node.artifactId?url}&binding=${node.binding?url}<#if diffArtifactId?? && diffArtifactId != "">&diff=${diffArtifactId?url}</#if>"
       </#if>
       ></a>
     </#if>

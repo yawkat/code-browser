@@ -1,11 +1,13 @@
 package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.Realm
 
 /**
  * @author yawkat
  */
 data class DeclarationNode(
+        val realm: Realm,
         val artifactId: String,
         val binding: String,
         val description: BindingDecl.Description,
