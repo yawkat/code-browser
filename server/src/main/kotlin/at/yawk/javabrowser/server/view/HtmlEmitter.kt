@@ -3,6 +3,7 @@ package at.yawk.javabrowser.server.view
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.LocalVariableOrLabelRef
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
@@ -40,6 +41,7 @@ class HtmlEmitter(
     }
 
     data class ScopeInfo(
+            val realm: Realm,
             val artifactId: String,
             val classpath: Set<String>
     )
@@ -48,13 +50,13 @@ class HtmlEmitter(
         get() = if (this == SourceFilePrinter.Scope.OLD) "--- " else ""
 
     override fun computeMemory(scope: SourceFilePrinter.Scope, annotation: SourceAnnotation): Memory {
-        val cp = scopes.getValue(scope).classpath
+        val scopeInfo = scopes.getValue(scope)
         return when (annotation) {
             is BindingRef -> Memory.ResolvedBinding(
-                    bindingResolver.resolveBinding(cp, annotation.binding).firstOrNull()?.toASCIIString())
+                    bindingResolver.resolveBinding(scopeInfo.realm, scopeInfo.classpath, annotation.binding).firstOrNull()?.toASCIIString())
             is BindingDecl -> Memory.Decl(
                     annotation.superBindings.map {
-                        bindingResolver.resolveBinding(cp, it.binding).firstOrNull()?.toASCIIString()
+                        bindingResolver.resolveBinding(scopeInfo.realm, scopeInfo.classpath, it.binding).firstOrNull()?.toASCIIString()
                     })
             else -> Memory.None
         }

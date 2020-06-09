@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.ArtifactMetadata
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.ServerSourceFile
 import at.yawk.javabrowser.server.SourceFilePrinter
@@ -24,6 +25,7 @@ class SourceFileView(
         private val bindingResolver: BindingResolver
 ) : View("source-file.ftl") {
     class FileInfo(
+            val realm: Realm,
             val artifactId: ArtifactNode,
             val sourceFile: ServerSourceFile,
             val classpath: Set<String>,
@@ -44,6 +46,7 @@ class SourceFileView(
     val printerDirective = PrinterDirective()
 
     data class Alternative(
+            val realm: Realm,
             val artifactId: String,
             val sourceFilePath: String,
             val diffPath: String?
@@ -54,12 +57,12 @@ class SourceFileView(
                              params: MutableMap<Any?, Any?>,
                              loopVars: Array<TemplateModel?>,
                              body: TemplateDirectiveBody?) {
-            val newScopeInfo = HtmlEmitter.ScopeInfo(newInfo.artifactId.id, newInfo.classpath)
+            val newScopeInfo = HtmlEmitter.ScopeInfo(newInfo.realm, newInfo.artifactId.id, newInfo.classpath)
             val emitter = HtmlEmitter(
                     bindingResolver,
                     if (oldInfo != null)
                         mapOf(SourceFilePrinter.Scope.OLD to
-                                HtmlEmitter.ScopeInfo(oldInfo.artifactId.id, oldInfo.classpath),
+                                HtmlEmitter.ScopeInfo(oldInfo.realm, oldInfo.artifactId.id, oldInfo.classpath),
                                 SourceFilePrinter.Scope.NEW to newScopeInfo)
                     else
                         mapOf(SourceFilePrinter.Scope.NORMAL to newScopeInfo),

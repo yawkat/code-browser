@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server.view
 
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.SourceFilePrinter
 import at.yawk.javabrowser.server.artifact.ArtifactNode
@@ -22,6 +23,7 @@ class FullTextSearchResultView(
     class SourceFileResult(
             private val bindingResolver: BindingResolver,
 
+            val realm: Realm,
             val artifactId: String,
             val path: String,
             private val classpath: Set<String>,
@@ -41,7 +43,7 @@ class FullTextSearchResultView(
                                  body: TemplateDirectiveBody?) {
                 val emitter = HtmlEmitter(
                         bindingResolver,
-                        mapOf(SourceFilePrinter.Scope.NORMAL to HtmlEmitter.ScopeInfo(artifactId, classpath)),
+                        mapOf(SourceFilePrinter.Scope.NORMAL to HtmlEmitter.ScopeInfo(realm, artifactId, classpath)),
                         env.out,
 
                         hasOverlay = false,

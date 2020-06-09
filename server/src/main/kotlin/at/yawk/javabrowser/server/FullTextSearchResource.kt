@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsQuery
 import at.yawk.javabrowser.TsVector
@@ -47,6 +48,7 @@ class FullTextSearchResource @Inject constructor(
         val table = if (useSymbols) "sourceFileLexemes" else "sourceFileLexemesNoSymbols"
 
         class FileResult(
+                val realm: Realm,
                 val artifactId: String,
                 val path: String,
                 lexemeVectors: List<TsVector>,
@@ -71,6 +73,7 @@ class FullTextSearchResource @Inject constructor(
 
             fun toView(conn: Handle) = FullTextSearchResultView.SourceFileResult(
                     bindingResolver,
+                    realm = realm,
                     artifactId = artifactId,
                     path = path,
                     classpath = conn.attach(DependencyDao::class.java).getDependencies(artifactId).toSet(),
@@ -112,6 +115,7 @@ group by sourceFiles.artifactId, sourceFiles.path
                     .map { _, r, _ ->
                         @Suppress("UNCHECKED_CAST")
                         FileResult(
+                                Realm.SOURCE, // TODO
                                 r.getString("artifactId"),
                                 r.getString("sourceFile"),
                                 (r.getArray("lexemes").array as Array<*>).map {

@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import at.yawk.javabrowser.server.view.DeclarationNode
 import at.yawk.javabrowser.server.view.IndexView
@@ -20,6 +21,12 @@ import java.time.temporal.ChronoUnit
 import java.util.function.Function
 import javax.inject.Inject
 
+private fun realmForSourcePath(path: String): Realm? {
+    if (path.endsWith(".java")) return Realm.SOURCE
+    if (path.endsWith(".class")) return Realm.BYTECODE
+    return null
+}
+
 /**
  * @author yawkat
  */
@@ -35,7 +42,9 @@ class BaseHandler @Inject constructor(
         private val metadataCache: ArtifactMetadataCache
 ) : HttpHandler {
     private sealed class ParsedPath(val artifact: ArtifactNode) {
-        class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact)
+        class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact) {
+            val realm = realmForSourcePath(sourceFilePath)
+        }
         class LeafArtifact(artifact: ArtifactNode) : ParsedPath(artifact)
         class Group(artifact: ArtifactNode) : ParsedPath(artifact)
     }
@@ -123,8 +132,13 @@ class BaseHandler @Inject constructor(
     }
 
     private fun requestSourceFile(conn: Handle, parsedPath: ParsedPath.SourceFile): ServerSourceFile {
-        val result = conn.select("select text, annotations from sourceFiles where artifactId = ? and path = ?",
-                parsedPath.artifact.id, parsedPath.sourceFilePath)
+        if (parsedPath.realm == null) {
+            throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
+        }
+        val result = conn.select("select text, annotations from sourceFiles where realm = ? and artifactId = ? and path = ?",
+                parsedPath.realm.id,
+                parsedPath.artifact.id,
+                parsedPath.sourceFilePath)
         if (result.isEmpty()) {
             throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
         }
@@ -158,9 +172,10 @@ class BaseHandler @Inject constructor(
 
         val alternatives = ArrayList<SourceFileView.Alternative>()
         fun tryExactMatch(path: String) {
-            conn.createQuery("select artifactId, path from sourceFiles where path = ?")
-                    .bind(0, path)
-                    .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2), null) }
+            conn.createQuery("select artifactId, path from sourceFiles where realm = ? and path = ?")
+                    .bind(0, parsedPath.realm?.id)
+                    .bind(1, path)
+                    .map { _, r, _ -> SourceFileView.Alternative(parsedPath.realm!!, r.getString(1), r.getString(2), null) }
                     .forEach { alternatives.add(it) }
         }
 
@@ -168,9 +183,10 @@ class BaseHandler @Inject constructor(
 
         if (parsedPath.artifact.idList[0] == "java") {
             if (parsedPath.artifact.idList[1].toInt() < 9) {
-                conn.createQuery("select artifactId, path from sourceFiles where artifactId like 'java/%' and path like ?")
-                        .bind(0, "%/${parsedPath.sourceFilePath}")
-                        .map { _, r, _ -> SourceFileView.Alternative(r.getString(1), r.getString(2), null) }
+                conn.createQuery("select artifactId, path from sourceFiles where realm = ? and artifactId like 'java/%' and path like ?")
+                        .bind(0, parsedPath.realm?.id)
+                        .bind(1, "%/${parsedPath.sourceFilePath}")
+                        .map { _, r, _ -> SourceFileView.Alternative(parsedPath.realm!!, r.getString(1), r.getString(2), null) }
                         .forEach { alternatives.add(it) }
             } else {
                 // try without module
@@ -201,10 +217,12 @@ class BaseHandler @Inject constructor(
             oldInfo = null
             declarations = declarationTreeHandler.sourceDeclarationTree(parsedPath.artifact.id, sourceFile.annotations)
         } else {
+            val oldSourceFile = requestSourceFile(conn, diffWith)
             @Suppress("USELESS_CAST")
             oldInfo = SourceFileView.FileInfo(
+                    realm = diffWith.realm!!, // null would error in requestSourceFile already
                     artifactId = diffWith.artifact,
-                    sourceFile = requestSourceFile(conn, diffWith as ParsedPath.SourceFile),
+                    sourceFile = oldSourceFile,
                     classpath = conn.attach(DependencyDao::class.java).getDependencies(diffWith.artifact.id).toSet() + diffWith.artifact.id,
                     sourceFilePath = diffWith.sourceFilePath
             )
@@ -219,6 +237,7 @@ class BaseHandler @Inject constructor(
 
         return SourceFileView(
                 newInfo = SourceFileView.FileInfo(
+                        realm = parsedPath.realm!!,
                         artifactId = parsedPath.artifact,
                         classpath = dependencies.toSet() + parsedPath.artifact.id,
                         sourceFile = sourceFile,
