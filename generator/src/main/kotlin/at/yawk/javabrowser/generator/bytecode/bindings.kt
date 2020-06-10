@@ -2,7 +2,6 @@ package at.yawk.javabrowser.generator.bytecode
 
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.Style
-import at.yawk.javabrowser.generator.Bindings
 import org.objectweb.asm.Type
 
 
@@ -12,7 +11,7 @@ import org.objectweb.asm.Type
 fun BytecodePrinter.appendDescriptor(type: Type, refType: BindingRefType, duplicate: Boolean = false): BytecodePrinter {
     when (type.sort) {
         Type.OBJECT -> {
-            annotate(createBindingRef(refType, Bindings.toStringClass(type))) {
+            annotate(createBindingRef(refType, BytecodeBindings.toStringClass(type))) {
                 append(type.descriptor)
             }
         }
@@ -47,8 +46,8 @@ fun BytecodePrinter.appendMethodDescriptor(type: Type,
  */
 fun BytecodePrinter.appendMember(owner: Type, name: String, type: Type, refType: BindingRefType): BytecodePrinter {
     val ref =
-            if (type.sort == Type.METHOD) Bindings.toStringMethod(owner, name, type)
-            else Bindings.toStringField(owner, name, type)
+            if (type.sort == Type.METHOD) BytecodeBindings.toStringMethod(owner, name, type)
+            else BytecodeBindings.toStringField(owner, name, type)
     appendJavaName(owner, BindingRefType.MEMBER_REFERENCE_QUALIFIER).append('.')
     annotate(createBindingRef(refType, ref)) {
         append(name)
@@ -68,7 +67,7 @@ fun BytecodePrinter.appendJavaName(type: Type, refType: BindingRefType, duplicat
             append("[]")
         }
         Type.OBJECT -> {
-            annotate(createBindingRef(refType, Bindings.toStringClass(type))) {
+            annotate(createBindingRef(refType, BytecodeBindings.toStringClass(type))) {
                 append(type.className)
             }
         }

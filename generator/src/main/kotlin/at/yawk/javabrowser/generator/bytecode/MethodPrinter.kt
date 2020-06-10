@@ -5,7 +5,6 @@ import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
-import at.yawk.javabrowser.generator.Bindings
 import com.google.common.hash.Hasher
 import com.google.common.hash.Hashing
 import org.objectweb.asm.AnnotationVisitor
@@ -102,15 +101,14 @@ internal class MethodPrinter private constructor(
         printer.indent(1)
         printer.printSourceModifiers(node.access, Flag.Target.METHOD, trailingSpace = true)
 
-        // clinit and init are the only two methods where toStringMethod may collide
-        val decl = if (node.name == "<clinit>" || jdtInformation.isMissing(methodType)) null else BindingDecl(
-                binding = Bindings.toStringMethod(
+        val decl = if (jdtInformation.isMissing(methodType)) null else BindingDecl(
+                binding = BytecodeBindings.toStringMethod(
                         declaring = methodOwnerType,
                         name = node.name,
                         type = methodType
                 ),
                 superBindings = emptyList(),
-                parent = Bindings.toStringClass(methodOwnerType),
+                parent = BytecodeBindings.toStringClass(methodOwnerType),
                 modifiers = asmAccessToSourceAnnotation(node.access),
                 description = BindingDecl.Description.Method(
                         name = node.name,

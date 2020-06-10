@@ -2,7 +2,6 @@ package at.yawk.javabrowser.generator.bytecode
 
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRefType
-import at.yawk.javabrowser.generator.Bindings
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.FieldNode
 
@@ -17,13 +16,13 @@ internal fun printField(printer: BytecodePrinter, owner: Type, field: FieldNode)
     }
     printer.append(' ')
     printer.annotate(BindingDecl(
-            binding = Bindings.toStringField(owner, field.name, type),
+            binding = BytecodeBindings.toStringField(owner, field.name, type),
             description = BindingDecl.Description.Field(
                     name = field.name,
                     typeBinding = typeDescription(type)
             ),
             modifiers = asmAccessToSourceAnnotation(field.access),
-            parent = Bindings.toStringClass(owner),
+            parent = BytecodeBindings.toStringClass(owner),
             superBindings = emptyList()
     )) {
         printer.append(field.name)

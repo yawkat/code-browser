@@ -3,7 +3,6 @@ package at.yawk.javabrowser.generator.bytecode
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.Style
-import at.yawk.javabrowser.generator.Bindings
 import org.objectweb.asm.Attribute
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.FieldVisitor
@@ -53,7 +52,7 @@ class ClassPrinter private constructor(
                 Flag.Target.CLASS, trailingSpace = true)
         printer.append(if (isInterface) "interface " else "class ")
 
-        val binding = Bindings.toStringClass(Type.getObjectType(name))
+        val binding = BytecodeBindings.toStringClass(Type.getObjectType(name))
         val superTypeNames = (if (superName == null) emptyList() else listOf(superName)) +
                 (interfaces?.asList() ?: emptyList())
         printer.annotate(BindingDecl(
@@ -62,7 +61,7 @@ class ClassPrinter private constructor(
                 modifiers = asmAccessToSourceAnnotation(access),
                 parent = null,
                 superBindings = superTypeNames.map { Type.getObjectType(it) }.map {
-                    BindingDecl.Super(name = it.simpleName, binding = Bindings.toStringClass(it))
+                    BindingDecl.Super(name = it.simpleName, binding = BytecodeBindings.toStringClass(it))
                 }
         )) {
             printer.append(Type.getObjectType(name).className)
