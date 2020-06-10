@@ -55,7 +55,8 @@ class BytecodePrinter {
 
     fun position() = text.length
 
-    fun createBindingRef(type: BindingRefType, target: String) = BindingRef(type, target, runningRefCounter++)
+    fun createBindingRef(type: BindingRefType, target: String, duplicate: Boolean) =
+            BindingRef(type, target, runningRefCounter++, duplicate)
 
     inline fun annotate(annotation: SourceAnnotation, ignoreEmpty: Boolean = true, f: () -> Unit) {
         val start = position()

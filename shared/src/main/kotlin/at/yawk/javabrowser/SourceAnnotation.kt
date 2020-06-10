@@ -1,6 +1,7 @@
 package at.yawk.javabrowser
 
 import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonValue
@@ -24,7 +25,12 @@ data class BindingRef(
         /**
          * ID of this ref in this source file.
          */
-        val id: Int
+        val id: Int,
+        /**
+         * If `true`, this ref is a redundant with another ref nearby and should not be listed when searching for
+         * references to the target.
+         */
+        @JsonIgnore val duplicate: Boolean = false
 ) : SourceAnnotation()
 
 enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {

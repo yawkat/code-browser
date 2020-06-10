@@ -281,15 +281,17 @@ class Session(
                 for (entry in sourceFile.entries) {
                     val annotation = entry.annotation
                     if (annotation is BindingRef) {
-                        refBatch.add(
-                                realm.id,
-                                annotation.binding,
-                                annotation.type.id,
-                                artifactId,
-                                path,
-                                lineNumberTable.lineAt(entry.start),
-                                annotation.id
-                        )
+                        if (!annotation.duplicate) {
+                            refBatch.add(
+                                    realm.id,
+                                    annotation.binding,
+                                    annotation.type.id,
+                                    artifactId,
+                                    path,
+                                    lineNumberTable.lineAt(entry.start),
+                                    annotation.id
+                            )
+                        }
                     } else if (annotation is BindingDecl) {
                         declBatch.add(
                                 realm.id,
