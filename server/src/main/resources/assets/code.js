@@ -128,7 +128,7 @@ function showReferences(targetElement) {
             for (const key of Object.keys(data)) {
                 if (data[key].length > 0) {
                     if (!anyItems) {
-                        tooltip.append("<b><a href='/references/" + encodeURIComponent(bindingName) + "'>Show all (new page)</a></b><br>");
+                        tooltip.append("<b><a href='/references/" + realm + '/' + encodeURIComponent(bindingName) + "'>Show all (new page)</a></b><br>");
                     }
                     anyItems = true;
                     let name;

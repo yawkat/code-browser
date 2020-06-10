@@ -10,6 +10,7 @@ import io.undertow.server.HttpServerExchange
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import java.net.URI
+import java.net.URLDecoder
 import java.net.URLEncoder
 import javax.inject.Inject
 
@@ -29,8 +30,9 @@ class ReferenceDetailResource @Inject constructor(
         val realmName = exchange.queryParameters["realm"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass realm")
         val realm = Realm.parse(realmName) ?: throw HttpException(404, "Realm not found")
-        val targetBinding = exchange.queryParameters["targetBinding"]?.peekFirst()
+        var targetBinding = exchange.queryParameters["targetBinding"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass target binding")
+        targetBinding = URLDecoder.decode(targetBinding, "UTF-8")
         val type = exchange.queryParameters["type"]?.peekFirst()?.let {
             try {
                 BindingRefType.valueOf(it)
