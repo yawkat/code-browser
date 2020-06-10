@@ -6,5 +6,13 @@ package at.yawk.javabrowser
  */
 enum class Realm(val id: Byte) {
     SOURCE(0),
-    BYTECODE(1),
+    BYTECODE(1);
+
+    companion object {
+        fun parse(name: String) = when {
+            name.equals("source", ignoreCase = true) -> SOURCE
+            name.equals("bytecode", ignoreCase = true) -> BYTECODE
+            else -> null
+        }
+    }
 }

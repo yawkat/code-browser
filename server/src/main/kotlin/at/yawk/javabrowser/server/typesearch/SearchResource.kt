@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server.typesearch
 
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.server.AliasIndex
 import at.yawk.javabrowser.server.ArtifactIndex
 import at.yawk.javabrowser.server.ArtifactUpdater
@@ -37,10 +38,12 @@ class SearchResource @Inject constructor(
         config: Config
 ) : HttpHandler {
     companion object {
-        const val PATTERN = "/api/search/{query}"
+        const val PATTERN = "/api/search/{realm}/{query}"
     }
 
-    private val searchIndex = SearchIndex<String, String>(
+    private data class Category(val realm: Realm, val artifactId: String)
+
+    private val searchIndex = SearchIndex<Category, String>(
             chunkSize = config.typeIndexChunkSize,
             storageDir = config.typeIndexDirectory
     )
@@ -63,35 +66,45 @@ class SearchResource @Inject constructor(
 
     private fun update(conn: Handle, artifactId: String) {
         log.info("Triggering search index update for {}", artifactId)
-        val itr = conn.createQuery("select binding, sourceFile from bindings where isType and artifactId = ?")
-                .bind(0, artifactId)
-                .map { _, r, _ ->
-                    SearchIndex.Input(
-                            string = r.getString(1),
-                            value = r.getString(2))
-                }
-                .iterator()
-        searchIndex.replace(artifactId, itr)
+        for (realm in Realm.values()) {
+            val itr = conn.createQuery("select binding, sourceFile from bindings where realm = ? and isType and artifactId = ?")
+                    .bind(0, realm.id)
+                    .bind(1, artifactId)
+                    .map { _, r, _ ->
+                        SearchIndex.Input(
+                                string = r.getString(1),
+                                value = r.getString(2))
+                    }
+                    .iterator()
+            searchIndex.replace(Category(realm, artifactId), itr, when (realm) {
+                Realm.SOURCE -> BindingTokenizer.Java
+                Realm.BYTECODE -> BindingTokenizer.Bytecode
+            })
+        }
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
         val query = exchange.queryParameters["query"]?.peekFirst()
                 ?: throw HttpException(StatusCodes.NOT_FOUND, "Query not given")
+        val realmName = exchange.queryParameters["realm"]?.peekFirst()
+                ?: throw HttpException(StatusCodes.NOT_FOUND, "Realm not given")
+
+        val realm = Realm.parse(realmName) ?: throw HttpException(StatusCodes.NOT_FOUND, "Realm not found")
 
         val artifactId = exchange.queryParameters["artifactId"]?.peekFirst()
         val limit = exchange.queryParameters["limit"]?.peekFirst()?.toInt() ?: 100
         val includeDependencies = exchange.queryParameters["includeDependencies"]?.peekFirst()?.toBoolean() ?: true
 
         val f = if (artifactId == null) {
-            val seq = searchIndex.find(query)
+            val seq = searchIndex.find(query, searchIndex.getCategories().filterTo(HashSet()) { it.realm == realm })
             // avoid duplicating search results - prefer newer artifacts.
-            sequence<SearchIndex.SearchResult<String, String>> {
-                var prev: SearchIndex.SearchResult<String, String>? = null
+            sequence<SearchIndex.SearchResult<Category, String>> {
+                var prev: SearchIndex.SearchResult<Category, String>? = null
                 for (item in seq) {
                     if (prev != null) {
                         if (item.entry.name == prev.entry.name) {
-                            val keyHere = item.key
-                            val keyPrev = prev.key
+                            val keyHere = item.key.artifactId
+                            val keyPrev = prev.key.artifactId
                             if (VersionComparator.compare(keyHere, keyPrev) > 0) {
                                 // 'prev' will be preferred over 'here' because it has a newer version.
                                 continue
@@ -128,12 +141,12 @@ class SearchResource @Inject constructor(
                             return@mapNotNull aliasIndex.findAliasedTo(dependencyId)
                         }
                     else emptySet<String>()
-            searchIndex.find(query, setOf(artifactId) + dependencies)
+            searchIndex.find(query, (listOf(artifactId) + dependencies).mapTo(HashSet()) { Category(realm, it) })
         }
 
         val response = Response(f.take(limit).map {
             val componentLengths = IntArray(it.entry.name.componentsLower.size) { i -> it.entry.name.componentsLower[i].length }
-            Result(it.key, it.entry.name.string, it.entry.value, componentLengths, it.match)
+            Result(it.key.artifactId, it.entry.name.string, it.entry.value, componentLengths, it.match)
         }.asIterable())
 
         exchange.responseHeaders.put(Headers.CONTENT_TYPE, MediaType.JSON_UTF_8.toString())

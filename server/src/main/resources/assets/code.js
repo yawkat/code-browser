@@ -107,12 +107,13 @@ function showAlternativeSourceFiles(alternativeSourceFiles) {
 function showReferences(targetElement) {
     const LIMIT = 100;
 
+    const realm = targetElement.getAttribute("data-realm");
     const bindingName = targetElement.getAttribute("data-binding");
     const superHtml = targetElement.getAttribute("data-super-html");
     const targetArtifactId = targetElement.getAttribute("data-artifact-id");
 
     $.ajax({
-        url: '/api/references/' + encodeURIComponent(bindingName) + "?limit=" + LIMIT + "&targetArtifactId=" + encodeURIComponent(targetArtifactId),
+        url: '/api/references/' + realm + '/' + encodeURIComponent(bindingName) + "?limit=" + LIMIT + "&targetArtifactId=" + encodeURIComponent(targetArtifactId),
         dataType: 'json',
         success: function (data) {
             const tooltip = $("#tooltip");

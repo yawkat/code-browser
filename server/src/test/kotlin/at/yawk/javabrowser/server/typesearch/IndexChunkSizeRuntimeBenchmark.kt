@@ -10,9 +10,9 @@ import java.nio.file.Paths
 
 fun benchmarkGetEntries(args: Array<String>): List<SearchIndex.SplitEntry> {
     val dbi = DBI.open(args[0])
-    return dbi.createQuery("select binding from data.bindings where isType")
+    return dbi.createQuery("select binding from data.bindings where realm = 0 and isType")
             .map { _, rs, _ ->
-                SearchIndex.SplitEntry(rs.getString(1))
+                SearchIndex.SplitEntry(rs.getString(1), BindingTokenizer.Java)
             }
             .toList()
             .sorted()

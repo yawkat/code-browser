@@ -1,7 +1,7 @@
 <#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.IndexView" -->
 <#import "page.ftl" as page>
 <#import "fullTextSearchForm.ftl" as ftsf>
-<@page.page title="Java Browser" artifactId=artifactId hasSearch=(artifactId.id == "")>
+<@page.page title="Java Browser" realm='source' artifactId=artifactId hasSearch=(artifactId.id == "")>
   <div id="noncode">
     <#if artifactId.id == "">
       <div class="message-box">

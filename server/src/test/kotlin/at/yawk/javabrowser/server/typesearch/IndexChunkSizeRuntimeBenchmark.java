@@ -48,7 +48,9 @@ public class IndexChunkSizeRuntimeBenchmark {
         } else {
             automata = new IndexAutomaton[JUMP_MAX + 1];
             try (Stream<String> lines = Files.lines(automataDir.resolve("bindings.txt"))) {
-                List<SearchIndex.SplitEntry> entries = lines.map(SearchIndex.SplitEntry::new).collect(Collectors.toList());
+                List<SearchIndex.SplitEntry> entries = lines
+                        .map(s -> new SearchIndex.SplitEntry(s, BindingTokenizer.Java.INSTANCE))
+                        .collect(Collectors.toList());
                 for (int i = 0; i <= JUMP_MAX; i++) {
                     System.out.println("Building automaton of size " + i + " for chunk size " + chunkSize);
                     automata[i] = new IndexAutomaton<>(

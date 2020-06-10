@@ -17,6 +17,7 @@ private const val CONTEXT_LINES = 2
 
 class FullTextSearchResultView(
         val query: String,
+        val searchRealm: Realm?,
         val searchArtifact: ArtifactNode?,
         val results: Iterator<SourceFileResult>
 ) : View("fullTextSearchResultView.ftl") {

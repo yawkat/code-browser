@@ -50,7 +50,7 @@ fun main(args: Array<String>) {
             semaphore.acquire()
             dbi.inTransaction { conn: Handle, _ ->
                 println("  Building index for $artifactId")
-                val itr = conn.createQuery("select binding, sourceFile from bindings where isType and artifactId = ?")
+                val itr = conn.createQuery("select binding, sourceFile from bindings where realm = 0 and isType and artifactId = ?")
                         .bind(0, artifactId)
                         .map { _, r, _ ->
                             SearchIndex.Input(
@@ -58,7 +58,7 @@ fun main(args: Array<String>) {
                                     value = r.getString(2))
                         }
                         .iterator()
-                searchIndex.replace(artifactId, itr)
+                searchIndex.replace(artifactId, itr, BindingTokenizer.Java)
             }
             semaphore.release()
         }

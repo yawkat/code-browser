@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.BindingRefType
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.VersionComparator
 import at.yawk.javabrowser.server.artifact.ArtifactNode
@@ -11,6 +12,7 @@ import java.net.URI
  * @author yawkat
  */
 data class ReferenceDetailView(
+        val realm: Realm,
         val targetBinding: String,
         val baseUri: URI,
         val type: BindingRefType?,

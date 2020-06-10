@@ -11,7 +11,6 @@ import java.nio.file.Path
 import java.util.Locale
 import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
-import java.util.regex.Pattern
 import javax.annotation.concurrent.ThreadSafe
 
 /**
@@ -29,23 +28,6 @@ open class SearchIndex<K, V>(
         val storageDir: Path? = null
 ) {
     companion object {
-        private val SPLIT_PATTERN = Pattern.compile("(?:\\.|[a-z0-9][A-Z]|[a-zA-Z][0-9])")
-
-        internal fun split(s: String): List<String> {
-            val out = ArrayList<String>()
-            val matcher = SPLIT_PATTERN.matcher(s)
-            var last = 0
-            while (matcher.find()) {
-                val end = matcher.start() + 1
-                out.add(s.substring(last, end).toLowerCase(Locale.US))
-                last = end
-            }
-            if (last != s.length) {
-                out.add(s.substring(last).toLowerCase(Locale.US))
-            }
-            return out
-        }
-
         internal fun commonPrefixLength(a: String, b: String, aOff: Int = 0, bOff: Int = 0): Int {
             var i = 0
             while (i + aOff < a.length && i + bOff < b.length && a[i + aOff] == b[i + bOff]) {
@@ -57,13 +39,15 @@ open class SearchIndex<K, V>(
 
     private val categories = ConcurrentHashMap<K, Category<V>>()
 
-    fun replace(categoryKey: K, strings: Iterator<Input<V>>) {
-        val old = categories.put(categoryKey, Category(strings))
+    fun replace(categoryKey: K, strings: Iterator<Input<V>>, tokenizer: BindingTokenizer) {
+        val old = categories.put(categoryKey, Category(strings, tokenizer))
         old?.byDepth?.forEach { it.close() }
         old?.allocator?.close()
     }
 
-    fun find(query: String, includedCats: Set<K> = this.categories.keys) = sequence {
+    fun getCategories(): Set<K> = this.categories.keys
+
+    fun find(query: String, includedCats: Set<K> = getCategories()) = sequence {
         val queryLower = query.toLowerCase(Locale.US)
         val categoriesFiltered = ArrayList<Category<V>>()
         val keys = ArrayList<K>()
@@ -110,13 +94,14 @@ open class SearchIndex<K, V>(
         return allocator
     }
 
-    private inner class Category<V>(strings: Iterator<Input<V>>) {
+    private inner class Category<V>(strings: Iterator<Input<V>>, tokenizer: BindingTokenizer) {
         val allocator = if (storageDir != null) BumpPointerFileAllocator.fromTempDirectory(storageDir) else null
         val byDepth: List<IndexAutomaton<Entry<V>>>
 
         init {
             val entries = strings.asSequence().map {
-                Entry(it.value, SplitEntry(it.string), SplitEntry(it.string.substring(it.string.lastIndexOf('.') + 1)))
+                Entry(it.value, SplitEntry(it.string, tokenizer),
+                        SplitEntry(it.string.substring(it.string.lastIndexOf('.') + 1), tokenizer))
             }.sortedBy { it.name }.toList()
 
             val alignedAllocator = allocator?.let { transformAllocator(it) }?.let {
@@ -241,9 +226,10 @@ open class SearchIndex<K, V>(
     )
 
     data class SplitEntry(
-            val string: String
+            val string: String,
+            val tokenizer: BindingTokenizer
     ) : Comparable<SplitEntry>, Serializable {
-        val componentsLower: Array<String> = split(string).toTypedArray()
+        val componentsLower: Array<String> = tokenizer.tokenize(string).toTypedArray()
 
         // this is a heuristic for finding the first "class name" character. Package names are assumed to be lowercase.
         // we can't simply use the last dot because there might be nested classes

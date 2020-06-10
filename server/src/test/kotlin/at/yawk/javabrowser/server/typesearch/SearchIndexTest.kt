@@ -40,18 +40,9 @@ class SearchIndexTest {
     }
 
     @Test
-    fun split() {
-        Assert.assertEquals(SearchIndex.split("ConcurrentHashMap"), listOf("concurrent", "hash", "map"))
-        Assert.assertEquals(SearchIndex.split("java.util"), listOf("java.", "util"))
-        Assert.assertEquals(SearchIndex.split("URI"), listOf("uri"))
-        Assert.assertEquals(SearchIndex.split("Jsr320"), listOf("jsr", "320"))
-        Assert.assertEquals(SearchIndex.split("JSR320"), listOf("jsr", "320"))
-    }
-
-    @Test
     fun simple() {
         val searchIndex = SearchIndex<String, Unit>()
-        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit)).iterator())
+        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit)).iterator(), BindingTokenizer.Java)
         val results = searchIndex.find("CHM").toList()
         Assert.assertEquals(results.size, 1)
         Assert.assertEquals(results[0].entry.name.string, "ConcurrentHashMap")
@@ -62,7 +53,7 @@ class SearchIndexTest {
     fun properOrder() {
         val searchIndex = SearchIndex<String, Unit>()
         searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit),
-                SearchIndex.Input("ConcurrentHmap", Unit)).iterator())
+                SearchIndex.Input("ConcurrentHmap", Unit)).iterator(), BindingTokenizer.Java)
         val results = searchIndex.find("CHmap").toList()
         Assert.assertEquals(results.size, 2)
         Assert.assertEquals(results[0].entry.name.string, "ConcurrentHmap")
@@ -74,8 +65,8 @@ class SearchIndexTest {
     @Test
     fun multiCategory() {
         val searchIndex = SearchIndex<String, Unit>()
-        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit)).iterator())
-        searchIndex.replace("cat2", listOf(SearchIndex.Input("ConcurrentHmap", Unit)).iterator())
+        searchIndex.replace("cat1", listOf(SearchIndex.Input("ConcurrentHashMap", Unit)).iterator(), BindingTokenizer.Java)
+        searchIndex.replace("cat2", listOf(SearchIndex.Input("ConcurrentHmap", Unit)).iterator(), BindingTokenizer.Java)
         val results = searchIndex.find("CHmap").toList()
         Assert.assertEquals(results.size, 2)
         Assert.assertEquals(results[0].entry.name.string, "ConcurrentHmap")
@@ -90,7 +81,7 @@ class SearchIndexTest {
         searchIndex.replace("cat1", listOf(
                 SearchIndex.Input("xxxxx.LongerName", Unit),
                 SearchIndex.Input("long.ShortName", Unit)
-                ).iterator())
+                ).iterator(), BindingTokenizer.Java)
         // `long` appears in both names, but LongerName should be listed first since it appears in the class name
         val results = searchIndex.find("long").toList()
         Assert.assertEquals(results[0].entry.name.string, "xxxxx.LongerName")
@@ -120,7 +111,7 @@ class SearchIndexTest {
         searchIndex.replace("cat1", listOf(
                 SearchIndex.Input("myname.X", Unit),
                 SearchIndex.Input("MyName", Unit) // this entry should match first
-        ).iterator())
+        ).iterator(), BindingTokenizer.Java)
         val results = searchIndex.find("myname").toList()
         Assert.assertEquals(results[0].entry.name.string, "MyName")
     }
@@ -129,7 +120,7 @@ class SearchIndexTest {
     fun `return of multiple versions`() {
         val searchIndex = SearchIndex<String, Unit>()
         for (i in 0 until 10) {
-            searchIndex.replace("java/$i", listOf(SearchIndex.Input("MyName", Unit)).iterator())
+            searchIndex.replace("java/$i", listOf(SearchIndex.Input("MyName", Unit)).iterator(), BindingTokenizer.Java)
         }
         val result = searchIndex.find("MyName").toList()
         Assert.assertEquals(result.size, 10)

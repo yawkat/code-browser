@@ -1,6 +1,6 @@
 <#ftl strip_text=true>
 <#import "path.ftl" as path>
-<#macro page artifactId title hasSearch=false additionalTitle="" additionalMenu=""><!doctype html>
+<#macro page realm artifactId title hasSearch=false additionalTitle="" additionalMenu=""><!doctype html>
   <html lang="en" class="theme-${theme}">
   <head>
     <meta charset="UTF-8">

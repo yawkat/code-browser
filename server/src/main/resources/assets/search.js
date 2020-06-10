@@ -29,8 +29,8 @@ class SearchDialog extends Dialog {
         target.innerHTML = html;
     }
 
-    function loadQuery(query, artifactId, includeDependencies, consumer) {
-        let uri = "/api/search/" + encodeURIComponent(query) + "?includeDependencies=" + includeDependencies;
+    function loadQuery(query, realm, artifactId, includeDependencies, consumer) {
+        let uri = "/api/search/" + realm + "/" + encodeURIComponent(query) + "?includeDependencies=" + includeDependencies;
         if (artifactId) {
             uri += "&artifactId=" + encodeURIComponent(artifactId);
         }
@@ -56,6 +56,8 @@ class SearchDialog extends Dialog {
         for (const searchField of document.querySelectorAll(".search")) {
             const target = document.querySelector(searchField.getAttribute("data-target"));
             const artifactId = searchField.getAttribute("data-artifact-id");
+            let realm = searchField.getAttribute("data-realm");
+            if (!realm) realm = "source";
             const includeDependencies = searchField.getAttribute("data-include-dependencies") !== "false";
             const hideEmpty = searchField.hasAttribute("data-hide-empty");
             let firstUpdate = true;
@@ -68,7 +70,7 @@ class SearchDialog extends Dialog {
                     if (hideEmpty && searchField.value === "") {
                         updateSearch([], target);
                     } else {
-                        loadQuery(searchField.value, artifactId, includeDependencies, function (data) {
+                        loadQuery(searchField.value, realm, artifactId, includeDependencies, function (data) {
                             updateSearch(data.items, target);
                         });
                     }

@@ -11,7 +11,7 @@
       <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'<#if alternative.diffPath??>,diffPath:'${alternative.diffPath}'</#if>},</#list>
       ])"><i class="ij ij-history"></i></a>
 </#assign>
-<@page.page title="${newInfo.artifactId.id} : ${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile}" artifactId=newInfo.artifactId hasSearch=true additionalTitle=additionalTitle additionalMenu=additionalMenu>
+<@page.page title="${newInfo.artifactId.id} : ${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile}" realm=newInfo.realm artifactId=newInfo.artifactId hasSearch=true additionalTitle=additionalTitle additionalMenu=additionalMenu>
 
   <div id="code">
     <div class="declaration-tree structure">

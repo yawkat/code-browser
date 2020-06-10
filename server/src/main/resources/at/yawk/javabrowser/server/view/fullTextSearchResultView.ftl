@@ -8,7 +8,7 @@
     <@resultPart result/>
   </#if>
 </#macro>
-<@page.page title="Full Text Search" artifactId=searchArtifact!'' additionalTitle="Full Text Search" hasSearch=false>
+<@page.page title="Full Text Search" realm=searchRealm!'source' artifactId=searchArtifact!'' additionalTitle="Full Text Search" hasSearch=false>
   <div id="noncode">
     <@ftsf.fullTextSearchForm query=query searchArtifact=searchArtifact!'' />
 

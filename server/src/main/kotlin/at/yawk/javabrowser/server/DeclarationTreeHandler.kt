@@ -65,11 +65,7 @@ where bindings.realm = ? and bindings.artifactId = ? and bindings.binding = ?"""
     override fun handleRequest(exchange: HttpServerExchange) {
         val realmName = exchange.queryParameters["realm"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass realm")
-        val realm = try {
-            Realm.valueOf(realmName)
-        } catch (e: IllegalArgumentException) {
-            throw HttpException(404, "Realm not found")
-        }
+        val realm = Realm.parse(realmName) ?: throw HttpException(404, "Realm not found")
 
         val artifactId = exchange.queryParameters["artifactId"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass artifact ID")

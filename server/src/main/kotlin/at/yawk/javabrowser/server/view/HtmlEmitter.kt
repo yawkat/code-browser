@@ -107,7 +107,7 @@ class HtmlEmitter(
                         ""
                     }
                     html("<a class='show-refs' href='javascript:;' onclick='showReferences(this); return false' data-binding='${Escaper.HTML.escape(
-                            annotation.binding)}' data-super-html='${Escaper.HTML.escape(superHtml)}' data-artifact-id='${Escaper.HTML.escape(scopes.getValue(scope).artifactId)}'></a>")
+                            annotation.binding)}' data-super-html='${Escaper.HTML.escape(superHtml)}' data-realm='${scopes.getValue(scope).realm}' data-artifact-id='${Escaper.HTML.escape(scopes.getValue(scope).artifactId)}'></a>")
                 }
 
                 val id = scope.prefix + annotation.binding

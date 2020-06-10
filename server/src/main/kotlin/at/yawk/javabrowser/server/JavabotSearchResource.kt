@@ -131,13 +131,13 @@ class JavabotSearchResource @Inject constructor(private val dbi: DBI,
         @SqlQuery("select id from data.artifacts")
         fun artifacts(): List<String>
 
-        @SqlQuery("select $INTEREST_COLUMNS from data.bindings where artifactId ilike :artifactPattern and binding ilike :fieldNamePattern $SUFFIX")
+        @SqlQuery("select $INTEREST_COLUMNS from data.bindings where realm = 0 and artifactId ilike :artifactPattern and binding ilike :fieldNamePattern $SUFFIX")
         fun nonClassPattern(@Bind("artifactPattern") artifactPattern: String, @Bind("fieldNamePattern") fieldNamePattern: String): Iterator<ResultRow>
 
-        @SqlQuery("select $INTEREST_COLUMNS from data.bindings where artifactId ilike :artifactPattern and binding = :qualifiedName $SUFFIX")
+        @SqlQuery("select $INTEREST_COLUMNS from data.bindings where realm = 0 and artifactId ilike :artifactPattern and binding = :qualifiedName $SUFFIX")
         fun qualified(@Bind("artifactPattern") artifactPattern: String, @Bind("qualifiedName") qualifiedName: String): Iterator<ResultRow>
 
-        @SqlQuery("select $INTEREST_COLUMNS from data.bindings where artifactId ilike :artifactPattern and isType and parent is null and binding ilike :classPattern $SUFFIX")
+        @SqlQuery("select $INTEREST_COLUMNS from data.bindings where realm = 0 and artifactId ilike :artifactPattern and isType and parent is null and binding ilike :classPattern $SUFFIX")
         fun topLevelClassPattern(@Bind("artifactPattern") artifactPattern: String, @Bind("classPattern") classPattern: String): Iterator<ResultRow>
     }
 

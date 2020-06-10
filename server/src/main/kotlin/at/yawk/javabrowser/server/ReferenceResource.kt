@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.BindingRefType
+import at.yawk.javabrowser.Realm
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.common.net.MediaType
 import io.undertow.server.HttpHandler
@@ -10,6 +11,7 @@ import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.skife.jdbi.v2.StatementContext
 import org.skife.jdbi.v2.tweak.ResultSetMapper
+import java.net.URLDecoder
 import java.sql.ResultSet
 import javax.inject.Inject
 
@@ -21,15 +23,19 @@ class ReferenceResource @Inject constructor(
         private val objectMapper: ObjectMapper
 ) : HttpHandler {
     companion object {
-        const val PATTERN = "/api/references/{targetBinding}"
+        const val PATTERN = "/api/references/{realm}/{targetBinding}"
 
         private const val SELECT_EXPR =
                 "select sourceArtifactId, sourceFile, sourceFileLine, sourceFileId from binding_references"
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
-        val targetBinding = exchange.queryParameters["targetBinding"]?.peekFirst()
+        val realmName = exchange.queryParameters["realm"]?.peekFirst()
+                ?: throw HttpException(404, "Need to pass realm")
+        val realm = Realm.parse(realmName) ?: throw HttpException(404, "Realm not found")
+        var targetBinding = exchange.queryParameters["targetBinding"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass target binding")
+        targetBinding = URLDecoder.decode(targetBinding, "UTF-8")
         val limit = exchange.queryParameters["limit"]?.peekFirst()?.toInt() ?: 100
 
         // if targetArtifactId is given, exclude any results from other versions
@@ -49,11 +55,12 @@ class ReferenceResource @Inject constructor(
                 gen.writeStartArray()
                 if (targetArtifactId != null) {
                     // first, items from the same artifact
-                    val sameArtifact = conn.createQuery("$SELECT_EXPR where targetBinding = ? and type = ? and sourceArtifactId = ? limit ?")
-                            .bind(0, targetBinding)
-                            .bind(1, type.id)
-                            .bind(2, targetArtifactId)
-                            .bind(3, limit)
+                    val sameArtifact = conn.createQuery("$SELECT_EXPR where realm = ? and targetBinding = ? and type = ? and sourceArtifactId = ? limit ?")
+                            .bind(0, realm.id)
+                            .bind(1, targetBinding)
+                            .bind(2, type.id)
+                            .bind(3, targetArtifactId)
+                            .bind(4, limit)
                             .map(ResponseItemMapper)
                     var alreadyReturned = 0
                     for (item in sameArtifact) {
@@ -62,19 +69,21 @@ class ReferenceResource @Inject constructor(
                     }
                     // then, fill up the remainder with usages from other artifacts
                     if (alreadyReturned < limit) {
-                        conn.createQuery("$SELECT_EXPR where targetBinding = ? and type = ? and sourceArtifactId not like ? limit ?")
-                                .bind(0, targetBinding)
-                                .bind(1, type.id)
-                                .bind(2, excludePrefix)
-                                .bind(3, limit - alreadyReturned)
+                        conn.createQuery("$SELECT_EXPR where realm = ? and targetBinding = ? and type = ? and sourceArtifactId not like ? limit ?")
+                                .bind(0, realm.id)
+                                .bind(1, targetBinding)
+                                .bind(2, type.id)
+                                .bind(3, excludePrefix)
+                                .bind(4, limit - alreadyReturned)
                                 .map(ResponseItemMapper)
                                 .forEach { itemWriter.writeValue(gen, it) }
                     }
                 } else {
-                    conn.createQuery("$SELECT_EXPR where targetBinding = ? and type = ? limit ?")
-                            .bind(0, targetBinding)
-                            .bind(1, type.id)
-                            .bind(2, limit)
+                    conn.createQuery("$SELECT_EXPR where realm = ? and targetBinding = ? and type = ? limit ?")
+                            .bind(0, realm.id)
+                            .bind(1, targetBinding)
+                            .bind(2, type.id)
+                            .bind(3, limit)
                             .map(ResponseItemMapper)
                             .forEach { itemWriter.writeValue(gen, it) }
                 }

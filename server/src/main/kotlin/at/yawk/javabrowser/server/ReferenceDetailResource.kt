@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.BindingRefType
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.server.view.ReferenceDetailView
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.Iterators
@@ -21,10 +22,13 @@ class ReferenceDetailResource @Inject constructor(
         private val artifactIndex: ArtifactIndex
 ) : HttpHandler {
     companion object {
-        const val PATTERN = "/references/{targetBinding}"
+        const val PATTERN = "/references/{realm}/{targetBinding}"
     }
 
     override fun handleRequest(exchange: HttpServerExchange) {
+        val realmName = exchange.queryParameters["realm"]?.peekFirst()
+                ?: throw HttpException(404, "Need to pass realm")
+        val realm = Realm.parse(realmName) ?: throw HttpException(404, "Realm not found")
         val targetBinding = exchange.queryParameters["targetBinding"]?.peekFirst()
                 ?: throw HttpException(404, "Need to pass target binding")
         val type = exchange.queryParameters["type"]?.peekFirst()?.let {
@@ -88,7 +92,8 @@ class ReferenceDetailResource @Inject constructor(
 
             val query = conn.createQuery("""
                 select type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId from binding_references
-                                where targetBinding = :targetBinding
+                                where realm = :realm 
+                                and targetBinding = :targetBinding
                                 ${if (type != null) "and type = :type" else ""}
                                 ${if (sourceArtifactId != null) "and sourceArtifactId = :sourceArtifactId" else ""}
                                 order by type, sourceArtifactId, sourceFile, sourceFileId
@@ -102,12 +107,14 @@ class ReferenceDetailResource @Inject constructor(
                         sourceFileId = r.getInt(5)
                 )
             }
+            query.bind("realm", realm.id)
             query.bind("targetBinding", targetBinding)
             if (type != null) query.bind("type", type.id)
             if (sourceArtifactId != null) query.bind("sourceArtifactId", sourceArtifactId.id)
             if (hitResultLimit) query.bind("limit", limit)
             query.setFetchSize(500)
             val view = ReferenceDetailView(
+                    realm = realm,
                     targetBinding = targetBinding,
                     baseUri = URI("/references/${URLEncoder.encode(targetBinding, "UTF-8")}"),
                     type = type,

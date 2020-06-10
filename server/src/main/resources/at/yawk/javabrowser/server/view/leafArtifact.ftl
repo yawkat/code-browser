@@ -9,7 +9,7 @@
       <#list alternatives as alternative>{artifact:'${alternative.artifact.id}',path:''<#if alternative.diffPath??>,diffPath:'${alternative.diffPath}'</#if>},</#list>
       ])"><i class="ij ij-history"></i></a>
 </#assign>
-<@page.page title="${artifactId.id}" artifactId=artifactId additionalMenu=additionalMenu>
+<@page.page title="${artifactId.id}" realm='source' artifactId=artifactId additionalMenu=additionalMenu>
   <div id="noncode">
       <#include "metadata.ftl">
 
@@ -38,7 +38,7 @@
     <#if !oldArtifactId??>
       <@ftsf.fullTextSearchForm query='' searchArtifact=artifactId/>
       <div class="search-box">
-        <input type="text" class="search" autocomplete="off" data-target="#result-list" data-hide-empty data-artifact-id="${artifactId.id}" data-include-dependencies="false" placeholder="Search for type…">
+        <input type="text" class="search" autocomplete="off" data-target="#result-list" data-hide-empty data-realm="source" data-artifact-id="${artifactId.id}" data-include-dependencies="false" placeholder="Search for type…">
         <ul id="result-list"></ul>
       </div>
     </#if>

@@ -12,7 +12,7 @@ class IndexAutomatonTest {
         val automaton = IndexAutomaton(
                 listOf("java.util.concurrent.ConcurrentHashMap",
                         "java.util.HashMap"),
-                { SearchIndex.split(it) },
+                { BindingTokenizer.Java.tokenize(it) },
                 4
         )
         val result = automaton.run("javuticohamap")
@@ -26,7 +26,7 @@ class IndexAutomatonTest {
     fun `jump direct`() {
         val automaton = IndexAutomaton(
                 listOf("io.netty.buffer.ByteBuf"),
-                { SearchIndex.split(it) },
+                { BindingTokenizer.Java.tokenize(it) },
                 1
         )
         val result = automaton.run("nettybytebuf")
@@ -40,7 +40,7 @@ class IndexAutomatonTest {
     fun `no jump`() {
         val automaton = IndexAutomaton(
                 listOf("java.lang.String"),
-                { SearchIndex.split(it) },
+                { BindingTokenizer.Java.tokenize(it) },
                 0
         )
         val result = automaton.run("string")

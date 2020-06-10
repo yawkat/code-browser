@@ -31,11 +31,7 @@ class FullTextSearchResource @Inject constructor(
         val query = exchange.queryParameters["query"]?.peekFirst()
                 ?: throw HttpException(StatusCodes.NOT_FOUND, "Query not given")
         val realmName = exchange.queryParameters["realm"]?.peekFirst() ?: Realm.SOURCE.name
-        val realm = try {
-            Realm.valueOf(realmName)
-        } catch (e: IllegalArgumentException) {
-            throw HttpException(404, "Unknown realm")
-        }
+        val realm = Realm.parse(realmName) ?: throw HttpException(404, "Unknown realm")
         val searchArtifact = exchange.queryParameters["artifactId"]?.peekFirst()?.let {
             val parsed = artifactIndex.parse(it)
             if (parsed.remainingPath != null) throw HttpException(404, "No such artifact")
@@ -142,7 +138,7 @@ group by sourceFiles.realm, sourceFiles.artifactId, sourceFiles.path
                     }
                     .iterator()
 
-            ftl.render(exchange, FullTextSearchResultView(query, searchArtifact, itr))
+            ftl.render(exchange, FullTextSearchResultView(query, realm, searchArtifact, itr))
 
             conn.rollback() // don't persist array_accum
         }
