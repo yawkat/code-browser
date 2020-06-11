@@ -1,7 +1,6 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.DbConfig
-import at.yawk.javabrowser.DbMigration
 import at.yawk.javabrowser.server.typesearch.SearchResource
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -65,7 +64,9 @@ fun main(args: Array<String>) {
         }
     }
 
-    guice.getInstance(DBI::class.java).inTransaction { conn, _ -> DbMigration.initInteractiveSchema(conn) }
+    guice.getInstance(DBI::class.java).inTransaction { conn, _ ->
+        conn.createScript("at/yawk/javabrowser/server/InitInteractiveSchema.sql").execute()
+    }
 
     var handler: HttpHandler = PathTemplateHandler(guice.getInstance(BaseHandler::class.java)).also {
         it.add(SearchResource.PATTERN, guice.getInstance(SearchResource::class.java))

@@ -1,14 +1,14 @@
 package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.DbConfig
-import at.yawk.javabrowser.DbMigration
+import at.yawk.javabrowser.generator.artifact.COMPILER_VERSION
 import at.yawk.javabrowser.generator.artifact.compileAndroid
 import at.yawk.javabrowser.generator.artifact.compileJdk
 import at.yawk.javabrowser.generator.artifact.compileMaven
 import at.yawk.javabrowser.generator.artifact.getArtifactId
-import at.yawk.javabrowser.generator.artifact.needsRecompile
 import at.yawk.javabrowser.generator.artifact.resolveMavenMetadata
 import com.google.common.collect.HashMultiset
+import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
 import java.nio.file.Paths
 
@@ -28,14 +28,6 @@ fun main(args: Array<String>) {
 
     val dbi = config.database.start(mode = DbConfig.Mode.GENERATOR)
 
-    dbi.inTransaction { conn, _ ->
-        // if the old schema is missing entirely, create it now so that version checks, etc. below can rely on the
-        // tables existing (albeit empty)
-        conn.update("create schema if not exists data")
-        DbMigration.initDataSchema(conn)
-        DbMigration.createIndices(conn)
-    }
-
     val session = Session(dbi)
     val mavenDependencyResolver = MavenDependencyResolver(config.mavenResolver)
 
@@ -50,21 +42,30 @@ fun main(args: Array<String>) {
         throw RuntimeException("Duplicate artifacts: $duplicate")
     }
 
+    val newDb = dbi.inTransaction { conn: Handle, _ ->
+        !conn.select("select 1 from information_schema.tables where table_schema = 'data' and table_name = 'artifacts'").any()
+    }
+
     for (artifact in config.artifacts) {
         val id = getArtifactId(artifact)
         try {
-            if (needsRecompile(dbi, id)) {
-                val metadata = when (artifact) {
-                    is ArtifactConfig.Java -> artifact.metadata
-                    is ArtifactConfig.Maven -> resolveMavenMetadata(artifact)
-                    is ArtifactConfig.Android -> artifact.metadata
-                }
-                session.withPrinter(id, metadata) { printer ->
-                    when (artifact) {
-                        is ArtifactConfig.Java -> compileJdk(printer, id, artifact)
-                        is ArtifactConfig.Android -> compileAndroid(printer, id, artifact)
-                        is ArtifactConfig.Maven -> compileMaven(mavenDependencyResolver, printer, id, artifact)
-                    }
+            if (!newDb && dbi.inTransaction { conn: Handle, _ ->
+                        conn.select("select 1 from artifacts where id = ? and lastCompileVersion >= ?", id, COMPILER_VERSION).any()
+                    }) {
+                // already compiled with this version.
+                continue
+            }
+
+            val metadata = when (artifact) {
+                is ArtifactConfig.Java -> artifact.metadata
+                is ArtifactConfig.Maven -> resolveMavenMetadata(artifact)
+                is ArtifactConfig.Android -> artifact.metadata
+            }
+            session.withPrinter(id, metadata) { printer ->
+                when (artifact) {
+                    is ArtifactConfig.Java -> compileJdk(printer, id, artifact)
+                    is ArtifactConfig.Android -> compileAndroid(printer, id, artifact)
+                    is ArtifactConfig.Maven -> compileMaven(mavenDependencyResolver, printer, id, artifact)
                 }
             }
         } catch (e: Exception) {

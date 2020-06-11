@@ -3,7 +3,6 @@ package at.yawk.javabrowser.generator
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
-import at.yawk.javabrowser.DbMigration
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsVector
@@ -64,46 +63,25 @@ class Session(
     fun execute() {
         val ourTasks = ArrayList(tasks)
         tasks.clear()
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.withHandle { conn: Handle ->
             val present = conn.select("select id from artifacts").map { it["id"] as String }
             val updating = ourTasks.map { it.artifactId }
-            val mode = when {
-                updating.size > present.size * 0.6 -> UpdateMode.FULL
-                else -> UpdateMode.MINOR
-            }
+            val full = updating.size > present.size * 0.6
 
-            log.info("Updating {} artifacts in mode {}", updating.size, mode)
+            log.info("Updating {} artifacts in mode {}", updating.size, if (full) "full" else "partial")
 
-            SessionConnection(objectMapper, conn, ourTasks, mode).run()
+            SessionConnection(objectMapper, conn, ourTasks, full = full).run()
         }
-        // do this outside the tx so some data is already available
-        dbi.useHandle { otherTx ->
-            log.info("Updating reference count view")
-            otherTx.update("refresh materialized view concurrently binding_references_count_view")
-            log.info("Updating package view")
-            otherTx.update("refresh materialized view concurrently packages_view")
-            log.info("Updating type count view")
-            otherTx.update("refresh materialized view concurrently type_count_by_depth_view")
-        }
-    }
-
-    enum class UpdateMode {
-        /**
-         * Create a new schema and start from the ground up.
-         */
-        FULL,
-        MINOR,
     }
 
     private class SessionConnection(
             val objectMapper: ObjectMapper,
             val conn: Handle,
             val tasks: List<Task>,
-            val mode: UpdateMode
+            val full: Boolean
     ) {
         private val coroutineScope = CoroutineScope(ForkJoinPool.commonPool().asCoroutineDispatcher())
 
-        //private val coroutineScope = CoroutineScope(Executors.newSingleThreadExecutor().asCoroutineDispatcher())
         private val concurrencyControl = ParserConcurrencyControl.Impl(maxConcurrentSourceFiles = 1024)
 
         private val refBatch = conn.prepareBatch("insert into binding_references (realm, targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?, ?)")
@@ -112,6 +90,7 @@ class Session(
         private val dbWriter = BackPressureExecutor(16)
 
         fun run() {
+            conn.begin()
 
             fun delete(inParam: String, args: Array<String>) {
                 conn.update("delete from bindings where artifactId $inParam", *args)
@@ -123,20 +102,17 @@ class Session(
             }
 
             val artifactIds = tasks.map { it.artifactId }
-            log.info("Cleaning up in preparation for {}", artifactIds)// recreate indices
 
-            // check exception
-            when (mode) {
-                UpdateMode.MINOR -> {
-                    for (artifactId in artifactIds) {
-                        delete("= ?", arrayOf(artifactId))
-                    }
-                }
-                UpdateMode.FULL -> {
-                    conn.update("create schema wip")
-                    conn.update("set search_path to wip")
-                    // create tables in new schema
-                    DbMigration.initDataSchema(conn)
+            if (full) {
+                log.info("Creating WIP schema")
+                conn.update("create schema wip")
+                conn.update("set search_path to wip")
+                // create tables in new schema
+                GeneratorSchema(conn).createSchema()
+            } else {
+                log.info("Cleaning up in preparation for {}", artifactIds) // recreate indices
+                for (artifactId in artifactIds) {
+                    delete("= ?", arrayOf(artifactId))
                 }
             }
 
@@ -163,19 +139,25 @@ class Session(
             }
             dbWriter.shutdownAndWait()
 
-            if (mode != UpdateMode.MINOR) {
-                DbMigration.createIndices(conn)
+            if (full) {
+                log.info("Creating indices")
+                GeneratorSchema(conn).createIndices()
+                GeneratorSchema(conn).updateViews(concurrent = false)
 
-                if (mode == UpdateMode.FULL) {
-                    log.info("Replacing schema")
-                    conn.update("drop schema data cascade")
-                    conn.update("alter schema wip rename to data")
-                    // reset connection search_path in case the connection is reused
-                    conn.update("set search_path to data")
-                }
+                log.info("Replacing schema")
+                conn.update("drop schema data cascade")
+                conn.update("alter schema wip rename to data")
+                // reset connection search_path in case the connection is reused
+                conn.update("set search_path to data")
             }
 
-            log.info("Connection done")
+            conn.commit()
+
+            if (!full) {
+                conn.begin()
+                GeneratorSchema(conn).updateViews(concurrent = true)
+                conn.commit()
+            }
         }
 
         private inner class PrinterImpl(val artifactId: String) : PrinterWithDependencies {

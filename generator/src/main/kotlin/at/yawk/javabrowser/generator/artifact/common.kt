@@ -4,8 +4,6 @@ import at.yawk.javabrowser.generator.ArtifactConfig
 import at.yawk.javabrowser.generator.Printer
 import at.yawk.javabrowser.generator.SourceFileParser
 import com.google.common.io.MoreFiles
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -33,17 +31,6 @@ internal suspend fun compile(
     parser.artifactId = artifactId
     parser.printBytecode = true
     parser.compile()
-}
-
-internal fun needsRecompile(dbi: DBI, artifactId: String): Boolean {
-    return dbi.inTransaction { conn: Handle, _ ->
-        val present = conn.select("select lastCompileVersion from artifacts where id = ?", artifactId)
-        if (present.isEmpty()) {
-            true
-        } else {
-            (present.single()["lastCompileVersion"] as Number).toInt() < COMPILER_VERSION
-        }
-    }
 }
 
 inline fun tempDir(f: (Path) -> Unit) {
