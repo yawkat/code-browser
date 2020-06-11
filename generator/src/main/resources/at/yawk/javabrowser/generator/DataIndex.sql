@@ -1,5 +1,4 @@
-alter table _sourceFiles0 add primary key (artifactId, path);
-alter table _sourceFiles1 add primary key (artifactId, path);
+alter table sourceFiles add primary key (realm, artifactId, path);
 alter table _sourceFiles0 add foreign key (artifactId) references artifacts;
 alter table _sourceFiles1 add foreign key (artifactId) references artifacts;
 alter table sourceFileLexemes add foreign key (realm, artifactId, sourceFile) references sourceFiles;
@@ -7,17 +6,15 @@ alter table sourceFileLexemesNoSymbols add foreign key (realm, artifactId, sourc
 create index on sourceFileLexemes using gin(lexemes);
 create index on sourceFileLexemesNoSymbols using gin(lexemes);
 
+alter table bindings add primary key (realm, binding, artifactId) include (sourceFile);
 alter table _bindings0 add foreign key (artifactId) references artifacts;
 alter table _bindings1 add foreign key (artifactId) references artifacts;
 alter table _bindings0 add foreign key (realm, artifactId, sourceFile) references sourceFiles;
 alter table _bindings1 add foreign key (realm, artifactId, sourceFile) references sourceFiles;
 alter table _bindings0 add foreign key (realm, artifactId, parent) references bindings;
 alter table _bindings1 add foreign key (realm, artifactId, parent) references bindings;
-alter table _bindings0 add primary key (binding, artifactId) include (sourceFile);
-alter table _bindings1 add primary key (binding, artifactId) include (sourceFile);
 
-alter table _binding_references0 add primary key (realm, sourceArtifactId, sourceFile, sourceFileId);
-alter table _binding_references1 add primary key (realm, sourceArtifactId, sourceFile, sourceFileId);
+alter table binding_references add primary key (realm, sourceArtifactId, sourceFile, sourceFileId);
 alter table _binding_references0 add foreign key (realm, sourceArtifactId, sourceFile) references sourceFiles;
 alter table _binding_references1 add foreign key (realm, sourceArtifactId, sourceFile) references sourceFiles;
 create index on _binding_references0 (targetBinding, type, sourceArtifactId);
