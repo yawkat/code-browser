@@ -285,7 +285,7 @@ internal class MethodPrinter private constructor(
     private inner class Code : MethodVisitor(Opcodes.ASM8) {
         private lateinit var currentInstruction: AbstractInsnNode
 
-        private lateinit var currentLabel: Label
+        private var currentLabel: Label? = null
         private var nextInstructionLabel: Label? = null
         private var nextInstructionLabelPrinted = false
 
@@ -623,6 +623,7 @@ internal class MethodPrinter private constructor(
             val currentLabelIndex = if (storeOnly && next is LabelNode) {
                 labels.indexOf(next.label)
             } else {
+                // might be -1
                 labels.indexOf(currentLabel)
             }
             // we almost always have a local variable, but there are exceptions like the throwable in a finally block.
