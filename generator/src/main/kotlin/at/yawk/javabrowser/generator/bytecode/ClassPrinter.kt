@@ -46,25 +46,32 @@ class ClassPrinter private constructor(
         super.visit(version, access, name, signature, superName, interfaces)
 
         val isInterface = (access and Opcodes.ACC_INTERFACE) != 0
+        val isModule = (access and Opcodes.ACC_MODULE) != 0
 
         printer.printSourceModifiers(
                 if (isInterface) access and Opcodes.ACC_ABSTRACT.inv() else access,
                 Flag.Target.CLASS, trailingSpace = true)
-        printer.append(if (isInterface) "interface " else "class ")
 
-        val binding = BytecodeBindings.toStringClass(Type.getObjectType(name))
         val superTypeNames = (if (superName == null) emptyList() else listOf(superName)) +
                 (interfaces?.asList() ?: emptyList())
-        printer.annotate(BindingDecl(
-                binding = binding,
-                description = typeDescription(Type.getObjectType(name)),
-                modifiers = asmAccessToSourceAnnotation(access),
-                parent = null,
-                superBindings = superTypeNames.map { Type.getObjectType(it) }.map {
-                    BindingDecl.Super(name = it.simpleName, binding = BytecodeBindings.toStringClass(it))
-                }
-        )) {
-            printer.append(Type.getObjectType(name).className)
+        if (isModule) {
+            printer.annotate(Style("keyword")) { printer.append("module") }
+        } else {
+            printer.annotate(Style("keyword")) { printer.append(if (isInterface) "interface" else "class") }
+            printer.append(' ')
+
+            val binding = BytecodeBindings.toStringClass(Type.getObjectType(name))
+            printer.annotate(BindingDecl(
+                    binding = binding,
+                    description = typeDescription(Type.getObjectType(name)),
+                    modifiers = asmAccessToSourceAnnotation(access),
+                    parent = null,
+                    superBindings = superTypeNames.map { Type.getObjectType(it) }.map {
+                        BindingDecl.Super(name = it.simpleName, binding = BytecodeBindings.toStringClass(it))
+                    }
+            )) {
+                printer.append(Type.getObjectType(name).className)
+            }
         }
 
         if (signature != null) {

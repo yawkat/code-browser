@@ -16,7 +16,7 @@ fun BytecodePrinter.appendDescriptor(type: Type, refType: BindingRefType, duplic
             }
         }
         Type.ARRAY -> {
-            append('[')
+            append("[".repeat(type.dimensions))
             appendDescriptor(type.elementType, refType)
         }
         Type.METHOD -> appendMethodDescriptor(type, refType, refType, duplicate)
@@ -65,7 +65,7 @@ fun BytecodePrinter.appendJavaName(type: Type, refType: BindingRefType, duplicat
     when (type.sort) {
         Type.ARRAY -> {
             appendJavaName(type.elementType, refType)
-            append("[]")
+            append("[]".repeat(type.dimensions))
         }
         Type.OBJECT -> {
             annotate(createBindingRef(refType, BytecodeBindings.toStringClass(type), duplicate)) {

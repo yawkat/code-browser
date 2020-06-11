@@ -76,7 +76,7 @@ class CompilerTest {
                             "5.1.5.RELEASE")
             )
         }
-        Assert.assertEquals(sourceFileCount.sum(), 1)
+        Assert.assertEquals(sourceFileCount.sum(), 2)
     }
 
     @Test

@@ -1074,7 +1074,7 @@ class SourceFileParserTest {
                 entries,
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
-                    annotation is BindingDecl && annotation.binding == "A"
+                    annotation is BindingDecl && annotation.binding == "LA;"
                 })
         )
     }
@@ -1089,6 +1089,19 @@ class SourceFileParserTest {
                 Matchers.not(Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingDecl && annotation.binding.contains('x')
+                }))
+        )
+    }
+
+    @Test
+    fun `bytecode module info binding`() {
+        write("module-info.java", "module a {}")
+        val entries = compile().getValue("module-info.class").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.not(Matchers.hasItem(matches<PositionedAnnotation> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl
                 }))
         )
     }
