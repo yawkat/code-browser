@@ -859,7 +859,7 @@ class SourceFileParserTest {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
-                            annotation.modifiers == 0 && annotation.parent == null &&
+                            annotation.modifiers == 0 && annotation.parent == "".hashBinding() &&
                             description.kind == BindingDecl.Description.Type.Kind.EXCEPTION
                 })
         )
