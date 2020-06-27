@@ -13,14 +13,14 @@ class AliasIndex @Inject constructor(
         dbi: DBI
 ) {
     @Volatile
-    private var aliases: Multimap<String, String> = ArrayListMultimap.create()
+    private var aliases: Multimap<Long, String> = ArrayListMultimap.create()
 
     init {
         artifactUpdater.addInvalidationListener(true) {
             dbi.inTransaction { conn: Handle, _ ->
-                val newAliases = ArrayListMultimap.create<String, String>()
-                for (row in conn.select("select artifactId, alias from artifactAliases")) {
-                    newAliases.put(row["artifactId"] as String, row["alias"] as String)
+                val newAliases = ArrayListMultimap.create<Long, String>()
+                for (row in conn.select("select artifact_id, alias from artifact_alias")) {
+                    newAliases.put((row["artifact_id"] as Number).toLong(), row["alias"] as String)
                 }
                 this.aliases = newAliases
             }
@@ -30,7 +30,7 @@ class AliasIndex @Inject constructor(
     /**
      * Find an artifact that is aliased to the requested ID or an ID where only the version differs.
      */
-    fun findAliasedTo(requestedId: String): String? {
+    fun findAliasedTo(requestedId: String): Long? {
         for ((actual, alias) in aliases.entries()) {
             if (alias == requestedId) {
                 return actual

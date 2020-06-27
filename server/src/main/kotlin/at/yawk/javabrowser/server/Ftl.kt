@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.server.view.View
+import com.google.common.annotations.VisibleForTesting
 import freemarker.core.HTMLOutputFormat
 import freemarker.ext.beans.BeansWrapperBuilder
 import freemarker.template.Configuration
@@ -8,6 +9,7 @@ import freemarker.template.SimpleScalar
 import freemarker.template.TemplateExceptionHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
+import java.io.OutputStream
 import java.io.OutputStreamWriter
 import java.lang.reflect.Modifier
 import javax.inject.Inject
@@ -39,10 +41,18 @@ class Ftl @Inject constructor(imageCache: ImageCache) {
     fun render(exchange: HttpServerExchange, view: View) {
         val themeCookie = exchange.requestCookies["theme"]?.value
         val theme = if (themeCookie in THEMES) themeCookie else "default"
-
-        val template = configuration.getTemplate(view.templateFile)
         exchange.responseHeaders.put(Headers.CONTENT_TYPE, "text/html")
-        OutputStreamWriter(exchange.outputStream).use {
+        render(view, exchange.outputStream, theme)
+    }
+
+    @VisibleForTesting
+    internal fun render(
+            view: View,
+            outputStream: OutputStream,
+            theme: String?
+    ) {
+        val template = configuration.getTemplate(view.templateFile)
+        OutputStreamWriter(outputStream).use {
             val processingEnvironment = template.createProcessingEnvironment(view, it)
             processingEnvironment.setGlobalVariable("theme", SimpleScalar(theme))
             processingEnvironment.process()

@@ -2,12 +2,17 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.BindingRef
+import at.yawk.javabrowser.CompressedFactory
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsVector
 import at.yawk.javabrowser.generator.artifact.COMPILER_VERSION
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.fasterxml.jackson.module.kotlin.SingletonSupport
+import com.google.common.hash.Hashing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -15,6 +20,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.eclipse.collections.impl.factory.primitive.IntLists
+import org.eclipse.collections.impl.factory.primitive.LongSets
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.slf4j.LoggerFactory
@@ -48,10 +54,10 @@ private inline fun finallyWithSuppressed(
     }
 }
 
-class Session(
-        private val dbi: DBI,
-        private val objectMapper: ObjectMapper = ObjectMapper()
-) {
+@Suppress("UnstableApiUsage")
+private val BINDING_HASHER = Hashing.sipHash24()
+
+class Session(private val dbi: DBI) {
     private var tasks = ArrayList<Task>()
 
     fun withPrinter(artifactId: String,
@@ -60,22 +66,20 @@ class Session(
         tasks.add(Task(artifactId, metadata, closure))
     }
 
-    fun execute() {
+    fun execute(totalArtifacts: Int) {
         val ourTasks = ArrayList(tasks)
         tasks.clear()
         dbi.withHandle { conn: Handle ->
-            val present = conn.select("select id from artifacts").map { it["id"] as String }
             val updating = ourTasks.map { it.artifactId }
-            val full = updating.size > present.size * 0.6
+            val full = updating.size > totalArtifacts * 0.6
 
             log.info("Updating {} artifacts in mode {}", updating.size, if (full) "full" else "partial")
 
-            SessionConnection(objectMapper, conn, ourTasks, full = full).run()
+            SessionConnection(conn, ourTasks, full = full).run()
         }
     }
 
     private class SessionConnection(
-            val objectMapper: ObjectMapper,
             val conn: Handle,
             val tasks: List<Task>,
             val full: Boolean
@@ -84,22 +88,16 @@ class Session(
 
         private val concurrencyControl = ParserConcurrencyControl.Impl(maxConcurrentSourceFiles = 1024)
 
-        private val refBatch = conn.prepareBatch("insert into binding_references (realm, targetBinding, type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        private val declBatch = conn.prepareBatch("insert into bindings (realm, artifactId, binding, sourceFile, isType, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        private val refBatch = conn.prepareBatch("insert into binding_reference (realm, target, type, source_artifact_id, source_file_id, source_file_line, source_file_ref_id) VALUES (?, ?, ?, ?, ?, ?, ?)") // TODO
+        private val declBatch = conn.prepareBatch("insert into binding (realm, artifact_id, binding_id, binding, source_file_id, include_in_type_search, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
         private val dbWriter = BackPressureExecutor(16)
 
+        private val cborMapper = ObjectMapper(CompressedFactory()).registerModule(KotlinModule(singletonSupport = SingletonSupport.CANONICALIZE))
+        private val jsonMapper = ObjectMapper().registerModule(KotlinModule(singletonSupport = SingletonSupport.CANONICALIZE))
+
         fun run() {
             conn.begin()
-
-            fun delete(inParam: String, args: Array<String>) {
-                conn.update("delete from bindings where artifactId $inParam", *args)
-                conn.update("delete from binding_references where sourceArtifactId $inParam", *args)
-                conn.update("delete from sourceFiles where artifactId $inParam", *args)
-                conn.update("delete from dependencies where fromArtifactId $inParam", *args)
-                conn.update("delete from artifactAliases where artifactId $inParam", *args)
-                conn.update("delete from artifacts where id $inParam", *args)
-            }
 
             val artifactIds = tasks.map { it.artifactId }
 
@@ -112,16 +110,19 @@ class Session(
             } else {
                 log.info("Cleaning up in preparation for {}", artifactIds) // recreate indices
                 for (artifactId in artifactIds) {
-                    delete("= ?", arrayOf(artifactId))
+                    conn.update("delete from artifact where string_id = ?", artifactId)
                 }
             }
 
             val futures = ArrayList<Deferred<Unit>>()
             for (task in tasks) {
-                conn.insert("insert into artifacts (id, lastCompileVersion, metadata) values (?, ?, ?)",
-                        task.artifactId, COMPILER_VERSION, objectMapper.writeValueAsBytes(task.metadata))
+                val artifactId = (conn.createQuery("insert into artifact (string_id, last_compile_version, metadata) values (?, ?, ?) returning artifact_id")
+                        .bind(0, task.artifactId)
+                        .bind(1, COMPILER_VERSION)
+                        .bind(2, jsonMapper.writeValueAsBytes(task.metadata))
+                        .single()["artifact_id"] as Number).toLong()
 
-                val printerImpl = PrinterImpl(task.artifactId)
+                val printerImpl = PrinterImpl(artifactId)
                 futures.add(coroutineScope.async {
                     finallyWithSuppressed(
                             tryBlock = { task.closure(printerImpl) },
@@ -160,15 +161,25 @@ class Session(
             }
         }
 
-        private inner class PrinterImpl(val artifactId: String) : PrinterWithDependencies {
+        private inner class PrinterImpl(val artifactId: Long) : PrinterWithDependencies {
             var hasFiles = false
+            var nextSourceFileId: Long = 0
+
+            private val allPackages = HashSet<String>()
+            private val explicitPackages = LongSets.mutable.empty()
 
             override val concurrencyControl: ParserConcurrencyControl
                 get() = this@SessionConnection.concurrencyControl
 
+            @Suppress("UnstableApiUsage")
+            override fun hashBinding(binding: String): BindingId {
+                if (binding.isEmpty()) return BindingId.TOP_LEVEL_PACKAGE
+                return BindingId(BINDING_HASHER.hashString(binding, Charsets.UTF_8).asLong())
+            }
+
             override fun addDependency(dependency: String) {
                 dbWriter.submit {
-                    conn.insert("insert into dependencies (fromArtifactId, toArtifactId) values (?, ?)",
+                    conn.insert("insert into dependency (from_artifact, to_artifact) values (?, ?)",
                             artifactId,
                             dependency)
                 }
@@ -176,7 +187,7 @@ class Session(
 
             override fun addAlias(alias: String) {
                 dbWriter.submit {
-                    conn.insert("insert into artifactAliases (artifactId, alias) values (?, ?)",
+                    conn.insert("insert into artifact_alias (artifact_id, alias) values (?, ?)",
                             artifactId,
                             alias)
                 }
@@ -188,15 +199,38 @@ class Session(
                 }
 
                 dbWriter.submit {
-                    conn.update("select pg_notify('artifacts', ?)", artifactId)
+                    for (pkg in allPackages) {
+                        val id = hashBinding(pkg)
+                        if (explicitPackages.contains(id.hash)) continue
+                        val lastDot = pkg.lastIndexOf('.')
+                        val parent = when {
+                            pkg.isEmpty() -> null
+                            lastDot == -1 -> BindingId.TOP_LEVEL_PACKAGE
+                            else -> hashBinding(pkg.substring(0, lastDot))
+                        }
+                        addDecl(
+                                Realm.SOURCE,
+                                BindingDecl(
+                                        id = id,
+                                        binding = pkg,
+                                        parent = parent,
+                                        superBindings = emptyList(),
+                                        modifiers = 0,
+                                        description = BindingDecl.Description.Package
+                                ),
+                                sourceFileId = null
+                        )
+                    }
+
+                    conn.update("select pg_notify('artifact', ?)", artifactId.toString())
                 }
-                log.info("$artifactId is ready")
+                log.info("$artifactId is ready") // TODO
             }
 
             private fun storeTokens(table: String,
                                     realm: Realm,
-                                    artifactId: String,
-                                    sourceFile: String,
+                                    artifactId: Long,
+                                    sourceFile: Long,
                                     tokens: List<Tokenizer.Token>) {
                 val lexemes = TsVector()
                 val start = IntLists.mutable.empty()
@@ -206,7 +240,7 @@ class Session(
                     if (start.isEmpty) return
 
                     conn.update(
-                            "insert into $table (realm, artifactId, sourceFile, lexemes, starts, lengths) values (?, ?, ?, ?::tsvector, ?, ?)",
+                            "insert into $table (realm, artifact_id, source_file_id, lexemes, starts, lengths) values (?, ?, ?, ?::tsvector, ?, ?)",
                             realm.id,
                             artifactId,
                             sourceFile,
@@ -242,20 +276,33 @@ class Session(
 
             private fun addSourceFile0(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>,
                                        realm: Realm) {
+                val sourceFileId = nextSourceFileId++
                 conn.insert(
-                        "insert into sourceFiles (realm, artifactId, path, text, annotations) values (?, ?, ?, ?, ?)",
+                        "insert into source_file (realm, artifact_id, source_file_id, path, text, annotations) values (?, ?, ?, ?, ?, ?)",
                         realm.id,
                         artifactId,
+                        sourceFileId,
                         path,
                         sourceFile.text.toByteArray(Charsets.UTF_8),
-                        objectMapper.writeValueAsBytes(sourceFile.entries)
+                        cborMapper.writeValueAsBytes(sourceFile.entries)
                 )
 
                 if (realm == Realm.SOURCE) {
-                    storeTokens("sourceFileLexemes", realm, artifactId, path, tokens)
-                    storeTokens("sourceFileLexemesNoSymbols", realm, artifactId, path, tokens.filter { !it.symbol })
+                    storeTokens("source_file_lexemes", realm, artifactId, sourceFileId, tokens)
+                    storeTokens("source_file_lexemes_no_symbols",
+                            realm,
+                            artifactId,
+                            sourceFileId,
+                            tokens.filter { !it.symbol })
                 } else {
                     require(tokens.isEmpty()) // TODO
+                }
+
+                if (sourceFile.pkg != null) {
+                    val packageParts = sourceFile.pkg.split('.')
+                    for (endExclusive in 0..packageParts.size) {
+                        allPackages.add(packageParts.subList(0, endExclusive).joinToString("."))
+                    }
                 }
 
                 val lineNumberTable = LineNumberTable(sourceFile.text)
@@ -266,33 +313,40 @@ class Session(
                         if (!annotation.duplicate) {
                             refBatch.add(
                                     realm.id,
-                                    annotation.binding,
+                                    annotation.binding.hash,
                                     annotation.type.id,
                                     artifactId,
-                                    path,
+                                    sourceFileId,
                                     lineNumberTable.lineAt(entry.start),
                                     annotation.id
                             )
                         }
                     } else if (annotation is BindingDecl) {
-                        declBatch.add(
-                                realm.id,
-                                artifactId,
-                                annotation.binding,
-                                path,
-                                annotation.description is BindingDecl.Description.Type &&
-                                        // exclude local and anonymous types from isType so they don't appear in the
-                                        // search
-                                        annotation.modifiers and (BindingDecl.MODIFIER_ANONYMOUS or
-                                        BindingDecl.MODIFIER_LOCAL) == 0,
-                                objectMapper.writeValueAsBytes(annotation.description),
-                                annotation.modifiers,
-                                annotation.parent
-                        )
+                        addDecl(realm, annotation, sourceFileId)
+
+                        if (annotation.description is BindingDecl.Description.Package) {
+                            explicitPackages.add(annotation.id.hash)
+                        }
                     }
                 }
                 refBatch.execute()
                 declBatch.execute()
+            }
+
+            private fun addDecl(realm: Realm, annotation: BindingDecl, sourceFileId: Long?) {
+                val includeInTypeSearch = annotation.description is BindingDecl.Description.Type &&
+                        annotation.modifiers and (BindingDecl.MODIFIER_ANONYMOUS or BindingDecl.MODIFIER_LOCAL) == 0
+                declBatch.add(
+                        realm.id,
+                        artifactId,
+                        annotation.id.hash,
+                        annotation.binding,
+                        sourceFileId,
+                        includeInTypeSearch,
+                        cborMapper.writeValueAsBytes(annotation.description),
+                        annotation.modifiers,
+                        annotation.parent?.hash
+                )
             }
         }
     }

@@ -57,12 +57,12 @@ class SourceFileView(
                              params: MutableMap<Any?, Any?>,
                              loopVars: Array<TemplateModel?>,
                              body: TemplateDirectiveBody?) {
-            val newScopeInfo = HtmlEmitter.ScopeInfo(newInfo.realm, newInfo.artifactId.id, newInfo.classpath)
+            val newScopeInfo = HtmlEmitter.ScopeInfo(newInfo.realm, newInfo.artifactId.stringId, newInfo.classpath)
             val emitter = HtmlEmitter(
                     bindingResolver,
                     if (oldInfo != null)
                         mapOf(SourceFilePrinter.Scope.OLD to
-                                HtmlEmitter.ScopeInfo(oldInfo.realm, oldInfo.artifactId.id, oldInfo.classpath),
+                                HtmlEmitter.ScopeInfo(oldInfo.realm, oldInfo.artifactId.stringId, oldInfo.classpath),
                                 SourceFilePrinter.Scope.NEW to newScopeInfo)
                     else
                         mapOf(SourceFilePrinter.Scope.NORMAL to newScopeInfo),

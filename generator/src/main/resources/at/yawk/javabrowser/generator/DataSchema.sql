@@ -1,168 +1,121 @@
+create domain realm_id as int2 check ( value = 0 or value = 1 );
+create domain artifact_id as int2;
+create domain source_file_id as int4;
+create domain binding_id as int8;
+
 -- ARTIFACTS
 
-create table artifacts
+create table artifact
 (
-    id                 varchar not null primary key,
-    lastCompileVersion integer not null default 0,
-    metadata           bytea   not null default '{}'
+    artifact_id          serial2 not null primary key,
+    string_id            varchar not null,
+    last_compile_version integer not null default 0,
+    metadata             bytea   not null default '{}'
 );
 
 -- SOURCE FILES
 
-create table sourceFiles
+create table source_file
 (
-    realm       smallint not null,
-    artifactId  varchar  not null,
-    path        varchar  not null,
-    text        bytea    not null,
-    annotations bytea    not null
+    realm          realm_id       not null,
+    artifact_id    artifact_id    not null,
+    source_file_id source_file_id not null,
+    path           varchar        not null,
+    text           bytea          not null,
+    annotations    bytea          not null
 )
     partition by list (realm);
 
-create table _sourceFiles0 partition of sourceFiles for values in (0);
-create table _sourceFiles1 partition of sourceFiles for values in (1);
+create table _source_file0 partition of source_file for values in (0);
+create table _source_file1 partition of source_file for values in (1);
 
 -- own table because for large source files there may be multiple of these (tsvector is limited to 16k positions)
 -- todo: partition by realm
-create table sourceFileLexemesBase
+create table source_file_lexemes_base
 (
-    realm      smallint not null,
-    artifactId varchar  not null,
-    sourceFile varchar  not null,
-    lexemes    tsvector not null,
-    starts     int4[]   not null,
-    lengths    int4[]   not null,
-    primary key (realm, artifactId, sourceFile)
+    realm          realm_id       not null,
+    artifact_id    artifact_id    not null,
+    source_file_id source_file_id not null,
+    lexemes        tsvector       not null,
+    starts         int4[]         not null,
+    lengths        int4[]         not null,
+    primary key (realm, source_file_id)
 );
 
 -- separate tables for the separate indices
-create table sourceFileLexemes
+create table source_file_lexemes
 (
-) inherits (sourceFileLexemesBase);
-create table sourceFileLexemesNoSymbols
+) inherits (source_file_lexemes_base);
+create table source_file_lexemes_no_symbols
 (
-) inherits (sourceFileLexemesBase);
+) inherits (source_file_lexemes_base);
 
 -- BINDINGS
 
-create table bindings
+create table binding
 (
-    realm       smallint not null,
-    artifactId  varchar  not null,
-    binding     varchar  not null,
-    description bytea    null, -- json
-    parent      varchar  null,
-    sourceFile  varchar  not null,
-    isType      bool     not null,
-    modifiers   int4     not null
+    binding_id             binding_id     not null,
+    -- null for the top-level package or when the parent can't be resolved or for bytecode classes.
+    parent                 binding_id     null,
+    source_file_id         source_file_id null,     -- null for packages without package-info
+    artifact_id            artifact_id    not null,
+    realm                  realm_id       not null,
+    include_in_type_search bool           not null,
+    binding                varchar        not null,
+    description            bytea          not null, -- json
+    modifiers              int4           not null
 )
     partition by list (realm);
 
-create table _bindings0 partition of bindings for values in (0);
-create table _bindings1 partition of bindings for values in (1);
+create table _binding0 partition of binding for values in (0);
+create table _binding1 partition of binding for values in (1);
 
 -- BINDING REFERENCES
 
-create table binding_references
+create table binding_reference
 (
-    realm            smallint not null,
-    targetBinding    varchar  not null,
-    type             int      not null,
-    sourceArtifactId varchar  not null,
-    sourceFile       varchar  not null,
-    sourceFileLine   int      not null,
-    sourceFileId     int      not null
+    realm              realm_id       not null,
+    source_artifact_id artifact_id    not null,
+    source_file_id     source_file_id not null,
+    target             binding_id     not null,
+    type               int            not null,
+    source_file_line   int            not null,
+    source_file_ref_id int            not null
 )
     partition by list (realm);
 
-create table _binding_references0 partition of binding_references for values in (0);
-create table _binding_references1 partition of binding_references for values in (1);
+create table _binding_reference0 partition of binding_reference for values in (0);
+create table _binding_reference1 partition of binding_reference for values in (1);
 
 -- DEPENDENCIES
 
-create table dependencies
+create table dependency
 (
-    fromArtifactId varchar not null references artifacts,
-    toArtifactId   varchar not null,
+    from_artifact artifact_id not null references artifact on delete cascade,
+    to_artifact   varchar     not null,
 
-    primary key (fromArtifactId, toArtifactId)
+    primary key (from_artifact, to_artifact)
 );
 
 -- ALIASES
 
-create table artifactAliases
+create table artifact_alias
 (
-    artifactId varchar not null references artifacts,
-    alias      varchar not null,
+    artifact_id artifact_id not null references artifact on delete cascade,
+    alias       varchar     not null,
 
-    primary key (artifactId, alias)
+    primary key (artifact_id, alias)
 );
 
 -- BINDING REFERENCE COUNTS
 
-create materialized view binding_references_count_view as
-select realm, targetBinding, type, sourceArtifactId, count(*) as count
-from binding_references
-group by (realm, targetBinding, type, sourceArtifactId);
+create materialized view binding_reference_count_view as
+select realm, target, type, source_artifact_id, count(*) as count
+from binding_reference
+group by (realm, target, type, source_artifact_id);
 
--- PACKAGES
-
-create function count_dots(text)
-    returns int
-as
-'select char_length($1) - char_length(replace($1, ''.'', ''''));'
-    language sql
-    immutable
-    returns null on null input ;
-
-create function until_last_dot(text)
-    returns text
-as
-'select array_to_string((string_to_array($1, ''.''))[1:array_length(string_to_array($1, ''.''), 1) - 1], ''.'');'
-    language sql
-    immutable
-    returns null on null input ;
-
-create materialized view packages_view as
-with recursive rec (artifactId, name) as (
-    select artifactId, until_last_dot(binding) as name
-    from bindings
-    where parent is null
-      and position('.' in binding) != 0
-    union
-    distinct
-    select artifactId, null
-    from bindings
-    union
-    distinct
-    select artifactId, until_last_dot(name)
-    from rec
-    where position('.' in name) != 0
-)
-select *
-from rec
-order by artifactId, name;
-
--- TYPE COUNT BY PACKAGE
-
--- This view counts the number of direct and indirect members of all packages.
--- The package column may be NULL to denote the "top-level" package.
-create materialized view type_count_by_depth_view as
-with types_and_packages (artifactId, name) as (
-    select artifactId, binding as name
-    from bindings
-    where parent is null
-      and realm = 0
-    union
-    distinct
-    select artifactId, name
-    from packages_view
-)
-select outer_.artifactId,
-       outer_.name                                                     package,
-       count_dots(inner_.name) - coalesce(count_dots(outer_.name), -1) depth,
-       count(inner_.name)                                              typeCount
-from types_and_packages as outer_
-         inner join types_and_packages as inner_ on outer_.artifactId = inner_.artifactId and
-                                                    (outer_.name is null or inner_.name like outer_.name || '.%')
-group by outer_.artifactId, outer_.name, count_dots(inner_.name);
+create materialized view binding_descendant_count_view as
+select b1.realm, b1.artifact_id, b1.binding_id, count(b2) as count
+from binding b1
+inner join binding b2 on b1.realm = b2.realm and b1.artifact_id = b2.artifact_id and b1.binding_id = b2.parent
+group by b1.realm, b1.artifact_id, b1.binding_id;

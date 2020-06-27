@@ -43,14 +43,14 @@ fun main(args: Array<String>) {
     }
 
     val newDb = dbi.inTransaction { conn: Handle, _ ->
-        !conn.select("select 1 from information_schema.tables where table_schema = 'data' and table_name = 'artifacts'").any()
+        !conn.select("select 1 from information_schema.tables where table_schema = 'data' and table_name = 'artifact'").any()
     }
 
     for (artifact in config.artifacts) {
         val id = getArtifactId(artifact)
         try {
             if (!newDb && dbi.inTransaction { conn: Handle, _ ->
-                        conn.select("select 1 from artifacts where id = ? and lastCompileVersion >= ?", id, COMPILER_VERSION).any()
+                        conn.select("select 1 from artifact where string_id = ? and last_compile_version >= ?", id, COMPILER_VERSION).any()
                     }) {
                 // already compiled with this version.
                 continue
@@ -73,5 +73,5 @@ fun main(args: Array<String>) {
         }
     }
 
-    session.execute()
+    session.execute(totalArtifacts = config.artifacts.size)
 }

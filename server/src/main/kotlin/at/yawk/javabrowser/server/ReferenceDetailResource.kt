@@ -1,10 +1,15 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.Realm
+import at.yawk.javabrowser.server.artifact.ArtifactNode
 import at.yawk.javabrowser.server.view.ReferenceDetailView
+import com.google.common.annotations.VisibleForTesting
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.Iterators
+import com.google.common.collect.PeekingIterator
+import com.google.common.collect.Table
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import org.skife.jdbi.v2.DBI
@@ -40,161 +45,228 @@ class ReferenceDetailResource @Inject constructor(
                 throw HttpException(400, "Unknown type")
             }
         }
-        val sourceArtifactId = exchange.queryParameters["fromArtifact"]?.peekFirst()?.let {
+        val sourceArtifact = exchange.queryParameters["fromArtifact"]?.peekFirst()?.let {
             val parsed = artifactIndex.parse(it)
             if (parsed.remainingPath != null) throw HttpException(404, "No such artifact")
             parsed.node
         }
-        val limitString = exchange.queryParameters["limit"]?.peekFirst()
-        val limit: Int?
-        if (limitString == null) {
-            limit = 10000
-        } else if (limitString == "") {
-            limit = null // no limit!
-        } else {
-            try {
-                limit = limitString.toInt()
-            } catch (e: NumberFormatException) {
-                throw HttpException(400, "Illegal limit")
+        val limit: Int? = when (val limitString = exchange.queryParameters["limit"]?.peekFirst()) {
+            null -> 10000
+            "" -> null // no limit!
+            else -> {
+                try {
+                    limitString.toInt()
+                } catch (e: NumberFormatException) {
+                    throw HttpException(400, "Illegal limit")
+                }
             }
         }
         dbi.inTransaction { conn: Handle, _ ->
-            val countTable = HashBasedTable.create<String, BindingRefType, Int>(16, BindingRefType.values().size)
-            for (row in conn.select("""
-                select type, sourceArtifactId, count from binding_references_count_view
-                where targetBinding = ?
-            """, targetBinding)) {
-                val type = BindingRefType.byIdOrNull((row["type"] as Number).toInt())
-                // can happen if the generator is newer than the frontend. We could return UNCLASSIFIED here, but then the search for UNCLASSIFIED wouldn't match this number.
-                        ?: continue
-                countTable.put(row["sourceArtifactId"] as String, type, (row["count"] as Number).toInt())
-            }
-            val countsByType = countTable.columnKeySet().associateWith { countTable.column(it).values.sum() }
-            val countsByArtifact = countTable.rowKeySet().associateWith { countTable.row(it).values.sum() }
+            // render within the transaction so we can stream results
+            ftl.render(exchange, handleRequest(conn, realm, targetBinding, sourceArtifact, type, limit))
+        }
+    }
 
-            val totalCount = countsByType.values.sum()
+    private data class Overview(
+            val countTable: Table<String, BindingRefType, Int>,
+            val countsByType: Map<BindingRefType, Int>,
+            val countsByArtifact: Map<String, Int>,
+            val totalCount: Int,
 
-            // maximum result count on a single artifact
-            val totalCountInSelection: Int
-            if (type != null) {
-                if (sourceArtifactId != null) {
-                    totalCountInSelection = countTable.get(sourceArtifactId.id, type) ?: 0
-                } else {
-                    totalCountInSelection = countsByType[type] ?: 0
+            val bindingId: BindingId
+    )
+
+    private fun buildOverview(
+            conn: Handle,
+            realm: Realm,
+            targetBinding: String
+    ): Overview {
+        val countTable = HashBasedTable.create<String, BindingRefType, Int>(16, BindingRefType.values().size)
+        var bindingIdTmp: BindingId? = null
+        for (row in conn.select("""
+                    select binding_id, type, source_artifact_id, count count from binding_reference_count_view v
+                    right join binding on binding.realm = v.realm and binding.binding_id = v.target
+                    where v.realm = ? and binding.binding = ?
+                """, realm.id, targetBinding)) {
+            val bindingId = BindingId((row["binding_id"] as Number).toLong())
+            if (bindingIdTmp != null) {
+                if (bindingIdTmp != bindingId) {
+                    throw AssertionError("Two bindings with different id but same name")
                 }
             } else {
-                if (sourceArtifactId != null) {
-                    totalCountInSelection = countsByArtifact[sourceArtifactId.id] ?: 0
-                } else {
-                    totalCountInSelection = totalCount
-                }
+                bindingIdTmp = bindingId
             }
 
-            val hitResultLimit = totalCountInSelection > (limit ?: Int.MAX_VALUE)
-
-            val query = conn.createQuery("""
-                select type, sourceArtifactId, sourceFile, sourceFileLine, sourceFileId from binding_references
-                                where realm = :realm 
-                                and targetBinding = :targetBinding
-                                ${if (type != null) "and type = :type" else ""}
-                                ${if (sourceArtifactId != null) "and sourceArtifactId = :sourceArtifactId" else ""}
-                                order by type, sourceArtifactId, sourceFile, sourceFileId
-                                ${if (hitResultLimit) "limit :limit" else ""}
-            """).map { _, r, _ ->
-                ReferenceDetailView.Row(
-                        type = BindingRefType.byIdOrNull(r.getInt(1)),
-                        sourceArtifactId = r.getString(2),
-                        sourceFile = r.getString(3),
-                        sourceFileLine = r.getInt(4),
-                        sourceFileId = r.getInt(5)
-                )
+            if (row["type"] == null) {
+                // this is a right join, so there might be bindings with no references.
+                continue
             }
-            query.bind("realm", realm.id)
-            query.bind("targetBinding", targetBinding)
-            if (type != null) query.bind("type", type.id)
-            if (sourceArtifactId != null) query.bind("sourceArtifactId", sourceArtifactId.id)
-            if (hitResultLimit) query.bind("limit", limit)
-            query.setFetchSize(500)
-            val view = ReferenceDetailView(
-                    realm = realm,
-                    targetBinding = targetBinding,
-                    baseUri = URI("/references/${URLEncoder.encode(targetBinding, "UTF-8")}"),
-                    type = type,
-                    sourceArtifactId = sourceArtifactId,
 
-                    countTable = countTable,
-                    countsByType = countsByType,
-                    countsByArtifact = countsByArtifact,
-                    totalCount = totalCount,
+            val type = BindingRefType.byIdOrNull((row["type"] as Number).toInt())
+            // can happen if the generator is newer than the frontend. We could return UNCLASSIFIED here, but then the search for UNCLASSIFIED wouldn't match this number.
+                    ?: continue
+            val sourceArtifactId = (row["source_artifact_id"] as Number).toLong()
+            val sourceArtifact =  artifactIndex.allArtifactsByDbId[sourceArtifactId]!!
+            countTable.put(sourceArtifact.stringId, type, (row["count"] as Number).toInt())
+        }
+        if (bindingIdTmp == null) {
+            // since this is a right join, this actually means "no binding" and not only "no references to this"
+            throw HttpException(404, "No such binding")
+        }
+        return Overview(
+                countTable,
+                countsByType = countTable.columnKeySet().associateWith { countTable.column(it).values.sum() },
+                countsByArtifact = countTable.rowKeySet().associateWith { countTable.row(it).values.sum() },
+                totalCount = countTable.values().sum(),
+                bindingId = bindingIdTmp
+        )
+    }
 
-                    resultLimit = limit,
-                    hitResultLimit = hitResultLimit,
-                    totalCountInSelection = totalCountInSelection,
+    @VisibleForTesting
+    internal fun handleRequest(conn: Handle,
+                              realm: Realm,
+                              targetBinding: String,
+                              sourceArtifact: ArtifactNode?,
+                              type: BindingRefType?,
+                              limit: Int?): ReferenceDetailView {
+        val overview = buildOverview(conn, realm, targetBinding)
 
-                    results = ResultGenerator(query.iterator()).splitByType()
+        // maximum result count on a single artifact
+        val totalCountInSelection: Int
+        if (type != null) {
+            if (sourceArtifact != null) {
+                totalCountInSelection = overview.countTable.get(sourceArtifact.stringId, type) ?: 0
+            } else {
+                totalCountInSelection = overview.countsByType[type] ?: 0
+            }
+        } else {
+            if (sourceArtifact != null) {
+                totalCountInSelection = overview.countsByArtifact[sourceArtifact.stringId] ?: 0
+            } else {
+                totalCountInSelection = overview.totalCount
+            }
+        }
+
+        val hitResultLimit = totalCountInSelection > (limit ?: Int.MAX_VALUE)
+
+        val query = conn.createQuery("""
+                    select type, source_artifact_id, source_file.path, source_file_line, source_file_ref_id from binding_reference
+                    inner join source_file on source_file.realm = binding_reference.realm and source_file.artifact_id = binding_reference.source_artifact_id and source_file.source_file_id = binding_reference.source_file_id
+                    where binding_reference.realm = :realm 
+                    and binding_reference.target = :targetBinding
+                    ${if (type != null) "and binding_reference.type = :type" else ""}
+                    ${if (sourceArtifact != null) "and binding_reference.source_artifact_id = :sourceArtifactId" else ""}
+                    order by type, source_artifact_id, source_file.path, source_file_ref_id
+                    ${if (hitResultLimit) "limit :limit" else ""}
+                """).map { _, r, _ ->
+            Row(
+                    type = BindingRefType.byIdOrNull(r.getInt(1)),
+                    sourceArtifactId = r.getLong(2),
+                    sourceFile = r.getString(3),
+                    sourceFileLine = r.getInt(4),
+                    sourceFileRefId = r.getInt(5)
             )
-            // render within the transaction so we can stream results
-            ftl.render(exchange, view)
+        }
+        query.bind("realm", realm.id)
+        query.bind("targetBinding", overview.bindingId.hash)
+        if (type != null) query.bind("type", type.id)
+        if (sourceArtifact != null) query.bind("sourceArtifactId", sourceArtifact.dbId)
+        if (hitResultLimit) query.bind("limit", limit)
+        query.setFetchSize(500)
+        return ReferenceDetailView(
+                realm = realm,
+                targetBinding = targetBinding,
+                baseUri = URI("/references/${URLEncoder.encode(targetBinding, "UTF-8")}"),
+                type = type,
+                sourceArtifactId = sourceArtifact,
+
+                countTable = overview.countTable,
+                countsByType = overview.countsByType,
+                countsByArtifact = overview.countsByArtifact,
+                totalCount = overview.totalCount,
+
+                resultLimit = limit,
+                hitResultLimit = hitResultLimit,
+                totalCountInSelection = totalCountInSelection,
+
+                results = TypeIterator(query.iterator())
+        )
+    }
+
+    /**
+     * Top-level iterator. Splits an iterator of rows into sections for each type.
+     */
+    private inner class TypeIterator(flatDelegate: Iterator<Row>) :
+            TreeIterator<Row, ReferenceDetailView.TypeListing?>(Iterators.peekingIterator(flatDelegate)) {
+        override fun mapOneItem(): ReferenceDetailView.TypeListing? {
+            val top = flatDelegate.peek()
+            if (top.type == null) return null
+            val artifacts = ArtifactIterator(top.type, flatDelegate)
+            registerSubIterator(artifacts)
+            return ReferenceDetailView.TypeListing(top.type, artifacts)
+        }
+
+        override fun returnToParent(item: Row): Boolean {
+            return false
         }
     }
 
     /**
-     * This is a special iterator that uses a sentinel element and *never* calls delegate.hasNext() outside its own
-     * next() call. The purpose of this is this: If you split up an Iterator<T> into an Iterator<Iterator<T>> by some
-     * criteria, and do not wish to buffer results, odd things can happen. For example, you could call
-     * `inner = outer.next`, then `outer.hasNext` and finally `inner.next`, which would upset the order.
+     * Splits an iterator of rows of the same type into sections for each artifact.
      */
-    private class SentinelIterator<T : Any?>(private val delegate: Iterator<T>, private val sentinel: T) : Iterator<T> {
-        private var hitEnd = false
+    private inner class ArtifactIterator(
+            val currentType: BindingRefType,
 
-        override fun hasNext(): Boolean {
-            return !hitEnd
+            flatDelegate: PeekingIterator<Row>
+    ) : TreeIterator<Row, ReferenceDetailView.ArtifactListing?>(flatDelegate) {
+        override fun mapOneItem(): ReferenceDetailView.ArtifactListing? {
+            val top = flatDelegate.peek()
+            val artifactNode = artifactIndex.allArtifactsByDbId[top.sourceArtifactId] ?: return null
+            val sourceFiles = SourceFileIterator(artifactNode, flatDelegate)
+            registerSubIterator(sourceFiles)
+            return ReferenceDetailView.ArtifactListing(artifactNode.stringId, sourceFiles)
         }
 
-        override fun next(): T {
-            if (hitEnd) throw NoSuchElementException()
-            if (delegate.hasNext()) return delegate.next()
-            else {
-                hitEnd = true
-                return sentinel
-            }
+        override fun returnToParent(item: Row): Boolean {
+            return item.type != currentType
         }
-    }
 
-    private class ResultGenerator(resultIterator: Iterator<ReferenceDetailView.Row>) {
-        private val iterator = Iterators.peekingIterator(resultIterator)
+        /**
+         * Splits an iterator of rows of the same artifact into sections for each source file.
+         */
+        private inner class SourceFileIterator(
+                private val currentArtifact: ArtifactNode,
 
-        fun splitByType() = SentinelIterator(iterator {
-            while (iterator.hasNext()) {
-                val type = iterator.peek().type ?: continue
-                yield(ReferenceDetailView.TypeListing(type, splitByArtifact(type)))
-            }
-        }, null)
-
-        private fun splitByArtifact(type: BindingRefType) = SentinelIterator(iterator {
-            while (iterator.hasNext() && iterator.peek().type == type) {
-                val sourceArtifactId = iterator.peek().sourceArtifactId
-                yield(ReferenceDetailView.ArtifactListing(
-                        sourceArtifactId,
-                        splitBySourceFile(sourceArtifactId, type)
-                ))
-            }
-        }, null)
-
-        private fun splitBySourceFile(sourceArtifactId: String, type: BindingRefType) = SentinelIterator(iterator {
-            while (iterator.hasNext() &&
-                    iterator.peek().sourceArtifactId == sourceArtifactId &&
-                    iterator.peek().type == type) {
-                val sourceFile = iterator.peek().sourceFile
-                val items = ArrayList<ReferenceDetailView.Row>()
-                while (iterator.hasNext() &&
-                        iterator.peek().sourceArtifactId == sourceArtifactId &&
-                        iterator.peek().type == type &&
-                        iterator.peek().sourceFile == sourceFile) {
-                    items.add(iterator.next())
+                flatDelegate: PeekingIterator<Row>
+        ) : TreeIterator<Row, ReferenceDetailView.SourceFileListing>(flatDelegate) {
+            override fun mapOneItem(): ReferenceDetailView.SourceFileListing {
+                val sourceFile = flatDelegate.peek().sourceFile
+                val items = ArrayList<ReferenceDetailView.ReferenceListing>()
+                while (flatDelegate.hasNext() &&
+                        !returnToParent(flatDelegate.peek()) &&
+                        flatDelegate.peek().sourceFile == sourceFile) {
+                    val row = flatDelegate.next()
+                    items.add(ReferenceDetailView.ReferenceListing(
+                            sourceArtifactStringId = currentArtifact.stringId,
+                            sourceFile = row.sourceFile,
+                            sourceFileLine = row.sourceFileLine,
+                            sourceFileRefId = row.sourceFileRefId
+                    ))
                 }
-                yield(ReferenceDetailView.SourceFileListing(sourceFile, items))
+                return ReferenceDetailView.SourceFileListing(sourceFile, items)
             }
-        }, null)
+
+            override fun returnToParent(item: Row): Boolean {
+                return this@ArtifactIterator.returnToParent(item) || item.sourceArtifactId != currentArtifact.dbId
+            }
+        }
     }
+
+    private data class Row(
+            val type: BindingRefType?,
+            val sourceArtifactId: Long,
+            val sourceFile: String,
+            val sourceFileLine: Int,
+            val sourceFileRefId: Int
+    )
 }

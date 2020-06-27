@@ -11,16 +11,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ArtifactMetadataCache @Inject private constructor(
+class ArtifactMetadataCache @Inject constructor(
         private val objectMapper: ObjectMapper,
         private val dbi: DBI,
         artifactUpdater: ArtifactUpdater
 ) {
     private val cache = CacheBuilder.newBuilder()
-            .build(object : CacheLoader<String, ArtifactMetadata>() {
-                override fun load(key: String): ArtifactMetadata {
+            .build(object : CacheLoader<Long, ArtifactMetadata>() {
+                override fun load(key: Long): ArtifactMetadata {
                     return dbi.inTransaction { conn: Handle, _ ->
-                        val bytes = conn.select("select metadata from artifacts where id = ?", key)
+                        val bytes = conn.select("select metadata from artifact where artifact_id = ?", key)
                                 .single()["metadata"] as ByteArray
                         objectMapper.readValue(bytes, ArtifactMetadata::class.java)
                     }
@@ -31,5 +31,5 @@ class ArtifactMetadataCache @Inject private constructor(
         artifactUpdater.addArtifactUpdateListener { cache.invalidate(it) }
     }
 
-    fun getArtifactMetadata(node: ArtifactNode) = cache.get(node.id)!!
+    fun getArtifactMetadata(node: ArtifactNode) = cache.get(node.dbId!!)!!
 }

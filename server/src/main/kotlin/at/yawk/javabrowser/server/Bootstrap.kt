@@ -67,6 +67,7 @@ fun main(args: Array<String>) {
     guice.getInstance(DBI::class.java).inTransaction { conn, _ ->
         conn.createScript("at/yawk/javabrowser/server/InitInteractiveSchema.sql").execute()
     }
+    guice.getInstance(ArtifactUpdater::class.java).listenForUpdates(guice.getInstance(DBI::class.java))
 
     var handler: HttpHandler = PathTemplateHandler(guice.getInstance(BaseHandler::class.java)).also {
         it.add(SearchResource.PATTERN, guice.getInstance(SearchResource::class.java))

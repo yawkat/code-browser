@@ -7,6 +7,6 @@ import org.skife.jdbi.v2.sqlobject.SqlQuery
  * @author yawkat
  */
 interface DependencyDao {
-    @SqlQuery("select toArtifactId from dependencies where fromArtifactId = :artifactId")
-    fun getDependencies(@Bind("artifactId") artifactId: String): List<String>
+    @SqlQuery("select to_artifact from dependency where from_artifact = :artifactId")
+    fun getDependencies(@Bind("artifactId") artifactId: Long): List<String>
 }

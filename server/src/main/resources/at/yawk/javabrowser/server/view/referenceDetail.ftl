@@ -59,23 +59,20 @@
     </#if>
 
     <ul class="reference-detail-list">
-      <#list results as typeListing>
+      <@ConservativeLoopBlock iterator=results skipNull=true; typeListing>
       <#-- @ftlvariable name="typeListing" type="at.yawk.javabrowser.server.view.ReferenceDetailView.TypeListing" -->
-        <#if !typeListing??><#continue></#if>
         <li class="type">
           <h2>${typeListing.type.displayName}</h2>
 
           <ul>
-            <#list typeListing.artifacts as artifactListing>
+            <@ConservativeLoopBlock iterator=typeListing.artifacts skipNull=true; artifactListing>
             <#-- @ftlvariable name="artifactListing" type="at.yawk.javabrowser.server.view.ReferenceDetailView.ArtifactListing" -->
-              <#if !artifactListing??><#continue></#if>
               <li class="artifact">
                 <h3><a href="/${artifactListing.artifactId}">${artifactListing.artifactId}</a></h3>
 
                 <ul>
-                  <#list artifactListing.sourceFiles as sourceFileListing>
+                  <@ConservativeLoopBlock iterator=artifactListing.sourceFiles skipNull=true; sourceFileListing>
                   <#-- @ftlvariable name="sourceFileListing" type="at.yawk.javabrowser.server.view.ReferenceDetailView.SourceFileListing" -->
-                    <#if !sourceFileListing??><#continue></#if>
                     <li class="source-file">
                       <h4>${sourceFileListing.sourceFile}:</h4>
 
@@ -85,13 +82,13 @@
                         </#list>
                       </ul>
                     </li>
-                  </#list>
+                  </@ConservativeLoopBlock>
                 </ul>
               </li>
-            </#list>
+            </@ConservativeLoopBlock>
           </ul>
         </li>
-      </#list>
+      </@ConservativeLoopBlock>
     </ul>
   </div>
 </@page.page>

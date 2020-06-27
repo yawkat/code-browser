@@ -5,7 +5,7 @@ import com.google.common.collect.PeekingIterator
 /**
  * @author yawkat
  */
-abstract class TreeIterator<O, E>(protected val flatDelegate: PeekingIterator<O>) : Iterator<E> {
+abstract class TreeIterator<O, E : Any?>(protected val flatDelegate: PeekingIterator<O>) : Iterator<E> {
     private var eaten = false
     private var toEat: TreeIterator<*, *>? = null
 

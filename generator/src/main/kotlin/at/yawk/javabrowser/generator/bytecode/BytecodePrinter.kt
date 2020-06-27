@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.PositionedAnnotation
@@ -8,7 +9,7 @@ import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.generator.GeneratorSourceFile
 import org.apache.commons.lang3.StringEscapeUtils
 
-class BytecodePrinter {
+class BytecodePrinter(val hashBinding: String.() -> BindingId) {
     private val annotations: MutableList<PositionedAnnotation> = ArrayList()
     private val text = StringBuilder()
 
@@ -17,7 +18,7 @@ class BytecodePrinter {
     internal fun finishString() = text.toString()
 
     fun finish(): GeneratorSourceFile {
-        val sourceFile = GeneratorSourceFile(finishString(), annotations)
+        val sourceFile = GeneratorSourceFile(null, finishString(), annotations)
         sourceFile.bake()
         return sourceFile
     }
@@ -56,7 +57,7 @@ class BytecodePrinter {
     fun position() = text.length
 
     fun createBindingRef(type: BindingRefType, target: String, duplicate: Boolean) =
-            BindingRef(type, target, runningRefCounter++, duplicate)
+            BindingRef(type, target.hashBinding(), runningRefCounter++, duplicate)
 
     inline fun annotate(annotation: SourceAnnotation, ignoreEmpty: Boolean = true, f: () -> Unit) {
         val start = position()

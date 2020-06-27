@@ -15,14 +15,16 @@ internal fun printField(printer: BytecodePrinter, owner: Type, field: FieldNode)
         printer.appendJavaName(type, BindingRefType.FIELD_TYPE)
     }
     printer.append(' ')
+    val binding = BytecodeBindings.toStringField(owner, field.name, type)
     printer.annotate(BindingDecl(
-            binding = BytecodeBindings.toStringField(owner, field.name, type),
+            id = printer.hashBinding(binding),
+            binding = binding,
             description = BindingDecl.Description.Field(
                     name = field.name,
-                    typeBinding = typeDescription(type)
+                    typeBinding = typeDescription(printer, type)
             ),
             modifiers = asmAccessToSourceAnnotation(field.access),
-            parent = BytecodeBindings.toStringClass(owner),
+            parent = printer.hashBinding(BytecodeBindings.toStringClass(owner)),
             superBindings = emptyList()
     )) {
         printer.append(field.name)

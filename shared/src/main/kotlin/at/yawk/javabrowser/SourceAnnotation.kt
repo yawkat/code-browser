@@ -21,7 +21,7 @@ sealed class SourceAnnotation
 
 data class BindingRef(
         val type: BindingRefType,
-        val binding: String,
+        val binding: BindingId,
         /**
          * ID of this ref in this source file.
          */
@@ -31,7 +31,18 @@ data class BindingRef(
          * references to the target.
          */
         @JsonIgnore val duplicate: Boolean = false
-) : SourceAnnotation()
+) : SourceAnnotation() {
+    companion object {
+        @JvmStatic
+        @JsonCreator
+        fun jacksonCreator(
+                type: BindingRefType,
+                binding: Long,
+                id: Int,
+                duplicate: Boolean = false
+        ) = BindingRef(type, BindingId(binding), id, duplicate)
+    }
+}
 
 enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
     UNCLASSIFIED(0, "Unclassified"),
@@ -98,11 +109,9 @@ enum class BindingRefType(@get:JsonValue val id: Int, val displayName: String) {
 }
 
 data class BindingDecl(
+        val id: BindingId,
         val binding: String,
-        /**
-         * Parent binding of this declaration. `null` for top-level classes and packages.
-         */
-        val parent: String?,
+        val parent: BindingId?,
         val description: Description,
         /**
          * Modifier set as listed in the jvms and in `org.eclipse.jdt.core.dom.Modifier`.
@@ -118,6 +127,23 @@ data class BindingDecl(
 
         val superBindings: List<Super> = emptyList()
 ) : SourceAnnotation() {
+    companion object {
+        @JvmStatic
+        @JsonCreator
+        fun jacksonCreator(
+                           id: Long,
+                           binding: String,
+                           parent: Long?,
+                           description: Description,
+                           modifiers: Int,
+                           superBindings: List<Super> = emptyList()
+        ) = BindingDecl(BindingId(id), binding, parent?.let { BindingId(it) }, description, modifiers, superBindings)
+
+        const val MODIFIER_DEPRECATED: Int = 1 shl 31
+        const val MODIFIER_LOCAL: Int = 1 shl 30
+        const val MODIFIER_ANONYMOUS: Int = 1 shl 29
+    }
+
     @JsonTypeInfo(property = "type", use = JsonTypeInfo.Id.NAME)
     @JsonSubTypes(value = [
         JsonSubTypes.Type(value = Description.Type::class, name = "type"),
@@ -130,10 +156,21 @@ data class BindingDecl(
     sealed class Description {
         data class Type(
                 val kind: Kind,
-                val binding: String?,
+                val binding: BindingId?,
                 val simpleName: String,
                 val typeParameters: List<Type> = emptyList()
         ) : Description() {
+            companion object {
+                @JvmStatic
+                @JsonCreator
+                fun jacksonCreator(
+                        kind: Kind,
+                        binding: Long?,
+                        simpleName: String,
+                        typeParameters: List<Type> = emptyList()
+                ) = Type(kind, binding?.let { BindingId(it) }, simpleName, typeParameters)
+            }
+
             enum class Kind(@get:JsonValue val id: Int) {
                 CLASS(0),
                 EXCEPTION(1),
@@ -187,15 +224,16 @@ data class BindingDecl(
 
     data class Super(
             val name: String,
-            val binding: String
-    )
-
-    companion object {
-        const val MODIFIER_DEPRECATED: Int = 1 shl 31
-        const val MODIFIER_LOCAL: Int = 1 shl 30
-        const val MODIFIER_ANONYMOUS: Int = 1 shl 29
+            val binding: BindingId
+    ) {
+        companion object {
+            @JvmStatic
+            @JsonCreator
+            fun jacksonCreator(name: String, binding: Long) = Super(name, BindingId(binding))
+        }
     }
 }
+
 data class Style(val styleClass: Set<String>) : SourceAnnotation()
 data class LocalVariableOrLabelRef(val id: String) : SourceAnnotation()
 

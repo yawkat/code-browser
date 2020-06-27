@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.server.artifact.ArtifactNode
+import org.eclipse.collections.api.map.primitive.LongObjectMap
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import org.skife.jdbi.v2.TransactionStatus
@@ -24,12 +25,20 @@ class ArtifactIndex @Inject constructor(
 
     private fun fetch(): ArtifactNode {
         return dbi.inTransaction { conn: Handle, _: TransactionStatus ->
-            ArtifactNode.build(conn.select("select id from artifacts").map { it["id"] as String })
+            ArtifactNode.build(conn.select("select artifact_id, string_id from artifact").map {
+                ArtifactNode.Prototype(dbId = (it["artifact_id"] as Number).toLong(), stringId = it["string_id"] as String)
+            })
         }
     }
 
-    val allArtifacts: NavigableMap<String, ArtifactNode>
-        get() = rootArtifact.allNodes
+    val allArtifactsByStringId: NavigableMap<String, ArtifactNode>
+        get() = rootArtifact.allNodesByStringId
+
+    val allArtifactsByDbId: LongObjectMap<ArtifactNode>
+        get() = rootArtifact.allNodesByDbId
+
+    val leafArtifacts: Collection<ArtifactNode>
+        get() = allArtifactsByDbId.values()
 
     fun parse(rawPath: String): ParseResult {
         val path = rawPath.removePrefix("/").removeSuffix("/")

@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.Realm
 
 /**
@@ -9,6 +10,7 @@ import at.yawk.javabrowser.Realm
 data class DeclarationNode(
         val realm: Realm,
         val artifactId: String,
+        val bindingId: BindingId,
         val binding: String,
         val description: BindingDecl.Description,
         val modifiers: Int,

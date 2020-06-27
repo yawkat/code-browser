@@ -8,6 +8,7 @@ import at.yawk.javabrowser.server.Config
 import at.yawk.javabrowser.server.DependencyDao
 import at.yawk.javabrowser.server.HttpException
 import at.yawk.javabrowser.server.VersionComparator
+import at.yawk.javabrowser.server.artifact.ArtifactNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.google.common.net.MediaType
@@ -41,7 +42,7 @@ class SearchResource @Inject constructor(
         const val PATTERN = "/api/search/{realm}/{query}"
     }
 
-    private data class Category(val realm: Realm, val artifactId: String)
+    private data class Category(val realm: Realm, val artifactId: Long, val artifactStringId: String)
 
     private val searchIndex = SearchIndex<Category, String>(
             chunkSize = config.typeIndexChunkSize,
@@ -49,25 +50,27 @@ class SearchResource @Inject constructor(
     )
 
     init {
-        artifactUpdater.addArtifactUpdateListener { artifactId ->
+        artifactUpdater.addArtifactUpdateListener { stringId ->
             dbi.inTransaction { conn: Handle, _ ->
-                update(conn, artifactId)
+                val id = conn.select("select artifact_id from artifact where string_id = ?", stringId)
+                        .single()["artifact_id"] as Number
+                update(conn, id.toLong(), stringId)
             }
         }
     }
 
     fun firstUpdate() {
         dbi.inTransaction { conn: Handle, _ ->
-            for (artifactId in conn.createQuery("select id from artifacts").map { _, r, _ -> r.getString(1) }) {
-                update(conn, artifactId)
+            for ((artifactId, artifactStringId) in conn.createQuery("select artifact_id, string_id from artifact").map { _, r, _ -> r.getLong(1) to r.getString(2) }) {
+                update(conn, artifactId, artifactStringId)
             }
         }
     }
 
-    private fun update(conn: Handle, artifactId: String) {
-        log.info("Triggering search index update for {}", artifactId)
+    private fun update(conn: Handle, artifactId: Long, artifactStringId: String) {
+        log.info("Triggering search index update for {}", artifactStringId)
         for (realm in Realm.values()) {
-            val itr = conn.createQuery("select binding, sourceFile from bindings where realm = ? and isType and artifactId = ?")
+            val itr = conn.createQuery("select binding.binding, source_file.path from binding natural join source_file where realm = ? and include_in_type_search and artifact_id = ?")
                     .bind(0, realm.id)
                     .bind(1, artifactId)
                     .map { _, r, _ ->
@@ -76,7 +79,7 @@ class SearchResource @Inject constructor(
                                 value = r.getString(2))
                     }
                     .iterator()
-            searchIndex.replace(Category(realm, artifactId), itr, when (realm) {
+            searchIndex.replace(Category(realm, artifactId, artifactStringId), itr, when (realm) {
                 Realm.SOURCE -> BindingTokenizer.Java
                 Realm.BYTECODE -> BindingTokenizer.Bytecode
             })
@@ -91,11 +94,11 @@ class SearchResource @Inject constructor(
 
         val realm = Realm.parse(realmName) ?: throw HttpException(StatusCodes.NOT_FOUND, "Realm not found")
 
-        val artifactId = exchange.queryParameters["artifactId"]?.peekFirst()
+        val artifactStringId = exchange.queryParameters["artifactId"]?.peekFirst()
         val limit = exchange.queryParameters["limit"]?.peekFirst()?.toInt() ?: 100
         val includeDependencies = exchange.queryParameters["includeDependencies"]?.peekFirst()?.toBoolean() ?: true
 
-        val f = if (artifactId == null) {
+        val f = if (artifactStringId == null) {
             val seq = searchIndex.find(query, searchIndex.getCategories().filterTo(HashSet()) { it.realm == realm })
             // avoid duplicating search results - prefer newer artifacts.
             sequence<SearchIndex.SearchResult<Category, String>> {
@@ -103,8 +106,8 @@ class SearchResource @Inject constructor(
                 for (item in seq) {
                     if (prev != null) {
                         if (item.entry.name == prev.entry.name) {
-                            val keyHere = item.key.artifactId
-                            val keyPrev = prev.key.artifactId
+                            val keyHere = item.key.artifactStringId
+                            val keyPrev = prev.key.artifactStringId
                             if (VersionComparator.compare(keyHere, keyPrev) > 0) {
                                 // 'prev' will be preferred over 'here' because it has a newer version.
                                 continue
@@ -118,39 +121,45 @@ class SearchResource @Inject constructor(
                 if (prev != null) yield(prev)
             }
         } else {
+            val artifact = artifactIndex.allArtifactsByStringId[artifactStringId]
+                    ?: throw HttpException(StatusCodes.NOT_FOUND, "No such artifact")
+            if (artifact.dbId == null) throw HttpException(StatusCodes.NOT_FOUND, "Not a leaf artifact")
             val dependencies =
                     if (includeDependencies)
                         dbi.inTransaction { conn: Handle, _ ->
-                            conn.attach(DependencyDao::class.java).getDependencies(artifactId)
-                        }.mapNotNull { dependencyId ->
-                            val ceiling = artifactIndex.allArtifacts.ceilingEntry(dependencyId)
-                            if (ceiling != null) {
-                                if (ceiling.value.children.isEmpty()) {
-                                    // this exact version or a newer version is available. use that.
-                                    return@mapNotNull ceiling.key
-                                }
-                                val floor = artifactIndex.allArtifacts.ceilingEntry(dependencyId)
-                                if (floor != null
-                                        && floor.value.parent?.id == ceiling.key
-                                        && floor.value.children.isEmpty()) {
-                                    // an older version is available.
-                                    return@mapNotNull floor.key
-                                }
-                            }
-                            // nothing in the artifact index :( check for aliases
-                            return@mapNotNull aliasIndex.findAliasedTo(dependencyId)
-                        }
-                    else emptySet<String>()
-            searchIndex.find(query, (listOf(artifactId) + dependencies).mapTo(HashSet()) { Category(realm, it) })
+                            conn.attach(DependencyDao::class.java).getDependencies(artifact.dbId)
+                        }.mapNotNull(::findDependencyNode)
+                    else emptySet<ArtifactNode>()
+            searchIndex.find(query, (listOf(artifact) + dependencies).mapTo(HashSet()) { Category(realm, it.dbId!!, it.stringId) })
         }
 
         val response = Response(f.take(limit).map {
             val componentLengths = IntArray(it.entry.name.componentsLower.size) { i -> it.entry.name.componentsLower[i].length }
-            Result(it.key.artifactId, it.entry.name.string, it.entry.value, componentLengths, it.match)
+            Result(it.key.artifactStringId, it.entry.name.string, it.entry.value, componentLengths, it.match)
         }.asIterable())
 
+        @Suppress("UnstableApiUsage")
         exchange.responseHeaders.put(Headers.CONTENT_TYPE, MediaType.JSON_UTF_8.toString())
         objectMapper.writeValue(exchange.outputStream, response)
+    }
+
+    private fun findDependencyNode(dependencyId: String): ArtifactNode? {
+        val ceiling = artifactIndex.allArtifactsByStringId.ceilingEntry(dependencyId)
+        if (ceiling != null) {
+            if (ceiling.value.children.isEmpty()) {
+                // this exact version or a newer version is available. use that.
+                return ceiling.value
+            }
+            val floor = artifactIndex.allArtifactsByStringId.ceilingEntry(dependencyId)
+            if (floor != null
+                    && floor.value.parent?.stringId == ceiling.key
+                    && floor.value.children.isEmpty()) {
+                // an older version is available.
+                return floor.value
+            }
+        }
+        // nothing in the artifact index :( check for aliases
+        return aliasIndex.findAliasedTo(dependencyId)?.let { artifactIndex.allArtifactsByDbId[it] }
     }
 
     @Suppress("unused")

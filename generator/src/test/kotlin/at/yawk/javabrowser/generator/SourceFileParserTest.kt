@@ -6,6 +6,7 @@ import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
+import at.yawk.javabrowser.generator.bytecode.testHashBinding
 import com.google.common.io.MoreFiles
 import kotlinx.coroutines.runBlocking
 import org.hamcrest.BaseMatcher
@@ -41,6 +42,8 @@ class SourceFileParserTest {
 
     private val src: Path
         get() = tmp.resolve("src")
+
+    private fun String.hashBinding() = testHashBinding(this)
 
     private fun write(path: String, @Language("Java") content: String) {
         val p = src.resolve(path)
@@ -80,7 +83,7 @@ class SourceFileParserTest {
                 compileOne().entries,
                 Matchers.hasItem(annotate(a,
                         BindingRef(BindingRefType.SUPER_METHOD_CALL,
-                                "java.lang.Object#hashCode()",
+                                "java.lang.Object#hashCode()".hashBinding(),
                                 3), "hashCode", 1))
         )
     }
@@ -94,7 +97,7 @@ class SourceFileParserTest {
                 compile()["A.java"]!!.entries,
                 Matchers.hasItem(annotate(a,
                         BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL,
-                                "B()",
+                                "B()".hashBinding(),
                                 1), "super"))
         )
     }
@@ -108,7 +111,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(annotate(
                         a,
                         BindingRef(BindingRefType.SUPER_CONSTRUCTOR_CALL,
-                                "java.lang.Object()",
+                                "java.lang.Object()".hashBinding(),
                                 1),
                         "super"
                 ))
@@ -123,7 +126,7 @@ class SourceFileParserTest {
                 compileOne().entries,
                 Matchers.hasItem(annotate(a,
                         BindingRef(BindingRefType.STATIC_MEMBER_QUALIFIER,
-                                "A",
+                                "A".hashBinding(),
                                 3), "A", 1))
         )
     }
@@ -165,7 +168,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(annotate(
                         a,
                         BindingRef(BindingRefType.METHOD_CALL,
-                                "A#x(java.lang.Object)",
+                                "A#x(java.lang.Object)".hashBinding(),
                                 1),
                         "x",
                         0
@@ -229,7 +232,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.IMPORT &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -242,7 +245,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.IMPORT &&
-                            annotation.binding == "java.lang.String#valueOf(char[],int,int)"
+                            annotation.binding == "java.lang.String#valueOf(char[],int,int)".hashBinding()
                 })
         )
     }
@@ -255,7 +258,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.ON_DEMAND_IMPORT &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -268,7 +271,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.ON_DEMAND_IMPORT &&
-                            annotation.binding == "java.lang"
+                            annotation.binding == "java.lang".hashBinding()
                 })
         )
     }
@@ -281,7 +284,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.ANNOTATION_TYPE &&
-                            annotation.binding == "java.lang.Override"
+                            annotation.binding == "java.lang.Override".hashBinding()
                 })
         )
     }
@@ -294,7 +297,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_TYPE &&
-                            annotation.binding == "A"
+                            annotation.binding == "A".hashBinding()
                 })
         )
     }
@@ -307,7 +310,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
-                            annotation.binding == "A()"
+                            annotation.binding == "A()".hashBinding()
                 })
         )
     }
@@ -320,7 +323,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
-                            annotation.binding == "A()"
+                            annotation.binding == "A()".hashBinding()
                 })
         )
     }
@@ -333,7 +336,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
-                            annotation.binding == "A"
+                            annotation.binding == "A".hashBinding()
                 })
         )
     }
@@ -346,7 +349,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.THROWS_DECLARATION &&
-                            annotation.binding == "java.lang.Exception"
+                            annotation.binding == "java.lang.Exception".hashBinding()
                 })
         )
     }
@@ -359,7 +362,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -372,7 +375,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.JAVADOC &&
-                            annotation.binding == "java.util.concurrent.atomic.AtomicIntegerArray#compareAndSet(int,int,int)"
+                            annotation.binding == "java.util.concurrent.atomic.AtomicIntegerArray#compareAndSet(int,int,int)".hashBinding()
                 })
         )
     }
@@ -386,7 +389,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.LOCAL_VARIABLE_TYPE &&
-                            annotation.binding == "B"
+                            annotation.binding == "B".hashBinding()
                 })
         )
     }
@@ -401,7 +404,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_METHOD &&
-                            annotation.binding == "java.lang.Runnable#run()" &&
+                            annotation.binding == "java.lang.Runnable#run()".hashBinding() &&
                             it.start == 20 && it.length == 2
                 })
         )
@@ -410,7 +413,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
-                            annotation.binding == "B"
+                            annotation.binding == "B".hashBinding()
                 })
         )
     }
@@ -425,7 +428,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.PARAMETER_TYPE &&
-                            annotation.binding == "B"
+                            annotation.binding == "B".hashBinding()
                 })
         )
     }
@@ -440,7 +443,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.PARAMETER_TYPE &&
-                            annotation.binding == "B"
+                            annotation.binding == "B".hashBinding()
                 })
         )
     }
@@ -455,7 +458,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_METHOD &&
-                            annotation.binding == "java.lang.Runnable#run()" &&
+                            annotation.binding == "java.lang.Runnable#run()".hashBinding() &&
                             // should annotate the ::
                             it.start == 18 && it.length == 2
                 })
@@ -465,7 +468,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.METHOD_CALL &&
-                            annotation.binding == "B#test()" &&
+                            annotation.binding == "B#test()".hashBinding() &&
                             // should annotate the test
                             it.start == 20 && it.length == 4
                 })
@@ -475,7 +478,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
-                            annotation.binding == "B" &&
+                            annotation.binding == "B".hashBinding() &&
                             // should annotate nothing
                             it.length == 0
                 })
@@ -485,7 +488,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.METHOD_REFERENCE_RECEIVER_TYPE &&
-                            annotation.binding == "B" &&
+                            annotation.binding == "B".hashBinding() &&
                             // should annotate the receiver
                             it.start == 17 && it.length == 1
                 })
@@ -502,7 +505,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
-                            annotation.binding == "B"
+                            annotation.binding == "B".hashBinding()
                 })
         )
     }
@@ -517,7 +520,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.CONSTRUCTOR_CALL &&
-                            annotation.binding == "B(java.lang.String)"
+                            annotation.binding == "B(java.lang.String)".hashBinding()
                 })
         )
     }
@@ -531,7 +534,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -545,7 +548,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.WILDCARD_BOUND &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -559,7 +562,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -573,7 +576,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -600,7 +603,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.STATIC_MEMBER_QUALIFIER &&
-                            annotation.binding == "java.lang.System"
+                            annotation.binding == "java.lang.System".hashBinding()
                 })
         )
     }
@@ -615,7 +618,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ &&
-                            annotation.binding == "A#object"
+                            annotation.binding == "A#object".hashBinding()
                 })
         )
         MatcherAssert.assertThat(
@@ -623,7 +626,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_WRITE &&
-                            annotation.binding == "A#object"
+                            annotation.binding == "A#object".hashBinding()
                 })
         )
     }
@@ -637,7 +640,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.METHOD_REFERENCE_RECEIVER_TYPE &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -651,7 +654,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.RETURN_TYPE &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
         MatcherAssert.assertThat(
@@ -672,7 +675,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -686,7 +689,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.THIS_REFERENCE_QUALIFIER &&
-                            annotation.binding == "A"
+                            annotation.binding == "A".hashBinding()
                 })
         )
     }
@@ -700,7 +703,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_REFERENCE_QUALIFIER &&
-                            annotation.binding == "java.lang.Object"
+                            annotation.binding == "java.lang.Object".hashBinding()
                 })
         )
     }
@@ -714,7 +717,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.ANNOTATION_MEMBER_VALUE &&
-                            annotation.binding == "A#x()"
+                            annotation.binding == "A#x()".hashBinding()
                 })
         )
     }
@@ -729,7 +732,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.NESTED_CLASS_QUALIFIER &&
-                            annotation.binding == "A"
+                            annotation.binding == "A".hashBinding()
                 })
         )
         MatcherAssert.assertThat(
@@ -737,7 +740,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.SUPER_TYPE &&
-                            annotation.binding == "A.C" && it.length == 1
+                            annotation.binding == "A.C".hashBinding() && it.length == 1
                 })
         )
     }
@@ -751,7 +754,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -766,7 +769,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.TYPE_PARAMETER &&
-                            annotation.binding == "java.lang.String"
+                            annotation.binding == "java.lang.String".hashBinding()
                 })
         )
     }
@@ -780,7 +783,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ_WRITE &&
-                            annotation.binding == "A#i"
+                            annotation.binding == "A#i".hashBinding()
                 })
         )
     }
@@ -794,7 +797,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.FIELD_READ_WRITE &&
-                            annotation.binding == "A#i"
+                            annotation.binding == "A#i".hashBinding()
                 })
         )
     }
@@ -812,7 +815,7 @@ class SourceFileParserTest {
                             description.name == "i" &&
                             description.typeBinding.simpleName == "int" &&
                             annotation.modifiers == Modifier.VOLATILE or BindingDecl.MODIFIER_DEPRECATED &&
-                            annotation.parent == "A"
+                            annotation.parent == "A".hashBinding()
                 })
         )
     }
@@ -830,18 +833,18 @@ class SourceFileParserTest {
                             description.name == "a" &&
                             description.returnTypeBinding == BindingDecl.Description.Type(
                                 BindingDecl.Description.Type.Kind.INTERFACE,
-                                "java.util.List",
+                                "java.util.List".hashBinding(),
                                 "List",
                                 listOf(
                                         BindingDecl.Description.Type(
                                                 BindingDecl.Description.Type.Kind.INTERFACE,
-                                                "java.util.Map.Entry",
+                                                "java.util.Map.Entry".hashBinding(),
                                                 "Entry"
                                         )
                                 )
                         ) &&
                             annotation.modifiers == 0 &&
-                            annotation.parent == "A"
+                            annotation.parent == "A".hashBinding()
                 })
         )
     }
@@ -872,7 +875,7 @@ class SourceFileParserTest {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Initializer &&
-                            annotation.modifiers == Modifier.STATIC && annotation.parent == "A"
+                            annotation.modifiers == Modifier.STATIC && annotation.parent == "A".hashBinding()
                 })
         )
     }
@@ -887,7 +890,7 @@ class SourceFileParserTest {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
-                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL && annotation.parent == "A" &&
+                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL && annotation.parent == "A".hashBinding() &&
                             description.kind == BindingDecl.Description.Type.Kind.CLASS
                 })
         )
@@ -904,7 +907,7 @@ class SourceFileParserTest {
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
                             annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
-                            annotation.parent == "A#o" &&
+                            annotation.parent == "A#o".hashBinding() &&
                             description.kind == BindingDecl.Description.Type.Kind.CLASS &&
                             description.simpleName == "$1"
                 })
@@ -922,7 +925,7 @@ class SourceFileParserTest {
                     val description = annotation.description
                     description is BindingDecl.Description.Lambda &&
                             annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
-                            annotation.parent == "A#o"
+                            annotation.parent == "A#o".hashBinding()
                 })
         )
     }
@@ -938,7 +941,7 @@ class SourceFileParserTest {
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
                             annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
-                            annotation.parent == "A.B#o"
+                            annotation.parent == "A.B#o".hashBinding()
                 })
         )
     }
@@ -954,7 +957,7 @@ class SourceFileParserTest {
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
                             annotation.modifiers == BindingDecl.MODIFIER_LOCAL &&
-                            annotation.parent == "LA;.lambda\$0()V"
+                            annotation.parent == "LA;.lambda\$0()V".hashBinding()
                 })
         )
     }
@@ -969,7 +972,7 @@ class SourceFileParserTest {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Field &&
-                            annotation.parent == "A"
+                            annotation.parent == "A".hashBinding()
                 })
         )
         MatcherAssert.assertThat(
@@ -978,7 +981,7 @@ class SourceFileParserTest {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Field &&
-                            annotation.parent == "A#A"
+                            annotation.parent == "A#A".hashBinding()
                 })
         )
     }
@@ -992,7 +995,7 @@ class SourceFileParserTest {
                 Matchers.hasItem(matches<PositionedAnnotation> {
                     val annotation = it.annotation
                     annotation is BindingRef && annotation.type == BindingRefType.PACKAGE_DECLARATION &&
-                            annotation.binding == "java.lang"
+                            annotation.binding == "java.lang".hashBinding()
                 })
         )
     }

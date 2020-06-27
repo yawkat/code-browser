@@ -12,7 +12,7 @@ import javax.inject.Singleton
  * @author yawkat
  */
 @Singleton
-class ArtifactUpdater @Inject constructor(dbi: DBI) {
+class ArtifactUpdater @Inject constructor() {
     companion object {
         private val log = LoggerFactory.getLogger(ArtifactUpdater::class.java)
     }
@@ -54,18 +54,18 @@ class ArtifactUpdater @Inject constructor(dbi: DBI) {
         }
     }
 
-    init {
+    fun listenForUpdates(dbi: DBI) {
         Thread({
             while (true) {
                 try {
                     dbi.useHandle {
-                        it.update("listen artifacts")
+                        it.update("listen artifact")
 
                         while (true) {
                             val notifications = it.connection.unwrap(PGConnection::class.java).getNotifications(0)
                             var invalidate = false
                             for (notification in notifications) {
-                                if (notification.name != "artifacts") {
+                                if (notification.name != "artifact") {
                                     log.error("Received notification of name we did not listen to: {}",
                                             notification.name)
                                     continue

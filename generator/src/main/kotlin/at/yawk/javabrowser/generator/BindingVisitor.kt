@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
@@ -109,7 +110,8 @@ internal class BindingVisitor(
         private val logTag: String,
         private val sourceFileType: SourceFileType,
         private val ast: CompilationUnit,
-        private val annotatedSourceFile: GeneratorSourceFile
+        private val annotatedSourceFile: GeneratorSourceFile,
+        private val hashBinding: String.() -> BindingId
 ) : ASTVisitor(true) {
     enum class SourceFileType {
         REGULAR,
@@ -142,7 +144,7 @@ internal class BindingVisitor(
     private fun makeBindingRef(type: BindingRefType, s: String): BindingRef {
         return BindingRef(
                 if (inJavadoc) BindingRefType.JAVADOC else type,
-                s,
+                hashBinding(s),
                 refIdCounter++
         )
     }
@@ -190,7 +192,7 @@ internal class BindingVisitor(
                     else -> BindingDecl.Description.Type.Kind.CLASS
                 },
                 binding = if (erasure.qualifiedName.isEmpty()) null
-                else Bindings.toString(resolved),
+                else Bindings.toString(resolved)?.hashBinding(),
                 simpleName =
                 if (resolved.isAnonymous) resolved.binaryName.substring(resolved.binaryName.indexOf('$'))
                 else erasure.name,
@@ -209,14 +211,14 @@ internal class BindingVisitor(
             val r = superclassType.resolveBinding()
             val b = r?.let { Bindings.toString(it) }
             if (b != null) {
-                superBindings.add(BindingDecl.Super(r.name, b))
+                superBindings.add(BindingDecl.Super(r.name, hashBinding(b)))
             }
             visitType0(superclassType, BindingRefType.SUPER_TYPE)
         } else {
             val r = resolved.superclass
             val b = r?.let { Bindings.toString(it) }
             if (b != null) {
-                superBindings.add(BindingDecl.Super(r.name, b))
+                superBindings.add(BindingDecl.Super(r.name, hashBinding(b)))
                 annotatedSourceFile.annotate(
                         nameStartPosition, 0, makeBindingRef(BindingRefType.SUPER_TYPE, b))
             }
@@ -226,7 +228,7 @@ internal class BindingVisitor(
                 val r = (interfaceType as Type).resolveBinding()
                 val b = r?.let { Bindings.toString(it) }
                 if (b != null) {
-                    superBindings.add(BindingDecl.Super(r.name, b))
+                    superBindings.add(BindingDecl.Super(r.name, hashBinding(b)))
                 }
                 visitType0(interfaceType, BindingRefType.SUPER_TYPE)
             }
@@ -234,7 +236,7 @@ internal class BindingVisitor(
             for (interfaceType in resolved.interfaces) {
                 val b = interfaceType.let { Bindings.toString(it) }
                 if (b != null) {
-                    superBindings.add(BindingDecl.Super(interfaceType.name, b))
+                    superBindings.add(BindingDecl.Super(interfaceType.name, hashBinding(b)))
                     annotatedSourceFile.annotate(
                             nameStartPosition, 0, makeBindingRef(BindingRefType.SUPER_TYPE, b))
                 }
@@ -246,10 +248,18 @@ internal class BindingVisitor(
             // occasionally, for local types, declaringMember can be null if a type involved in declaringMember is not
             // on the classpath. In that case, fall back to declaringClass. For non-local types, we'll always use
             // declaringClass.
-            val parent = parentToString(resolved.declaringMember ?: resolved.declaringClass)
+            val declaring = resolved.declaringMember ?: resolved.declaringClass
+            val parent =
+                    if (declaring != null) parentToString(declaring)
+                    else {
+                        val dotIndex = binding.lastIndexOf('.')
+                        if (dotIndex == -1) "" // class in default package
+                        else binding.substring(0, dotIndex)
+                    }
             annotatedSourceFile.annotate(nameStartPosition, declAnnotationLength, BindingDecl(
-                    binding,
-                    parent = parent,
+                    id = binding.hashBinding(),
+                    binding = binding,
+                    parent = parent?.hashBinding(),
                     description = describeType(resolved),
                     modifiers = getModifiers(resolved),
                     superBindings = superBindings
@@ -273,14 +283,15 @@ internal class BindingVisitor(
                 annotatedSourceFile.annotate(
                         target,
                         BindingDecl(
+                                id = binding.hashBinding(),
                                 binding = binding,
-                                parent = parentToString(resolved.declaringClass),
+                                parent = parentToString(resolved.declaringClass)?.hashBinding(),
                                 description = describeMethod(resolved),
                                 modifiers = getModifiers(resolved),
                                 superBindings = overrides.mapNotNull {
                                     val b = Bindings.toString(it) ?: return@mapNotNull null
                                     val declaringName = (it.declaringClass ?: return@mapNotNull null).name
-                                    BindingDecl.Super(declaringName + "." + it.name, b)
+                                    BindingDecl.Super(declaringName + "." + it.name, hashBinding(b))
                                 }
                         )
                 )
@@ -326,8 +337,9 @@ internal class BindingVisitor(
         annotatedSourceFile.annotate(
                 node.startPosition, 0,
                 BindingDecl(
+                        id = binding.hashBinding(),
                         binding = binding,
-                        parent = parentToString(declaring),
+                        parent = parentToString(declaring)?.hashBinding(),
                         description = BindingDecl.Description.Initializer,
                         modifiers = node.modifiers
                 )
@@ -400,8 +412,9 @@ internal class BindingVisitor(
             val binding = Bindings.toString(resolved)
             if (binding != null) {
                 annotatedSourceFile.annotate(name, BindingDecl(
-                        binding,
-                        parent = parentToString(resolved.declaringClass),
+                        id = binding.hashBinding(),
+                        binding = binding,
+                        parent = parentToString(resolved.declaringClass)?.hashBinding(),
                         description = BindingDecl.Description.Field(
                                 name = resolved.name,
                                 typeBinding = describeType(resolved.type)
@@ -857,9 +870,11 @@ internal class BindingVisitor(
             }
 
             if (binding.declaringClass != null) {
+                val bindingString = Bindings.toStringKeyBinding(binding)
                 annotatedSourceFile.annotate(node.startPosition, 0, BindingDecl(
-                        Bindings.toStringKeyBinding(binding),
-                        parent = parentToString(binding.declaringMember),
+                        id = bindingString.hashBinding(),
+                        binding = bindingString,
+                        parent = parentToString(binding.declaringMember)?.hashBinding(),
                         description = BindingDecl.Description.Lambda(
                                 implementingMethodBinding = describeMethod(binding),
                                 implementingTypeBinding = describeType(binding.declaringClass)
@@ -995,13 +1010,12 @@ internal class BindingVisitor(
                         }) {
                     modifiers = modifiers or BindingDecl.MODIFIER_DEPRECATED
                 }
-                val javadoc = node.javadoc
-                if (javadoc != null) {
-                    javadoc.tags()
-                }
+                val packageSeparator = b.lastIndexOf('.')
+                val parentPackage = if (packageSeparator == -1) "" else b.substring(0, packageSeparator)
                 annotatedSourceFile.annotate(node.name, BindingDecl(
+                        id = b.hashBinding(),
                         binding = b,
-                        parent = null,
+                        parent = parentPackage.hashBinding(),
                         description = BindingDecl.Description.Package,
                         modifiers = modifiers
                 ))

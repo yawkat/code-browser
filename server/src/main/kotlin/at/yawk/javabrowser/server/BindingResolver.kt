@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.server
 
+import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.Realm
 import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 @Singleton
 class BindingResolver @Inject constructor(
         artifactUpdater: ArtifactUpdater,
-        private val dbi: DBI
+        private val dbi: DBI,
+        private val artifactIndex: ArtifactIndex
 ) {
     companion object {
         fun bindingHash(binding: String) = "#${URLEncoder.encode(binding, "UTF-8")}"
@@ -28,7 +30,7 @@ class BindingResolver @Inject constructor(
     private val caches = Realm.values().associate {
         it to CacheBuilder.newBuilder()
                 .softValues()
-                .build<String, List<BindingLocation>>(CacheLoader.from { binding -> resolveBinding0(it, binding!!) })
+                .build<BindingId, List<BindingLocation>>(CacheLoader.from { binding -> resolveBinding0(it, binding!!) })
     }
 
     init {
@@ -36,16 +38,17 @@ class BindingResolver @Inject constructor(
         artifactUpdater.addInvalidationListener(runAtStart = false) { caches.values.forEach { it.invalidateAll() } }
     }
 
-    private fun resolveBinding0(realm: Realm, binding: String): List<BindingLocation> {
+    private fun resolveBinding0(realm: Realm, binding: BindingId): List<BindingLocation> {
         return dbi.inTransaction { conn: Handle, _ ->
-            val candidates = conn.select("select artifactId, sourceFile from bindings where realm = ? and binding = ?", realm.id, binding)
-            candidates.map {
-                BindingLocation(it["artifactId"] as String, it["sourceFile"] as String, binding)
-            }
+            conn.createQuery("select artifact_id, source_file.path, binding.binding from binding natural join source_file where realm = ? and binding_id = ?")
+                    .bind(0, realm.id)
+                    .bind(1, binding.hash)
+                    .map { _, r, _ -> BindingLocation(artifactIndex.allArtifactsByDbId[r.getLong(1)].stringId, r.getString(2), r.getString(3)) }
+                    .list()
         }
     }
 
-    fun resolveBinding(realm: Realm, fromArtifacts: Set<String>, binding: String): List<URI> {
+    fun resolveBinding(realm: Realm, fromArtifacts: Set<String>, binding: BindingId): List<URI> {
         val candidates = caches.getValue(realm)[binding]
         for (candidate in candidates) {
             if (candidate.artifact in fromArtifacts) {

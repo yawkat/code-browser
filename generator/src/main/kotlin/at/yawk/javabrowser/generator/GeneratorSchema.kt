@@ -24,7 +24,7 @@ class GeneratorSchema(private val conn: Handle) {
     }
 
     fun updateViews(concurrent: Boolean) {
-        for (view in listOf("binding_references_count_view", "packages_view", "type_count_by_depth_view")) {
+        for (view in listOf("binding_reference_count_view", "binding_descendant_count_view")) {
             executeAndLogStatement("refresh materialized view " + if (concurrent) "concurrently " else "" + view)
         }
     }

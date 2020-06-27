@@ -1,6 +1,8 @@
 package at.yawk.javabrowser.server.artifact
 
 import at.yawk.javabrowser.server.VersionComparator
+import org.eclipse.collections.api.map.primitive.LongObjectMap
+import org.eclipse.collections.impl.factory.primitive.LongObjectMaps
 import java.util.NavigableMap
 import java.util.TreeMap
 
@@ -10,23 +12,25 @@ import java.util.TreeMap
 class ArtifactNode private constructor(
         val idInParent: String?,
         val parent: ArtifactNode?,
-        childrenNames: List<List<String>>
+        childrenNames: List<Prototype>
 ) {
     companion object {
-        fun build(artifacts: List<String>): ArtifactNode {
-            return ArtifactNode(null, null, artifacts.map { it.split('/') })
+        fun build(artifacts: List<Prototype>): ArtifactNode {
+            return ArtifactNode(null, null, artifacts)
         }
     }
 
-    val idList: List<String> =
+    val stringIdList: List<String> =
             if (idInParent == null) emptyList()
-            else parent!!.idList + idInParent
-    val id: String = idList.joinToString("/")
+            else parent!!.stringIdList + idInParent
+    val stringId: String = stringIdList.joinToString("/")
+
+    val dbId = childrenNames.singleOrNull { it.components.isEmpty() }?.dbId
 
     val children = childrenNames
-            .filter { it.isNotEmpty() }
-            .groupBy { it.first() }
-            .mapValues { (k, v) -> ArtifactNode(k, this, v.map { it.subList(1, it.size) }) }
+            .filter { it.components.isNotEmpty() }
+            .groupBy { it.components.first() }
+            .mapValues { (k, v) -> ArtifactNode(k, this, v.map { Prototype(it.dbId, it.components.drop(1)) }) }
 
     /**
      * If this node has only one child, return that node.
@@ -52,22 +56,30 @@ class ArtifactNode private constructor(
     val flattenedChildren: List<ArtifactNode> =
             children.values
                     .map { it.flatten() }
-                    .sortedWith(compareBy(VersionComparator) { it.id })
+                    .sortedWith(compareBy(VersionComparator) { it.stringId })
 
-    val allNodes: NavigableMap<String, ArtifactNode>
+    val allNodesByStringId: NavigableMap<String, ArtifactNode>
+    val allNodesByDbId: LongObjectMap<ArtifactNode>
 
     init {
-        allNodes = TreeMap(VersionComparator)
-        allNodes[this.id] = this
+        allNodesByStringId = TreeMap(VersionComparator)
+        allNodesByStringId[this.stringId] = this
         for (child in children.values) {
-            allNodes.putAll(child.allNodes)
+            allNodesByStringId.putAll(child.allNodesByStringId)
+        }
+
+        allNodesByDbId = LongObjectMaps.mutable.empty<ArtifactNode>().also {
+            if (dbId != null) it.put(dbId, this)
+            for (child in children.values) {
+                it.putAll(child.allNodesByDbId)
+            }
         }
     }
 
-    /**
-     * The leaf nodes of this artifact tree. If this node has no children, this list contains exactly only this node.
-     */
-    val leaves: List<ArtifactNode> =
-            if (children.isEmpty()) listOf(this)
-            else children.values.flatMap { it.leaves }
+    class Prototype constructor(
+            val dbId: Long,
+            val components: List<String>
+    ) {
+        constructor(dbId: Long, stringId: String) : this(dbId = dbId, components = stringId.split('/'))
+    }
 }

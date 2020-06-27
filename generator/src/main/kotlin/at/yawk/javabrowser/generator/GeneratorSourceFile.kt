@@ -10,6 +10,7 @@ import at.yawk.javabrowser.Style
  * @author yawkat
  */
 class GeneratorSourceFile(
+        val pkg: String?,
         val text: String,
         @Suppress("MemberVisibilityCanBePrivate") val entries: MutableList<PositionedAnnotation> = ArrayList()
 ) {

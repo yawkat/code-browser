@@ -2,6 +2,7 @@ package at.yawk.javabrowser.generator.artifact
 
 import at.yawk.javabrowser.ArtifactMetadata
 import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.generator.ArtifactConfig
@@ -39,6 +40,8 @@ class CompilerTest {
                                                    realm: Realm) {
                             sourceFileCount.increment()
                         }
+
+                        override fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
                     },
                     "com.google.guava/guava/25.1-jre",
                     ArtifactConfig.Maven("com.google.guava",
@@ -69,6 +72,8 @@ class CompilerTest {
                                                    realm: Realm) {
                             sourceFileCount.increment()
                         }
+
+                        override fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
                     },
                     "com.google.guava/guava/25.1-jre",
                     ArtifactConfig.Maven("org.springframework",
@@ -156,6 +161,8 @@ class CompilerTest {
                                 foundFile = true
                             }
                         }
+
+                        override fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
                     },
                     "x",
                     ArtifactConfig.Android(
@@ -184,6 +191,8 @@ class CompilerTest {
                                                    tokens: List<Tokenizer.Token>,
                                                    realm: Realm) {
                         }
+
+                        override fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
                     },
                     "x",
                     ArtifactConfig.Java(
@@ -207,6 +216,8 @@ class CompilerTest {
                                                    realm: Realm) {
                             any = true
                         }
+
+                        override fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
                     },
                     "x",
                     ArtifactConfig.Java(
@@ -238,6 +249,8 @@ class CompilerTest {
                                                    realm: Realm) {
                             any = true
                         }
+
+                        override fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
                     },
                     "x",
                     ArtifactConfig.Android(

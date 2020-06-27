@@ -4,8 +4,9 @@ import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.TsQuery
 import at.yawk.javabrowser.TsVector
+import at.yawk.javabrowser.server.artifact.ArtifactNode
 import at.yawk.javabrowser.server.view.FullTextSearchResultView
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.google.common.annotations.VisibleForTesting
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
@@ -18,7 +19,6 @@ import javax.inject.Inject
  */
 class FullTextSearchResource @Inject constructor(
         private val dbi: DBI,
-        private val objectMapper: ObjectMapper,
         private val ftl: Ftl,
         private val bindingResolver: BindingResolver,
         private val artifactIndex: ArtifactIndex
@@ -33,13 +33,32 @@ class FullTextSearchResource @Inject constructor(
         val realmName = exchange.queryParameters["realm"]?.peekFirst() ?: Realm.SOURCE.name
         val realm = Realm.parse(realmName) ?: throw HttpException(404, "Unknown realm")
         val searchArtifact = exchange.queryParameters["artifactId"]?.peekFirst()?.let {
-            val parsed = artifactIndex.parse(it)
-            if (parsed.remainingPath != null) throw HttpException(404, "No such artifact")
-            parsed.node
+            artifactIndex.allArtifactsByStringId[it] ?: throw HttpException(404, "No such artifact")
         }
-
-        var tokens = Tokenizer.tokenize(query)
         val useSymbolsParameter = exchange.queryParameters["useSymbols"]?.peekFirst()?.toBoolean()
+
+        dbi.withHandle { conn: Handle ->
+            ftl.render(exchange, handleRequest(
+                    query = query,
+                    realm = realm,
+                    searchArtifact = searchArtifact,
+                    useSymbolsParameter = useSymbolsParameter,
+                    conn = conn
+            ))
+            conn.rollback() // don't persist array_accum
+        }
+    }
+
+    @VisibleForTesting
+    internal fun handleRequest(
+            query: String,
+            realm: Realm,
+            searchArtifact: ArtifactNode?,
+            useSymbolsParameter: Boolean?,
+
+            conn: Handle
+    ): FullTextSearchResultView {
+        var tokens = Tokenizer.tokenize(query)
         val useSymbols = useSymbolsParameter ?: tokens.any { it.symbol }
         // null check avoids a pointless filter call when no symbols are present anyway
         if (useSymbolsParameter != null && !useSymbols) {
@@ -47,11 +66,12 @@ class FullTextSearchResource @Inject constructor(
         }
 
         val tsQuery: TsQuery = TsQuery.Phrase(tokens.map { TsQuery.Term(it.text) }.toList())
-        val table = if (useSymbols) "sourceFileLexemes" else "sourceFileLexemesNoSymbols"
+        val table = if (useSymbols) "source_file_lexemes" else "source_file_lexemes_no_symbols"
 
         class FileResult(
                 val realm: Realm,
-                val artifactId: String,
+                val artifactId: Long,
+                val artifactStringId: String,
                 val path: String,
                 lexemeVectors: List<TsVector>,
                 starts: IntArray,
@@ -76,71 +96,69 @@ class FullTextSearchResource @Inject constructor(
             fun toView(conn: Handle) = FullTextSearchResultView.SourceFileResult(
                     bindingResolver,
                     realm = realm,
-                    artifactId = artifactId,
+                    artifactId = artifactStringId,
                     path = path,
                     classpath = conn.attach(DependencyDao::class.java).getDependencies(artifactId).toSet(),
                     partial = partial
             )
         }
 
-        dbi.withHandle { conn: Handle ->
-            conn.begin()
-            conn.update("""
+        conn.begin()
+        conn.update("""
 CREATE AGGREGATE array_accum (anyarray)
-    (
-    sfunc = array_cat,
-    stype = anyarray,
-    initcond = '{}'
-    )
-            """)
+(
+sfunc = array_cat,
+stype = anyarray,
+initcond = '{}'
+)
+        """)
 
-            val itr = conn.createQuery(
-                    """
-select sourceFiles.artifactId artifactId,
-       sourceFiles.path sourceFile,
-       array_agg(cast(lexemes as text)) lexemes,
-       array_accum(starts)  starts,
-       array_accum(lengths) lengths,
-       text,
-       annotations
+        val itr = conn.createQuery(
+                """
+select 
+   source_file.artifact_id artifactId,
+   source_file.path sourceFile,
+   array_agg(cast(lexemes as text)) lexemes,
+   array_accum(starts)  starts,
+   array_accum(lengths) lengths,
+   text,
+   annotations
 from $table sfl
-         left join sourceFiles on sfl.realm = sourceFiles.realm and sfl.artifactId = sourceFiles.artifactId and sfl.sourceFile = sourceFiles.path
-where sfl.realm = :realm and lexemes @@ cast(:query as tsquery) and (:searchArtifact is null or sfl.artifactId = :searchArtifact)
+natural left join source_file
+where sfl.realm = :realm and lexemes @@ cast(:query as tsquery) ${if (searchArtifact == null) "" else "and sfl.artifact_id = :searchArtifact"}
 -- group by primary key
-group by sourceFiles.realm, sourceFiles.artifactId, sourceFiles.path
-                    """
-            )
-                    // prepare immediately so that int arrays are transmitted as binary
-                    .addStatementCustomizer(PrepareStatementImmediately)
-                    .setFetchSize(50)
-                    .bind("realm", realm.id)
-                    .bind("query", tsQuery.toString())
-                    .bind("searchArtifact", searchArtifact?.id)
-                    .map { _, r, _ ->
-                        @Suppress("UNCHECKED_CAST")
-                        FileResult(
-                                Realm.SOURCE, // TODO
-                                r.getString("artifactId"),
-                                r.getString("sourceFile"),
-                                (r.getArray("lexemes").array as Array<*>).map {
-                                    val vc = TsVector()
-                                    vc.addFromSql(it as String)
-                                    vc
-                                },
-                                (r.getArray("starts").array as Array<Int>).toIntArray(),
-                                (r.getArray("lengths").array as Array<Int>).toIntArray(),
-                                ServerSourceFile(
-                                        objectMapper,
-                                        textBytes = r.getBytes("text"),
-                                        annotationBytes = r.getBytes("annotations")
-                                )
-                        ).toView(conn)
-                    }
-                    .iterator()
+group by source_file.realm, source_file.artifact_id, source_file.source_file_id
+                """
+        )
+                // prepare immediately so that int arrays are transmitted as binary
+                .addStatementCustomizer(PrepareStatementImmediately)
+                .setFetchSize(50)
+                .bind("realm", realm.id)
+                .bind("query", tsQuery.toString())
+                .bind("searchArtifact", searchArtifact?.dbId)
+                .map { _, r, _ ->
+                    val artifactId = r.getLong("artifactId")
+                    @Suppress("UNCHECKED_CAST")
+                    FileResult(
+                            realm,
+                            artifactId,
+                            artifactIndex.allArtifactsByDbId[artifactId].stringId,
+                            r.getString("sourceFile"),
+                            (r.getArray("lexemes").array as Array<*>).map {
+                                val vc = TsVector()
+                                vc.addFromSql(it as String)
+                                vc
+                            },
+                            (r.getArray("starts").array as Array<Int>).toIntArray(),
+                            (r.getArray("lengths").array as Array<Int>).toIntArray(),
+                            ServerSourceFile(
+                                    textBytes = r.getBytes("text"),
+                                    annotationBytes = r.getBytes("annotations")
+                            )
+                    ).toView(conn)
+                }
+                .iterator()
 
-            ftl.render(exchange, FullTextSearchResultView(query, realm, searchArtifact, itr))
-
-            conn.rollback() // don't persist array_accum
-        }
+        return FullTextSearchResultView(query, realm, searchArtifact, itr)
     }
 }

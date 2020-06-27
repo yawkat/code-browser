@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.BindingDecl
+import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.PositionedAnnotation
 import at.yawk.javabrowser.SourceAnnotation
 import org.testng.Assert
@@ -177,7 +178,7 @@ stu""",
 
     companion object {
         private fun mockAnnotation(text: String): SourceAnnotation = BindingDecl(
-                text, parent = null, description = BindingDecl.Description.Package, modifiers = 0)
+                BindingId(text.hashCode().toLong()), text, parent = null, description = BindingDecl.Description.Package, modifiers = 0)
 
         private fun textFromMockAnnotation(annotation: SourceAnnotation) = (annotation as BindingDecl).binding
     }

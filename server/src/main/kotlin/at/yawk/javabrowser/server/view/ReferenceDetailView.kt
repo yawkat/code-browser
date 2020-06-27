@@ -36,27 +36,33 @@ data class ReferenceDetailView(
             val type: BindingRefType,
             /** null elements are ignored */
             val artifacts: Iterator<ArtifactListing?>
-    )
+    ) {
+        override fun toString() = "ArtifactListing(type=$type, artifacts=...)"
+    }
 
     class ArtifactListing(
             val artifactId: String,
             /** null elements are ignored */
             val sourceFiles: Iterator<SourceFileListing?>
-    )
-
-    class SourceFileListing(
-            val sourceFile: String,
-            val items: List<Row>
-    )
-
-    data class Row(
-            val type: BindingRefType?,
-            val sourceArtifactId: String,
-            val sourceFile: String,
-            val sourceFileLine: Int,
-            val sourceFileId: Int
     ) {
-        val sourceLocation: URI
-            get() = BindingResolver.location(sourceArtifactId, sourceFile, "#ref-$sourceFileId")
+        override fun toString() = "ArtifactListing(artifactId=$artifactId, sourceFiles=...)"
+    }
+
+    data class SourceFileListing(
+            val sourceFile: String,
+            val items: List<ReferenceListing>
+    )
+
+    class ReferenceListing(
+            sourceArtifactStringId: String,
+            sourceFile: String,
+            val sourceFileLine: Int,
+            sourceFileRefId: Int
+    ) {
+        val sourceLocation = BindingResolver.location(sourceArtifactStringId, sourceFile, "#ref-$sourceFileRefId")
+
+        override fun toString(): String {
+            return "ReferenceListing(sourceFileLine=$sourceFileLine, sourceLocation=$sourceLocation)"
+        }
     }
 }

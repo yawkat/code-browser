@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator.bytecode
 
+import at.yawk.javabrowser.BindingId
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.tree.ModuleNode
 import org.testng.Assert
@@ -7,6 +8,8 @@ import org.testng.annotations.Test
 
 class ModulePrinterTest {
     // codegen doesn't work for module-info right now, so we build our own module nodes.
+
+    private fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
 
     @Test
     fun require() {
@@ -16,7 +19,7 @@ class ModulePrinterTest {
         node.visitEnd()
 
         Assert.assertEquals(
-                BytecodePrinter().also { printModuleBody(it, node) }.finishString().trimIndent(),
+                BytecodePrinter(this::hashBinding).also { printModuleBody(it, node) }.finishString().trimIndent(),
                 """
   requires a.b; // flags: (0x0000) 
   requires c@version; // flags: (0x1000) ACC_SYNTHETIC
@@ -33,7 +36,7 @@ class ModulePrinterTest {
         node.visitEnd()
 
         Assert.assertEquals(
-                BytecodePrinter().also { printModuleBody(it, node) }.finishString().trimIndent(),
+                BytecodePrinter(this::hashBinding).also { printModuleBody(it, node) }.finishString().trimIndent(),
                 """
 exports a.b to // flags: (0x0000) 
   mod1,
@@ -53,7 +56,7 @@ exports d; // flags: (0x0000)
         node.visitEnd()
 
         Assert.assertEquals(
-                BytecodePrinter().also { printModuleBody(it, node) }.finishString().trimIndent(),
+                BytecodePrinter(this::hashBinding).also { printModuleBody(it, node) }.finishString().trimIndent(),
                 """
 opens a.b to // flags: (0x0000) 
   mod1,
@@ -73,7 +76,7 @@ opens d; // flags: (0x0000)
         node.visitEnd()
 
         Assert.assertEquals(
-                BytecodePrinter().also { printModuleBody(it, node) }.finishString().trimIndent(),
+                BytecodePrinter(this::hashBinding).also { printModuleBody(it, node) }.finishString().trimIndent(),
                 """
 provides s.t with 
   a.b,
@@ -97,7 +100,7 @@ provides s.t with
         node.visitEnd()
 
         Assert.assertEquals(
-                BytecodePrinter().also { printModuleAttributes(it, node) }.finishString().trimIndent(),
+                BytecodePrinter(this::hashBinding).also { printModuleAttributes(it, node) }.finishString().trimIndent(),
                 """
 Module:
   Name: foo.bar

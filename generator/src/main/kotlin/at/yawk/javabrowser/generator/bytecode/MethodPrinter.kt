@@ -101,21 +101,25 @@ internal class MethodPrinter private constructor(
         printer.indent(1)
         printer.printSourceModifiers(node.access, Flag.Target.METHOD, trailingSpace = true)
 
-        val decl = if (jdtInformation.isMissing(methodType)) null else BindingDecl(
-                binding = BytecodeBindings.toStringMethod(
-                        declaring = methodOwnerType,
-                        name = node.name,
-                        type = methodType
-                ),
-                superBindings = emptyList(),
-                parent = BytecodeBindings.toStringClass(methodOwnerType),
-                modifiers = asmAccessToSourceAnnotation(node.access),
-                description = BindingDecl.Description.Method(
-                        name = node.name,
-                        returnTypeBinding = typeDescription(methodType.returnType),
-                        parameterTypeBindings = methodType.argumentTypes.map { typeDescription(it) }
-                )
-        )
+        val decl = if (jdtInformation.isMissing(methodType)) null else {
+            val binding = BytecodeBindings.toStringMethod(
+                    declaring = methodOwnerType,
+                    name = node.name,
+                    type = methodType
+            )
+            BindingDecl(
+                    id = printer.hashBinding(binding),
+                    binding = binding,
+                    superBindings = emptyList(),
+                    parent = printer.hashBinding(BytecodeBindings.toStringClass(methodOwnerType)),
+                    modifiers = asmAccessToSourceAnnotation(node.access),
+                    description = BindingDecl.Description.Method(
+                            name = node.name,
+                            returnTypeBinding = typeDescription(printer, methodType.returnType),
+                            parameterTypeBindings = methodType.argumentTypes.map { typeDescription(printer, it) }
+                    )
+            )
+        }
 
         if (node.signature != null) {
             // TODO: annotate

@@ -11,7 +11,7 @@
       <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'<#if alternative.diffPath??>,diffPath:'${alternative.diffPath}'</#if>},</#list>
       ])"><i class="ij ij-history"></i></a>
 </#assign>
-<@page.page title="${newInfo.artifactId.id} : ${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile}" realm=newInfo.realm artifactId=newInfo.artifactId hasSearch=true additionalTitle=additionalTitle additionalMenu=additionalMenu>
+<@page.page title="${newInfo.artifactId.stringId} : ${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile}" realm=newInfo.realm artifactId=newInfo.artifactId hasSearch=true additionalTitle=additionalTitle additionalMenu=additionalMenu>
 
   <div id="code">
     <div class="declaration-tree structure">
@@ -29,8 +29,8 @@
 
       <#if oldInfo??>
         Showing changes in
-        <span class="foreground-new"><b>${newInfo.artifactId.id}</b>/${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile} (new version)</span> from
-        <span class="foreground-old"><b>${oldInfo.artifactId.id}</b>/${oldInfo.sourceFilePathDir}${oldInfo.sourceFilePathFile} (old version)</span>.
+        <span class="foreground-new"><b>${newInfo.artifactId.stringId}</b>/${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile} (new version)</span> from
+        <span class="foreground-old"><b>${oldInfo.artifactId.stringId}</b>/${oldInfo.sourceFilePathDir}${oldInfo.sourceFilePathFile} (old version)</span>.
         <span class="diff-stats">
           <span class="foreground-new">+${diff.insertions}</span>
           <span class="foreground-old">-${diff.deletions}</span>

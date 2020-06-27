@@ -103,7 +103,7 @@ class SourceFileParser(
                         Files.write(target, classFile.bytes)
                     }
                     if (printBytecode) {
-                        val bytecodePrinter = BytecodePrinter()
+                        val bytecodePrinter = BytecodePrinter(printer::hashBinding)
                         val reader = ClassReader(classFile.bytes)
                         ClassPrinter.accept(bytecodePrinter, sourceRelativePath, reader)
                         printer.addSourceFile(
@@ -117,7 +117,7 @@ class SourceFileParser(
             }
 
             val text = Files.readAllBytes(Paths.get(sourceFilePath)).toString(Charsets.UTF_8)
-            val annotatedSourceFile = GeneratorSourceFile(text)
+            val annotatedSourceFile = GeneratorSourceFile(ast.`package`?.name?.fullyQualifiedName, text)
             val styleVisitor = StyleVisitor(annotatedSourceFile)
             for (comment in ast.commentList) {
                 (comment as ASTNode).accept(styleVisitor)
@@ -128,7 +128,7 @@ class SourceFileParser(
                 sourceFilePath.endsWith("module-info.java") -> BindingVisitor.SourceFileType.MODULE_INFO
                 else -> BindingVisitor.SourceFileType.REGULAR
             }
-            val bindingVisitor = BindingVisitor(sourceFilePath, sourceFileType, ast, annotatedSourceFile)
+            val bindingVisitor = BindingVisitor(sourceFilePath, sourceFileType, ast, annotatedSourceFile,printer::hashBinding)
             try {
                 ast.accept(bindingVisitor)
             } catch (e: Exception) {

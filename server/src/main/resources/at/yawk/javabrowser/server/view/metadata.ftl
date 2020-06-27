@@ -1,3 +1,4 @@
+<#-- @ftlvariable name="artifactMetadata" type="at.yawk.javabrowser.ArtifactMetadata" -->
 <div class="metadata">
   <#if artifactMetadata.url??><a rel="nofollow" href="${artifactMetadata.url}"></#if>
   <#if artifactMetadata.logoUrl??>
