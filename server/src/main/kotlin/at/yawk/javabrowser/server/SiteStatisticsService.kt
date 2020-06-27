@@ -46,25 +46,25 @@ class SiteStatisticsService @Inject constructor(
     }
 
     interface Dao {
-        @SqlQuery("select count(*) from data.artifacts")
+        @SqlQuery("select count(*) from artifact")
         fun getArtifactCount(): Long
 
-        @SqlQuery("select count(*) from data.sourceFiles")
+        @SqlQuery("select count(*) from source_file")
         fun getSourceFileCount(): Long
 
-        @SqlQuery("select count(*) from data.bindings")
+        @SqlQuery("select count(*) from binding")
         fun getBindingCount(): Long
 
-        @SqlQuery("select count(*) from data.bindings where isType")
+        @SqlQuery("select count(*) from binding where include_in_type_search")
         fun getClassCount(): Long
 
-        @SqlQuery("select count(*) from data.binding_references")
+        @SqlQuery("select count(*) from binding_reference")
         fun getReferenceCount(): Long
 
-        @SqlQuery("select sum(array_length(starts, 1)) from data.sourceFileLexemesNoSymbols")
+        @SqlQuery("select sum(array_length(starts, 1)) from source_file_lexemes_no_symbols")
         fun getLexemeCountNoSymbols(): Long
 
-        @SqlQuery("select sum(array_length(starts, 1)) from data.sourceFileLexemes")
+        @SqlQuery("select sum(array_length(starts, 1)) from source_file_lexemes")
         fun getLexemeCountWithSymbols(): Long
     }
 }
