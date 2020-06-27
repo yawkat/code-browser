@@ -7,6 +7,7 @@ import at.yawk.javabrowser.server.ArtifactUpdater
 import at.yawk.javabrowser.server.Config
 import at.yawk.javabrowser.server.DependencyDao
 import at.yawk.javabrowser.server.HttpException
+import at.yawk.javabrowser.server.LongRunningDbi
 import at.yawk.javabrowser.server.VersionComparator
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -31,7 +32,7 @@ private val log = LoggerFactory.getLogger(SearchResource::class.java)
 @ThreadSafe
 @Singleton
 class SearchResource @Inject constructor(
-        private val dbi: DBI,
+        @param:LongRunningDbi private val dbi: DBI,
         private val objectMapper: ObjectMapper,
         artifactUpdater: ArtifactUpdater,
         private val aliasIndex: AliasIndex,

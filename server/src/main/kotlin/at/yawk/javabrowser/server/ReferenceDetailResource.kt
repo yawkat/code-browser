@@ -23,7 +23,7 @@ import javax.inject.Inject
  * @author yawkat
  */
 class ReferenceDetailResource @Inject constructor(
-        private val dbi: DBI,
+        @param:LongRunningDbi private val dbi: DBI,
         private val ftl: Ftl,
         private val artifactIndex: ArtifactIndex
 ) : HttpHandler {

@@ -17,7 +17,7 @@ data class DbConfig(
         GENERATOR,
     }
 
-    fun start(mode: Mode): DBI {
+    fun start(mode: Mode, closure: (HikariConfig) -> Unit = {}): DBI {
         val hikariConfig = HikariConfig()
         hikariConfig.jdbcUrl = url
         hikariConfig.username = user
@@ -27,6 +27,7 @@ data class DbConfig(
         } else {
             hikariConfig.connectionInitSql = "set search_path to data"
         }
+        closure(hikariConfig)
         val dataSource = HikariDataSource(hikariConfig)
 
         return DBI(dataSource)

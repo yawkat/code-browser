@@ -18,7 +18,7 @@ import javax.inject.Inject
  * @author yawkat
  */
 class FullTextSearchResource @Inject constructor(
-        private val dbi: DBI,
+        @param:LongRunningDbi private val dbi: DBI,
         private val ftl: Ftl,
         private val bindingResolver: BindingResolver,
         private val artifactIndex: ArtifactIndex

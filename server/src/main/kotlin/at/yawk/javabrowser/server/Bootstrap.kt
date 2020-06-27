@@ -38,7 +38,15 @@ fun main(args: Array<String>) {
     val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
 
     val guice = Guice.createInjector(Module { binder ->
-        binder.bind(DBI::class.java).toInstance(config.database.start(mode = DbConfig.Mode.FRONTEND))
+        binder.bind(DBI::class.java).toInstance(config.database.start(mode = DbConfig.Mode.FRONTEND) {
+            it.poolName = "Normal pool"
+        })
+        binder.bind(DBI::class.java)
+                .annotatedWith(LongRunningDbi::class.java)
+                .toInstance(config.database.start(mode = DbConfig.Mode.FRONTEND) {
+                    it.poolName = "Long-running pool"
+                    it.maximumPoolSize = 20
+                })
         binder.bind(Config::class.java).toInstance(config)
         binder.bind(ObjectMapper::class.java).toInstance(
                 ObjectMapper().findAndRegisterModules()
