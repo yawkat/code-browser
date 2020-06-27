@@ -176,7 +176,7 @@ class ReferenceDetailResource @Inject constructor(
         return ReferenceDetailView(
                 realm = realm,
                 targetBinding = targetBinding,
-                baseUri = URI("/references/${URLEncoder.encode(targetBinding, "UTF-8")}"),
+                baseUri = URI("/references/$realm/${URLEncoder.encode(targetBinding, "UTF-8")}"),
                 type = type,
                 sourceArtifactId = sourceArtifact,
 
