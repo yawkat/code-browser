@@ -15,7 +15,11 @@ import io.undertow.server.handlers.PathHandler
 import io.undertow.server.handlers.PathTemplateHandler
 import io.undertow.server.handlers.accesslog.AccessLogHandler
 import io.undertow.server.handlers.resource.ClassPathResourceManager
+import io.undertow.server.handlers.resource.Resource
+import io.undertow.server.handlers.resource.ResourceChangeEvent
+import io.undertow.server.handlers.resource.ResourceChangeListener
 import io.undertow.server.handlers.resource.ResourceHandler
+import io.undertow.server.handlers.resource.ResourceManager
 import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
@@ -86,8 +90,9 @@ fun main(args: Array<String>) {
                 ClassPathResourceManager(object {}.javaClass.classLoader, "META-INF/resources/webjars"))
         webjars.cacheTime = TimeUnit.DAYS.toSeconds(1).toInt()
         it.addPrefixPath("/webjars", webjars)
-        it.addPrefixPath("/assets", ResourceHandler(
-                ClassPathResourceManager(object {}.javaClass.classLoader, "assets")))
+        val assets = ClassPathResourceManager(object {}.javaClass.classLoader, "assets")
+        it.addPrefixPath("/assets", ResourceHandler(assets))
+        it.addPrefixPath("/robots.txt", ResourceHandler(ExactResourceManager("robots.txt", assets)))
     }
     handler = ExceptionHandler(handler).also(exceptions)
     handler = AccessLogHandler.Builder()
@@ -100,4 +105,39 @@ fun main(args: Array<String>) {
     undertow.start()
 
     guice.getInstance(SearchResource::class.java).firstUpdate()
+}
+
+private class ExactResourceManager(path: String,
+                                   private val next: ResourceManager) : ResourceManager {
+    private val path = if (path.startsWith('/')) path.substring(1) else path
+    private val listeners = mutableMapOf<ResourceChangeListener, ResourceChangeListener>()
+
+    override fun isResourceChangeListenerSupported() = next.isResourceChangeListenerSupported
+
+    override fun getResource(path: String): Resource? =
+            if (path == "" || path == "/") {
+                next.getResource(this.path)
+            } else {
+                null
+            }
+
+    override fun registerResourceChangeListener(listener: ResourceChangeListener) {
+        val wrapped = ResourceChangeListener { evts ->
+            for (evt in evts) {
+                if (evt.resource == path || evt.resource == "/$path") {
+                    listener.handleChanges(listOf(ResourceChangeEvent("", evt.type)))
+                }
+            }
+        }
+        listeners[listener] = wrapped
+        next.registerResourceChangeListener(wrapped)
+    }
+
+    override fun removeResourceChangeListener(listener: ResourceChangeListener) {
+        next.removeResourceChangeListener(listeners.remove(listener)!!)
+    }
+
+    override fun close() {
+        next.close()
+    }
 }

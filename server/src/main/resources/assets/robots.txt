@@ -1,0 +1,5 @@
+user-agent: *
+disallow: /api
+disallow: /references
+disallow: /declarationTree
+disallow: /fts
