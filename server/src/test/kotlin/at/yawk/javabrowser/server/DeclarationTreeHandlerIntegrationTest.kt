@@ -53,6 +53,27 @@ class DeclarationTreeHandlerIntegrationTest {
     }
 
     @Test
+    fun `no members at package level`() {
+        dbi.withHandle { handle ->
+            val response = handler.handleRequest(
+                    handle,
+                    Realm.SOURCE,
+                    artifactId = "java/8",
+                    binding = "java.lang.annotation",
+                    diffArtifactId = null
+            )
+            val children = ImmutableList.copyOf(response.children)
+            MatcherAssert.assertThat(
+                    children,
+                    Matchers.not(Matchers.hasItem(matches<DeclarationNode> {
+                                it.description !is BindingDecl.Description.Type
+                    }))
+            )
+            tryRender(response)
+        }
+    }
+
+    @Test
     fun deprecated() {
         dbi.withHandle { handle ->
             val response = handler.handleRequest(

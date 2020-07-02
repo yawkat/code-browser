@@ -20,7 +20,7 @@ import java.util.Collections
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val FETCH_NODE_LIMIT = 1000
+private const val FETCH_NODE_LIMIT = 1000L
 
 @Singleton
 class DeclarationTreeHandler @Inject constructor(
@@ -139,30 +139,9 @@ where binding.realm = ? and artifact.string_id = ? and binding.binding = ?""",
         }
     }
 
-    private data class PrefixIterator(
-            /* work around kotlinc bug: Passing a captured variable to the super constructor is broken */
-            val types: PeekingIterator<DeclarationNode>,
-            val prefix: String) : TreeIterator<DeclarationNode, DeclarationNode>(types) {
-        override fun mapOneItem(): DeclarationNode {
-            var item = flatDelegate.next()
-            if (item.description is BindingDecl.Description.Package) {
-                // add children to package
-                val subIterator = copy(prefix = item.binding + '.')
-                registerSubIterator(subIterator)
-                if (subIterator.hasNext()) {
-                    item = item.copy(children = subIterator)
-                }
-            }
-            return item
-        }
-
-        override fun returnToParent(item: DeclarationNode): Boolean {
-            return !item.binding.startsWith(prefix)
-        }
-    }
-
     /**
-     * Get a set of bindings for the given parents.
+     * Get a set of bindings for the given parents. This is a flat view, so the [DeclarationNode.children] are `null`
+     * for every result.
      *
      * @return `null` iff there are more than [limit] parents.
      */
@@ -175,7 +154,7 @@ where binding.realm = ? and artifact.string_id = ? and binding.binding = ?""",
     ): List<DeclarationNode>? {
         require(parents.isNotEmpty())
         var query = conn.createQuery("""
-select binding.binding_id, binding.binding, binding.description, binding.modifiers, source_file.path
+select binding.parent, binding.binding_id, binding.binding, binding.description, binding.modifiers, source_file.path
 from binding
 natural left join source_file
 where binding.realm = ?
@@ -190,14 +169,16 @@ ${if (limit != null) "limit ? + 1" else ""}
         if (limit != null) query = query.bind(3, limit)
         val nodes = query
                 .map { _, rs, _ ->
-                    val bindingId = BindingId(rs.getLong(1))
-                    val binding = rs.getString(2)
-                    val description = rs.getBytes(3)
-                    val modifiers = rs.getInt(4)
-                    val sourceFile: String? = rs.getString(5)
+                    val parent = rs.getObject(1)?.let { BindingId((it as Number).toLong()) }
+                    val bindingId = BindingId(rs.getLong(2))
+                    val binding = rs.getString(3)
+                    val description = rs.getBytes(4)
+                    val modifiers = rs.getInt(5)
+                    val sourceFile: String? = rs.getString(6)
                     DeclarationNode(
                             realm = realm,
                             artifactId = artifact.stringId,
+                            parent = parent,
                             bindingId = bindingId,
                             binding = binding,
                             fullSourceFilePath = sourceFile?.let { "/${artifact.stringId}/$it" },
@@ -219,6 +200,29 @@ ${if (limit != null) "limit ? + 1" else ""}
         return BindingId(id.toLong())
     }
 
+    private fun getBindingTree(
+            conn: Handle,
+            realm: Realm,
+            artifact: ArtifactNode,
+            parents: LongArray,
+            limit: Long,
+            ignoreLimit: Boolean): List<DeclarationNode>? {
+        val bindings = getBindings(conn, realm, artifact, parents, if (ignoreLimit) null else limit)
+                ?: return null
+        if (bindings.isEmpty()) {
+            return emptyList()
+        }
+        val bindingIds = LongArray(bindings.size) { bindings[it].bindingId.hash }
+        val nextLevel = getBindingTree(conn, realm, artifact, bindingIds, limit - bindings.size, ignoreLimit = false)
+        if (nextLevel == null) {
+            return bindings
+        } else {
+            return bindings.map {
+                it.copy(children = Iterators.filter(nextLevel.iterator()) { child -> child!!.parent == it.bindingId })
+            }
+        }
+    }
+
     fun packageTree(conn: Handle,
                     realm: Realm,
                     artifactStringId: String,
@@ -227,22 +231,15 @@ ${if (limit != null) "limit ? + 1" else ""}
                 ?: return EmptyIterator.getInstance()
         if (artifact.dbId == null) return EmptyIterator.getInstance()
 
-        val allNodes = ArrayList<DeclarationNode>()
         val root =
                 if (packageName == null) BindingId.TOP_LEVEL_PACKAGE
                 else getBindingId(conn, realm, artifact.dbId, packageName) ?: return EmptyIterator.getInstance()
-        var parents = longArrayOf(root.hash)
-        while (allNodes.size < FETCH_NODE_LIMIT) {
-            val bindings = getBindings(conn, realm, artifact, parents,
-                    if (allNodes.isEmpty()) null else FETCH_NODE_LIMIT.toLong() - allNodes.size)
-            // if we hit the limit, null is returned
-            if (bindings.isNullOrEmpty()) break
-            allNodes.addAll(bindings)
-            parents = LongArray(bindings.size) { bindings[it].bindingId.hash }
-        }
-        allNodes.sortBy { it.binding }
-
-        return PrefixIterator(Iterators.peekingIterator(allNodes.iterator()), "")
+        return getBindingTree(conn,
+                realm,
+                artifact,
+                longArrayOf(root.hash),
+                limit = FETCH_NODE_LIMIT,
+                ignoreLimit = true)!!.iterator()
     }
 
     fun packageTreeDiff(conn: Handle,
@@ -280,6 +277,7 @@ ${if (limit != null) "limit ? + 1" else ""}
             return DeclarationNode(
                     realm = realm_capture,
                     artifactId = artifactId_capture,
+                    parent = item.parent,
                     bindingId = item.id,
                     binding = item.binding,
                     description = item.description,

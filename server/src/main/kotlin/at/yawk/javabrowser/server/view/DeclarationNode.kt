@@ -10,6 +10,7 @@ import at.yawk.javabrowser.Realm
 data class DeclarationNode(
         val realm: Realm,
         val artifactId: String,
+        val parent: BindingId?,
         val bindingId: BindingId,
         val binding: String,
         val description: BindingDecl.Description,
