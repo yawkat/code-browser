@@ -18,9 +18,7 @@ import org.skife.jdbi.v2.TransactionStatus
 import org.skife.jdbi.v2.sqlobject.Bind
 import org.skife.jdbi.v2.sqlobject.SqlQuery
 import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper
-import org.skife.jdbi.v2.sqlobject.stringtemplate.UseStringTemplate3StatementLocator
 import org.skife.jdbi.v2.tweak.ResultSetMapper
-import org.skife.jdbi.v2.unstable.BindIn
 import java.net.URI
 import java.sql.ResultSet
 import java.util.Objects
@@ -150,7 +148,6 @@ class JavabotSearchResource @Inject constructor(
             else topLevelClassPattern(artifacts, classPattern)
 
     @RegisterMapper(ResultRowMapper::class)
-    @UseStringTemplate3StatementLocator
     private interface Dao {
         companion object {
             private const val INTEREST_COLUMNS = "artifact.string_id, binding.binding, source_file.path"
@@ -158,22 +155,22 @@ class JavabotSearchResource @Inject constructor(
             private const val SUFFIX = "limit 20"
         }
 
-        @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact natural join source_file where realm = 0 and artifact_id in (<artifacts>) and binding ilike :fieldNamePattern $SUFFIX")
-        fun nonClassPattern(@BindIn("artifacts") artifacts: LongArray,
+        @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact natural join source_file where realm = 0 and artifact_id = any(:artifacts) and binding ilike :fieldNamePattern $SUFFIX")
+        fun nonClassPattern(@Bind("artifacts") artifacts: LongArray,
                             @Bind("fieldNamePattern") fieldNamePattern: String): Iterator<ResultRow>
 
         @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact natural join source_file where realm = 0 and binding ilike :fieldNamePattern $SUFFIX")
         fun nonClassPattern(@Bind("fieldNamePattern") fieldNamePattern: String): Iterator<ResultRow>
 
-        @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact where realm = 0 and artifact_id in (<artifacts>) and binding = :qualifiedName $SUFFIX")
-        fun qualified(@BindIn("artifacts") artifacts: LongArray,
+        @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact where realm = 0 and artifact_id = any(:artifacts) and binding = :qualifiedName $SUFFIX")
+        fun qualified(@Bind("artifacts") artifacts: LongArray,
                       @Bind("qualifiedName") qualifiedName: String): Iterator<ResultRow>
 
         @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact natural join source_file where realm = 0 and binding = :qualifiedName $SUFFIX")
         fun qualified(@Bind("qualifiedName") qualifiedName: String): Iterator<ResultRow>
 
-        @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact natural join source_file where realm = 0 and artifact_id in (<artifacts>) and include_in_type_search and binding ilike :classPattern $SUFFIX")
-        fun topLevelClassPattern(@BindIn("artifacts") artifacts: LongArray,
+        @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact natural join source_file where realm = 0 and artifact_id = any(:artifacts) and include_in_type_search and binding ilike :classPattern $SUFFIX")
+        fun topLevelClassPattern(@Bind("artifacts") artifacts: LongArray,
                                  @Bind("classPattern") classPattern: String): Iterator<ResultRow>
 
         @SqlQuery("select $INTEREST_COLUMNS from binding natural join artifact natural join source_file where realm = 0 and include_in_type_search and binding ilike :classPattern $SUFFIX")
