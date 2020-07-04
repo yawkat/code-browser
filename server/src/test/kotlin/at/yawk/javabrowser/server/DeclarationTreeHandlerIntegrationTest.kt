@@ -117,4 +117,20 @@ class DeclarationTreeHandlerIntegrationTest {
             Assert.assertFalse(iterator.hasNext())
         }
     }
+
+    @Test
+    fun `module-info`() {
+        dbi.withHandle { handle ->
+            val bytes = handle.select("select annotations from source_file natural join artifact where artifact.string_id = 'java/14' and source_file.path = 'jdk.crypto.cryptoki/module-info.java'")[0]["annotations"] as ByteArray
+            val annotations = cborMapper.readValue<List<PositionedAnnotation>>(bytes)
+            val iterator = handler.sourceDeclarationTree(
+                    Realm.SOURCE,
+                    artifactId = "java/14",
+                    annotations = annotations.asSequence(),
+                    fullSourceFilePath = "jdk.crypto.cryptoki/module-info.java"
+            )
+            // consume
+            iterator.forEach { _ -> }
+        }
+    }
 }

@@ -302,6 +302,7 @@ ${if (limit != null) "limit ? + 1" else ""}
     ): Iterator<DeclarationNode> {
         val flat = Iterators.peekingIterator(annotations.mapNotNull { it.annotation as? BindingDecl }.iterator())
 
+        if (!flat.hasNext()) return Collections.emptyIterator()
         return SourceDeclarationTreeItr(flat, fullSourceFilePath, realm, artifactId, flat.peek().parent)
     }
 }
