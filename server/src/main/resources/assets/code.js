@@ -72,36 +72,61 @@ $(function () {
     }, false);
 });
 
-function moveTooltipTo(element, rightAlign=false) {
-    const pos = element.getBoundingClientRect();
-    const wrapperPos = $("#content > div")[0].getBoundingClientRect();
-    $("#tooltip").css({
-        top: pos.bottom - wrapperPos.top,
-        left: rightAlign ? "auto" : pos.left - wrapperPos.left,
-        right: rightAlign ? pos.right - wrapperPos.right: "auto"
-    });
-}
+const tooltip = {
+    /**
+     * @type Element
+     */
+    element: null,
+    cancelCallbacks: [],
+    show: function (at, content, rightAlign = false) {
+        for (const callback of this.cancelCallbacks) {
+            callback();
+        }
+        this.cancelCallbacks = [];
+
+        this.element.innerHTML = "";
+        this.element.appendChild(content);
+
+        const pos = at.getBoundingClientRect();
+        const wrapperPos = $("#content > div")[0].getBoundingClientRect();
+        this.element.style.top = (pos.bottom - wrapperPos.top) + "px";
+        this.element.style.left = rightAlign ? "auto" : (pos.left - wrapperPos.left) + "px";
+        this.element.style.right = rightAlign ? (pos.right - wrapperPos.right) + "px" : "auto";
+
+        this.element.style.display = "block";
+    },
+    hide: function () {
+        for (const callback of this.cancelCallbacks) {
+            callback();
+        }
+        this.cancelCallbacks = [];
+        this.element.style.display = "none";
+    }
+};
+
+$(function () {
+    tooltip.element = document.getElementById("tooltip");
+});
 
 function showAlternativeSourceFiles(alternativeSourceFiles) {
-    const tooltip = $("#tooltip");
-    tooltip.empty();
+    const tooltipBody = document.createElement("div");
     if (alternativeSourceFiles) {
-        tooltip.append("<b>Other versions:</b>");
-        const list = $("<ul>");
+        tooltipBody.insertAdjacentHTML("beforeend", "<b>Other versions:</b>");
+        const list = document.createElement("ul");
         for (const alternativeSourceFile of alternativeSourceFiles) {
             const artifact = alternativeSourceFile.artifact;
             const path = alternativeSourceFile.path;
             const diffUrl = alternativeSourceFile.diffPath;
-            list.append("<li><a href='/" + artifact + "/" + path + location.hash + "'>" + artifact + "</a> (" +
-                (diffUrl ? "<a href='"+diffUrl+"'>diff</a>" : "current") +
-                ")</li>");
+            tooltipBody.insertAdjacentHTML("beforeend",
+                "<li><a href='/" + artifact + "/" + path + location.hash + "'>" + artifact + "</a> (" +
+                (diffUrl ? "<a href='" + diffUrl + "'>diff</a>" : "current") + ")</li>"
+            );
         }
-        tooltip.append(list);
+        tooltipBody.append(list);
     } else {
-        tooltip.append("<i>No alternative versions</i>");
+        tooltipBody.insertAdjacentHTML("beforeend", "<i>No alternative versions</i>");
     }
-    tooltip.show();
-    moveTooltipTo(document.getElementById("alt-versions").parentElement, true);
+    tooltip.show(document.getElementById("alt-versions").parentElement, tooltipBody, true);
 }
 
 function showReferences(targetElement) {
@@ -112,23 +137,31 @@ function showReferences(targetElement) {
     const superHtml = targetElement.getAttribute("data-super-html");
     const targetArtifactId = targetElement.getAttribute("data-artifact-id");
 
-    $.ajax({
+    const tooltipBody = document.createElement("div");
+
+    if (superHtml) {
+        tooltipBody.insertAdjacentHTML("beforeend", "<b>Extends</b>");
+        tooltipBody.insertAdjacentHTML("beforeend", superHtml);
+        tooltipBody.insertAdjacentHTML("beforeend", "<br>");
+    }
+
+    const loading = document.createElement("i");
+    loading.textContent = "Loading…";
+    tooltipBody.appendChild(loading);
+
+    tooltip.show(targetElement, tooltipBody);
+
+    const xhr = $.ajax({
         url: '/api/references/' + realm + '/' + encodeURIComponent(bindingName) + "?limit=" + LIMIT + "&targetArtifactId=" + encodeURIComponent(targetArtifactId),
         dataType: 'json',
         success: function (data) {
-            const tooltip = $("#tooltip");
+            loading.remove();
 
-            tooltip.empty();
-            if (superHtml) {
-                tooltip.append("<b>Extends</b>");
-                tooltip.append(superHtml);
-                tooltip.append("<br>");
-            }
             let anyItems = false;
             for (const key of Object.keys(data)) {
                 if (data[key].length > 0) {
                     if (!anyItems) {
-                        tooltip.append("<b><a href='/references/" + realm + '/' + encodeURIComponent(bindingName) + "'>Show all (new page)</a></b><br>");
+                        tooltipBody.insertAdjacentHTML("beforeend", "<b><a href='/references/" + realm + '/' + encodeURIComponent(bindingName) + "'>Show all (new page)</a></b><br>");
                     }
                     anyItems = true;
                     let name;
@@ -227,47 +260,47 @@ function showReferences(targetElement) {
                             name = key;
                             break;
                     }
-                    tooltip.append("<span class='reference-type'>" + name + "</span>");
-                    let list = $("<ul>");
+                    tooltipBody.insertAdjacentHTML("beforeend", "<span class='reference-type'>" + name + "</span>");
+                    let list = document.createElement("ul");
                     let i = 0;
                     for (const item of data[key]) {
                         if (i === 10) {
-                            const expandButton = $("<li><i>More search results</i></li>");
-                            expandButton.click(function () {
-                                list.find(".hide-search-results").toggle();
-                            });
+                            const expandButton = document.createElement("li");
+                            expandButton.innerHTML = "<i>More search results</i>";
+                            expandButton.onclick = function () {
+                                list.querySelector(".hide-search-results").classList.toggle("hide");
+                            };
                             list.append(expandButton);
                         }
                         if (i === LIMIT) {
-                            let showAll = $("<li><b><a href='/references/" + encodeURIComponent(bindingName) + "?type=" + key + "'>Show all (new page)</a></b></li>");
-                            showAll.hide();
-                            showAll.addClass("hide-search-results");
+                            let showAll = document.createElement("li");
+                            showAll.innerHTML = "<b><a href='/references/" + encodeURIComponent(bindingName) + "?type=" + key + "'>Show all (new page)</a></b>";
+                            showAll.classList.add("hide", "hide-search-results");
                             list.append(showAll);
                             break;
                         }
-                        const element = $("<li><a href='" + item.uri + "'>" + item.artifactId + '&nbsp;&nbsp;' + item.sourceFile + ":" + item.line + "</a></li>");
+                        const element = document.createElement("li");
+                        element.innerHTML = "<a href='" + item.uri + "'>" + item.artifactId + '&nbsp;&nbsp;' + item.sourceFile + ":" + item.line + "</a>";
                         if (i >= 10) {
-                            element.hide();
-                            element.addClass("hide-search-results");
+                            element.classList.add("hide", "hide-search-results");
                         }
                         list.append(element);
                         i++;
                     }
-                    tooltip.append(list);
+                    tooltipBody.append(list);
                 }
             }
             if (!anyItems) {
-                tooltip.append("<i>No references found</i>");
+                tooltipBody.insertAdjacentHTML("beforeend", "<i>No references found</i>");
             }
-
-            tooltip.show();
-            moveTooltipTo(targetElement);
         }
     });
+
+    tooltip.cancelCallbacks.push(function () { xhr.abort(); });
 }
 
-$(document).click(function (evt) {
-    if (!$(evt.target).closest("#tooltip").length) {
-        $("#tooltip").hide();
+document.addEventListener("click", function (evt) {
+    if (!tooltip.element.contains(evt.target)) {
+        tooltip.hide()
     }
 });

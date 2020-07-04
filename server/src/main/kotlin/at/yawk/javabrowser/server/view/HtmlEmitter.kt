@@ -106,7 +106,7 @@ class HtmlEmitter(
                     } else {
                         ""
                     }
-                    html("<a class='show-refs' href='javascript:;' onclick='showReferences(this); return false' data-binding='${Escaper.HTML.escape(
+                    html("<a class='show-refs' href='javascript:;' onclick='showReferences(this); arguments[0].stopPropagation(); return false' data-binding='${Escaper.HTML.escape(
                             annotation.binding)}' data-super-html='${Escaper.HTML.escape(superHtml)}' data-realm='${scopes.getValue(scope).realm}' data-artifact-id='${Escaper.HTML.escape(scopes.getValue(scope).artifactId)}'></a>")
                 }
 

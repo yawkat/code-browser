@@ -101,3 +101,7 @@ code .show-refs {
 .declaration-name.deprecated {
     text-decoration-line: line-through;
 }
+
+.hide {
+    display: none;
+}
