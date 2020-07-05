@@ -135,8 +135,11 @@ class SourceFileParser(
                 throw RuntimeException("Failed to accept node on character ${bindingVisitor.lastVisited?.startPosition}",
                         e)
             }
-            KeywordHandler.annotateKeywords(annotatedSourceFile,
-                    styleVisitor.noKeywordRanges)
+            KeywordHandler.annotateKeywords(
+                    annotatedSourceFile,
+                    styleVisitor.noKeywordRanges,
+                    sourceFileType
+            )
 
             annotatedSourceFile.bake()
 
