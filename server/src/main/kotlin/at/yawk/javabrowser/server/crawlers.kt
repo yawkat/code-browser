@@ -8,7 +8,7 @@ import io.undertow.util.Headers
  */
 internal fun HttpServerExchange.isCrawler(): Boolean {
     val agents = requestHeaders[Headers.USER_AGENT]
-    if (agents.isEmpty()) {
+    if (agents.isNullOrEmpty()) {
         return false
     }
     val agent = agents.first
