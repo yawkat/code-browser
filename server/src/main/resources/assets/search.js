@@ -29,12 +29,20 @@ class SearchDialog extends Dialog {
         target.innerHTML = html;
     }
 
+    /**
+     * @param {string} query
+     * @param {string} realm
+     * @param {string} artifactId
+     * @param {boolean} includeDependencies
+     * @param {function(any, string, XMLHttpRequest): void} consumer
+     * @return {XMLHttpRequest}
+     */
     function loadQuery(query, realm, artifactId, includeDependencies, consumer) {
         let uri = "/api/search/" + realm + "/" + encodeURIComponent(query) + "?includeDependencies=" + includeDependencies;
         if (artifactId) {
             uri += "&artifactId=" + encodeURIComponent(artifactId);
         }
-        $.ajax({
+        return $.ajax({
             url: uri,
             dataType: 'json',
             success: consumer
@@ -53,24 +61,36 @@ class SearchDialog extends Dialog {
             });
         }
 
-        for (const searchField of document.querySelectorAll(".search")) {
+        for (/** @type {HTMLInputElement} */ const searchField of document.querySelectorAll(".search")) {
             const target = document.querySelector(searchField.getAttribute("data-target"));
             const artifactId = searchField.getAttribute("data-artifact-id");
             let realm = searchField.getAttribute("data-realm");
-            if (!realm) realm = "source";
+            if (!realm) {
+                realm = "source";
+            }
             const includeDependencies = searchField.getAttribute("data-include-dependencies") !== "false";
             const hideEmpty = searchField.hasAttribute("data-hide-empty");
             let firstUpdate = true;
+            /** @type {null|number} */
             let timer = null;
+            /** @type {null|XMLHttpRequest} */
+            let request = null;
             const update = function () {
                 if (timer !== null) {
                     clearTimeout(timer);
                 }
+                if (request !== null) {
+                    request.abort();
+                    request = null;
+                }
+                searchField.classList.add("loading");
                 let f = function () {
                     if (hideEmpty && searchField.value === "") {
+                        searchField.classList.remove("loading");
                         updateSearch([], target);
                     } else {
-                        loadQuery(searchField.value, realm, artifactId, includeDependencies, function (data) {
+                        request = loadQuery(searchField.value, realm, artifactId, includeDependencies, function (data) {
+                            searchField.classList.remove("loading");
                             updateSearch(data.items, target);
                         });
                     }

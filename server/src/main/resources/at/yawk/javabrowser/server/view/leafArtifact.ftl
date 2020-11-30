@@ -38,7 +38,10 @@
     <#if !oldArtifactId??>
       <@ftsf.fullTextSearchForm query='' searchArtifact=artifactId/>
       <div class="search-box">
-        <input type="text" class="search" autocomplete="off" data-target="#result-list" data-hide-empty data-realm="source" data-artifact-id="${artifactId.stringId}" data-include-dependencies="false" placeholder="Search for type…">
+        <div class="search-spinner-wrapper">
+            <input type="text" class="search" autocomplete="off" data-target="#result-list" data-hide-empty data-realm="source" data-artifact-id="${artifactId.stringId}" data-include-dependencies="false" placeholder="Search for type…">
+            <div class="spinner"></div>
+        </div>
         <ul id="result-list"></ul>
       </div>
     </#if>
