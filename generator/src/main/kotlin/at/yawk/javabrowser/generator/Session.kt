@@ -122,7 +122,7 @@ class Session(private val dbi: DBI) {
                         .bind(2, jsonMapper.writeValueAsBytes(task.metadata))
                         .single()["artifact_id"] as Number).toLong()
 
-                val printerImpl = PrinterImpl(artifactId)
+                val printerImpl = PrinterImpl(artifactId, task.artifactId)
                 futures.add(coroutineScope.async {
                     finallyWithSuppressed(
                             tryBlock = { task.closure(printerImpl) },
@@ -161,7 +161,7 @@ class Session(private val dbi: DBI) {
             }
         }
 
-        private inner class PrinterImpl(val artifactId: Long) : PrinterWithDependencies {
+        private inner class PrinterImpl(val artifactId: Long, val artifactStringId: String) : PrinterWithDependencies {
             var hasFiles = false
             var nextSourceFileId: Long = 0
 
@@ -195,7 +195,7 @@ class Session(private val dbi: DBI) {
 
             fun finish() {
                 if (!hasFiles) {
-                    throw RuntimeException("No source files on $artifactId")
+                    throw RuntimeException("No source files on $artifactStringId")
                 }
 
                 dbWriter.submit {
@@ -222,9 +222,9 @@ class Session(private val dbi: DBI) {
                         )
                     }
 
-                    conn.update("select pg_notify('artifact', ?)", artifactId.toString())
+                    conn.update("select pg_notify('artifact', ?)", artifactStringId)
                 }
-                log.info("$artifactId is ready") // TODO
+                log.info("$artifactStringId is ready")
             }
 
             private fun storeTokens(table: String,

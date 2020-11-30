@@ -113,9 +113,3 @@ create materialized view binding_reference_count_view as
 select realm, target, type, source_artifact_id, count(*) as count
 from binding_reference
 group by (realm, target, type, source_artifact_id);
-
-create materialized view binding_descendant_count_view as
-select b1.realm, b1.artifact_id, b1.binding_id, count(b2) as count
-from binding b1
-inner join binding b2 on b1.realm = b2.realm and b1.artifact_id = b2.artifact_id and b1.binding_id = b2.parent
-group by b1.realm, b1.artifact_id, b1.binding_id;
