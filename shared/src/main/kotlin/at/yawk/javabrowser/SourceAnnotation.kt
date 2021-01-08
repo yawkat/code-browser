@@ -15,7 +15,8 @@ import com.fasterxml.jackson.annotation.JsonValue
     JsonSubTypes.Type(value = BindingDecl::class, name = "binding-decl"),
     JsonSubTypes.Type(value = Style::class, name = "style"),
     JsonSubTypes.Type(value = LocalVariableOrLabelRef::class, name = "lv-ref"),
-    JsonSubTypes.Type(value = SourceLineRef::class, name = "line-ref")
+    JsonSubTypes.Type(value = SourceLineRef::class, name = "line-ref"),
+    JsonSubTypes.Type(value = RenderedJavadoc::class, name = "rendered-javadoc")
 ])
 sealed class SourceAnnotation
 
@@ -235,6 +236,10 @@ data class BindingDecl(
 }
 
 data class Style(val styleClass: Set<String>) : SourceAnnotation()
+
+@Suppress("FunctionName")
+fun Style(vararg styleClass: String) = Style(setOf(*styleClass))
+
 data class LocalVariableOrLabelRef(val id: String) : SourceAnnotation()
 
 /**
@@ -242,5 +247,18 @@ data class LocalVariableOrLabelRef(val id: String) : SourceAnnotation()
  */
 data class SourceLineRef(val sourceFile: String, val line: Int) : SourceAnnotation()
 
-@Suppress("FunctionName")
-fun Style(vararg styleClass: String) = Style(setOf(*styleClass))
+data class RenderedJavadoc(val html: String) : SourceAnnotation() {
+    companion object {
+        /**
+         * HTML attribute on anchor elements that holds the binding ID. Replaced by a href to that binding when
+         * displayed.
+         */
+        const val ATTRIBUTE_BINDING_ID = "data-binding"
+
+        fun bindingToAttributeValue(bindingId: BindingId) =
+            java.lang.Long.toHexString(bindingId.hash)!!
+
+        fun attributeValueToBinding(value: String) =
+            BindingId(value.toLong(16))
+    }
+}
