@@ -7,12 +7,38 @@ import at.yawk.javabrowser.generator.getRequiredModules
 import at.yawk.javabrowser.generator.parseModuleFile
 import com.github.luben.zstd.ZstdInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.slf4j.LoggerFactory
+import java.io.InputStream
+import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.regex.Pattern
+import java.util.zip.ZipInputStream
 
-private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.artifact")
+private class ArchiveEntry(
+    val name: String,
+    val isDirectory: Boolean,
+    val stream: InputStream
+)
+
+private fun loadArchive(archiveUrl: URL, handleEntry: (ArchiveEntry) -> Unit) {
+    if (archiveUrl.file.endsWith(".zst")) {
+        TarArchiveInputStream(ZstdInputStream(archiveUrl.openStream().buffered()).buffered()).use { tar ->
+            while (true) {
+                val entry = tar.nextEntry ?: break
+                handleEntry(ArchiveEntry(entry.name, entry.isDirectory, tar))
+            }
+        }
+    } else if (archiveUrl.file.endsWith(".zip")) {
+        ZipInputStream(archiveUrl.openStream().buffered()).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                handleEntry(ArchiveEntry(entry.name, entry.isDirectory, zip))
+            }
+        }
+    } else {
+        throw IllegalArgumentException("Unknown file extension: $archiveUrl")
+    }
+}
 
 suspend fun compileJdk(
         printer: Printer,
@@ -22,39 +48,36 @@ suspend fun compileJdk(
     tempDir { tmp ->
 
         val modules = HashSet<String>()
-        TarArchiveInputStream(ZstdInputStream(artifact.archiveUrl.openStream().buffered()).buffered()).use { tar ->
-            // jigsaw 9: jdk-updates_jdk9u/{jdk,jaxp}/src/*/{share,solaris}/classes/*
-            // jigsaw 10+: jdk-updates_jdk10u/src/*/{share,solaris}/classes/*
-            // old: jdk6_jdk6/jdk/src/{share,solaris}/classes/*
-            // platforms at low indices in this list will overwrite files from high indices
-            val platforms = listOf("share", "linux", "unix", "solaris", "macosx", "windows", "aix")
-            val namePattern = Pattern.compile(
-                    "^/?[a-z0-9_-]+/${if (artifact.jigsaw) "(\\w+/)?" else "jdk/"}src/${if (artifact.jigsaw) "(?<module>[a-z\\.]+)/" else ""}(?<platform>${platforms.joinToString(
-                            "|")})/classes/(?<path>.+)$")
-            val bestPlatform = HashMap<String, String>()
-            while (true) {
-                val entry = tar.nextEntry ?: break
-                if (entry.isDirectory) continue
-                val matcher = namePattern.matcher(entry.name)
-                if (!matcher.matches()) continue
-                val module = if (artifact.jigsaw) matcher.group("module") else null
-                val platform = matcher.group("platform")!!
-                val path = matcher.group("path")!!
-                val outPath = if (module == null) path else "$module/$path"
-                val oldPlatform = bestPlatform[outPath]
-                if (oldPlatform == platform) throw AssertionError("Duplicate file: ${entry.name}")
-                if (oldPlatform == null || platforms.indexOf(oldPlatform) > platforms.indexOf(platform)) {
-                    val dest = tmp.resolve(outPath).normalize()
-                    if (!dest.startsWith(tmp)) throw AssertionError("Bad path: ${entry.name}")
-                    try {
-                        Files.createDirectories(dest.parent)
-                    } catch (ignored: FileAlreadyExistsException) {
-                    }
-                    Files.copy(tar, dest, StandardCopyOption.REPLACE_EXISTING)
+        // jigsaw 9: jdk-updates_jdk9u/{jdk,jaxp}/src/*/{share,solaris}/classes/*
+        // jigsaw 10+: jdk-updates_jdk10u/src/*/{share,solaris}/classes/*
+        // old: jdk6_jdk6/jdk/src/{share,solaris}/classes/*
+        // platforms at low indices in this list will overwrite files from high indices
+        val platforms = listOf("share", "linux", "unix", "solaris", "macosx", "windows", "aix")
+        val namePattern = Pattern.compile(
+            "^/?[a-z0-9_-]+/${if (artifact.jigsaw) "(\\w+/)?" else "jdk/"}src/${if (artifact.jigsaw) "(?<module>[a-z\\.]+)/" else ""}(?<platform>${platforms.joinToString(
+                "|")})/classes/(?<path>.+)$")
+        val bestPlatform = HashMap<String, String>()
+        loadArchive(artifact.archiveUrl) { entry ->
+            if (entry.isDirectory) return@loadArchive
+            val matcher = namePattern.matcher(entry.name)
+            if (!matcher.matches()) return@loadArchive
+            val module = if (artifact.jigsaw) matcher.group("module") else null
+            val platform = matcher.group("platform")!!
+            val path = matcher.group("path")!!
+            val outPath = if (module == null) path else "$module/$path"
+            val oldPlatform = bestPlatform[outPath]
+            if (oldPlatform == platform) throw AssertionError("Duplicate file: ${entry.name}")
+            if (oldPlatform == null || platforms.indexOf(oldPlatform) > platforms.indexOf(platform)) {
+                val dest = tmp.resolve(outPath).normalize()
+                if (!dest.startsWith(tmp)) throw AssertionError("Bad path: ${entry.name}")
+                try {
+                    Files.createDirectories(dest.parent)
+                } catch (ignored: FileAlreadyExistsException) {
                 }
-                if (module != null) {
-                    modules.add(module)
-                }
+                Files.copy(entry.stream, dest, StandardCopyOption.REPLACE_EXISTING)
+            }
+            if (module != null) {
+                modules.add(module)
             }
         }
 
