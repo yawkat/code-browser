@@ -69,13 +69,15 @@ class SourceFileView(
                     env.out,
 
                     hasOverlay = true,
-                    referenceThisUrl = true
+                    referenceThisUrl = true,
+                    renderJavadoc = diff == null
             )
             if (diff != null) {
                 diff.toHtml(emitter)
             } else {
                 SourceFilePrinter.toHtmlSingle(emitter, newInfo.sourceFile)
             }
+            emitter.writeJavadocOverlays()
         }
     }
 }

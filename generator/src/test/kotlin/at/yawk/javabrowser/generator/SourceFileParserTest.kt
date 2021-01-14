@@ -5,6 +5,7 @@ import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.PositionedAnnotation
+import at.yawk.javabrowser.RenderedJavadoc
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.generator.bytecode.testHashBinding
 import com.google.common.io.MoreFiles
@@ -1106,6 +1107,33 @@ class SourceFileParserTest {
                     val annotation = it.annotation
                     annotation is BindingDecl
                 }))
+        )
+    }
+
+    @Test
+    fun `javadoc`() {
+        write("A.java", "/**{@link A#x}*/ class A { /**{@link A#x}*/ int x; /**{@link A#x}*/ void x() {} }")
+        val entries = compile().getValue("A.java").entries
+        MatcherAssert.assertThat(
+            entries,
+            Matchers.hasItem(matches<PositionedAnnotation> {
+                val annotation = it.annotation
+                annotation is RenderedJavadoc && it.start == 0 && it.length == 16 && annotation.html == "<div><code><a data-binding=\"${RenderedJavadoc.bindingToAttributeValue("A#x".hashBinding())}\">x</a></code></div>"
+            })
+        )
+        MatcherAssert.assertThat(
+            entries,
+            Matchers.hasItem(matches<PositionedAnnotation> {
+                val annotation = it.annotation
+                annotation is RenderedJavadoc && it.start == 27 && it.length == 16 && annotation.html == "<div><code><a data-binding=\"${RenderedJavadoc.bindingToAttributeValue("A#x".hashBinding())}\">x</a></code></div>"
+            })
+        )
+        MatcherAssert.assertThat(
+            entries,
+            Matchers.hasItem(matches<PositionedAnnotation> {
+                val annotation = it.annotation
+                annotation is RenderedJavadoc && it.start == 51 && it.length == 16 && annotation.html == "<div><code><a data-binding=\"${RenderedJavadoc.bindingToAttributeValue("A#x".hashBinding())}\">x</a></code></div>"
+            })
         )
     }
 

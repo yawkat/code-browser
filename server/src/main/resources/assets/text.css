@@ -105,3 +105,98 @@ code .show-refs {
 .hide {
     display: none;
 }
+
+code .javadoc-rendered {
+    font-family: sans-serif;
+    max-width: 40em;
+    white-space: normal;
+    border-left: 2px solid;
+    padding: 0.2em 0.5em;
+    box-sizing: border-box;
+}
+
+code .javadoc-rendered pre {
+    white-space: pre;
+}
+
+code .javadoc-rendered > div ~ table {
+    margin-top: 1em;
+}
+
+code .javadoc-rendered p {
+    margin-bottom: .5em;
+}
+
+code .javadoc-rendered > table > tbody > tr > th {
+    vertical-align: top;
+    padding-right: .5em;
+    font-weight: normal;
+    text-align: left;
+}
+
+code .javadoc-rendered > table > tbody > tr > td {
+    vertical-align: top;
+}
+
+code .javadoc-rendered-placeholder {
+    vertical-align: top;
+    user-select: none;
+}
+
+code .javadoc-rendered-placeholder:focus, code .javadoc-rendered-placeholder:focus-within {
+    user-select: auto;
+}
+
+code .javadoc-rendered-overlay {
+    position: absolute;
+}
+
+/* Raw: Show when rendering disabled */
+html.javadoc-render-enabled .javadoc-raw {
+    display: none;
+}
+
+/* Placeholder: Show when rendering enabled AND !placed */
+
+.javadoc-rendered-placeholder {
+    user-select: none;
+    display: none;
+}
+
+html.javadoc-render-enabled .javadoc-rendered-placeholder {
+    user-select: auto;
+    display: inline-block;
+    visibility: visible;
+}
+
+html.javadoc-render-enabled .javadoc-rendered-placeholder.placed {
+    visibility: hidden;
+    user-select: none;
+}
+
+/* Overlay: Show when placed AND rendering enabled */
+.javadoc-rendered-overlay {
+    display: none;
+}
+
+html.javadoc-render-enabled .javadoc-rendered-overlay.placed {
+    display: inline-block;
+}
+
+/**/
+
+span.javadoc-render-toggle {
+    width: 0;
+    height: 1em;
+    margin-left: -16px;
+    padding-left: 16px;
+    display: inline;
+    background-position: center;
+    background-repeat: no-repeat;
+    cursor: pointer;
+    opacity: 50%;
+}
+
+span.javadoc-render-toggle:hover {
+    opacity: 100%;
+}

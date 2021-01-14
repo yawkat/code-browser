@@ -8,7 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-const val COMPILER_VERSION = 35
+const val COMPILER_VERSION = 40
 
 fun getArtifactId(artifact: ArtifactConfig) = when (artifact) {
     is ArtifactConfig.Java -> "java/${artifact.version}"
@@ -33,12 +33,13 @@ internal suspend fun compile(
     parser.compile()
 }
 
-inline fun tempDir(f: (Path) -> Unit) {
+inline fun <R> tempDir(f: (Path) -> R): R {
     val tmp = Files.createTempDirectory(Paths.get("/var/tmp"), "compile")
     var delete = !java.lang.Boolean.getBoolean("at.yawk.javabrowser.generator.keepTempOnError")
     try {
-        f(tmp)
+        val r = f(tmp)
         delete = true
+        return r
     } finally {
         if (delete) {
             MoreFiles.deleteRecursively(tmp)

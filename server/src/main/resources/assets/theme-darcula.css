@@ -45,8 +45,9 @@ html.theme-darcula {
     font-style: italic;
 }
 
-.theme-darcula code .comment.javadoc {
+.theme-darcula code .comment.javadoc, .theme-darcula code .javadoc-rendered {
     color: #629755;
+    border-color: #629755;
 }
 
 .theme-darcula code .comment {
@@ -142,4 +143,8 @@ html.theme-darcula {
 
 .theme-darcula .hit-result-limit {
     background: #540000;
+}
+
+.theme-darcula span.javadoc-render-toggle {
+    background-image: url("/assets/icons/general/layoutPreviewOnly_dark.svg");
 }

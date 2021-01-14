@@ -40,21 +40,26 @@ class Ftl @Inject constructor(imageCache: ImageCache) {
 
     fun render(exchange: HttpServerExchange, view: View) {
         val themeCookie = exchange.requestCookies["theme"]?.value
-        val theme = if (themeCookie in THEMES) themeCookie else "default"
+        val javadocRenderEnabledCookie = exchange.requestCookies["javadoc-render-enabled"]?.value
         exchange.responseHeaders.put(Headers.CONTENT_TYPE, "text/html")
-        render(view, exchange.outputStream, theme)
+        render(view, exchange.outputStream,
+            theme = if (themeCookie in THEMES) themeCookie else "default",
+            javadocRenderEnabled = javadocRenderEnabledCookie?.toBoolean() ?: false)
     }
 
     @VisibleForTesting
     internal fun render(
             view: View,
             outputStream: OutputStream,
-            theme: String?
+            theme: String?,
+            javadocRenderEnabled: Boolean
     ) {
         val template = configuration.getTemplate(view.templateFile)
         OutputStreamWriter(outputStream).use {
             val processingEnvironment = template.createProcessingEnvironment(view, it)
             processingEnvironment.setGlobalVariable("theme", SimpleScalar(theme))
+            processingEnvironment.setGlobalVariable("javadocRenderEnabled",
+                configuration.objectWrapper.wrap(javadocRenderEnabled))
             processingEnvironment.process()
         }
     }

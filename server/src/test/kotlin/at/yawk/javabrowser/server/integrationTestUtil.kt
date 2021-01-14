@@ -22,5 +22,5 @@ inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = o
 }
 
 fun tryRender(view: View) {
-    Ftl(ImageCache()).render(view, NullOutputStream(), theme = null)
+    Ftl(ImageCache()).render(view, NullOutputStream(), theme = null, javadocRenderEnabled = false)
 }

@@ -1,7 +1,7 @@
 <#ftl strip_text=true>
 <#import "path.ftl" as path>
 <#macro page realm artifactId title hasSearch=false additionalTitle="" additionalMenu=""><!doctype html>
-  <html lang="en" class="theme-${theme}">
+  <html lang="en" class="theme-${theme} <#if javadocRenderEnabled>javadoc-render-enabled</#if>">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport"
@@ -47,6 +47,10 @@
               <option value="default"<#if theme == "default"> selected</#if>>Default</option>
               <option value="darcula"<#if theme == "darcula"> selected</#if>>Darcula</option>
             </select>
+          </label><br>
+          <label>
+            Javadoc Rendering (changing this sets a cookie):
+            <input class="javadoc-render-toggle" type="checkbox" <#if javadocRenderEnabled>checked</#if>>
           </label><br>
           Missing a library or version you want to see?
           <a href="https://github.com/yawkat/java-browser/issues/new?labels=library">Open an issue!</a><br>

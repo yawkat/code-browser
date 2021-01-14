@@ -43,8 +43,9 @@
     font-style: italic;
 }
 
-.theme-default code .comment.javadoc {
+.theme-default code .comment.javadoc, .theme-default code .javadoc-rendered {
     color: #0033cc;
+    border-color: #0033cc;
 }
 
 .theme-default code .comment {
@@ -139,4 +140,8 @@
 
 .theme-default .hit-result-limit {
     background: #fcc;
+}
+
+span.javadoc-render-toggle {
+    background-image: url("/assets/icons/general/layoutPreviewOnly.svg");
 }

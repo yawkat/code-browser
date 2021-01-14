@@ -49,6 +49,7 @@ class FullTextSearchResultView(
 
                         hasOverlay = false,
                         referenceThisUrl = false,
+                        renderJavadoc = false,
                         ownUri = URI.create("/$artifactId/$path")
                 )
                 renderer.renderNextRegion(emitter)

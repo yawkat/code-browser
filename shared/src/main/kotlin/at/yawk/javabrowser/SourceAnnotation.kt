@@ -259,6 +259,6 @@ data class RenderedJavadoc(val html: String) : SourceAnnotation() {
             java.lang.Long.toHexString(bindingId.hash)!!
 
         fun attributeValueToBinding(value: String) =
-            BindingId(value.toLong(16))
+            BindingId(java.lang.Long.parseUnsignedLong(value, 16))
     }
 }

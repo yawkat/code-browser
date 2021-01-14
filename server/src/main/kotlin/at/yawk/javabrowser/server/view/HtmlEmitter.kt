@@ -4,6 +4,7 @@ import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.Realm
+import at.yawk.javabrowser.RenderedJavadoc
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
@@ -11,6 +12,11 @@ import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.Escaper
 import at.yawk.javabrowser.server.SourceFilePrinter
 import org.intellij.lang.annotations.Language
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
+import org.jsoup.nodes.Node
+import org.jsoup.select.NodeTraversor
+import org.jsoup.select.NodeVisitor
 import java.io.Writer
 import java.net.URI
 
@@ -27,12 +33,16 @@ class HtmlEmitter(
          * Can the current document be referenced and should we include element IDs for that purpose?
          */
         private val referenceThisUrl: Boolean,
+        private val renderJavadoc: Boolean,
         /**
          * This source file's URI, or `null` if we're already on the uri for this source file.
          */
         ownUri: URI? = null
 ) : SourceFilePrinter.Emitter<HtmlEmitter.Memory> {
     private val ownUriString = ownUri?.toASCIIString() ?: ""
+
+    private val renderedJavadocOverlays = StringBuilder()
+    private var renderedJavadocOverlayIndex = 0
 
     sealed class Memory {
         object None : Memory()
@@ -116,6 +126,36 @@ class HtmlEmitter(
             is Style -> html("<span class='${annotation.styleClass.joinToString(" ")}'>")
             is LocalVariableOrLabelRef -> html("<span class='local-variable' data-local-variable='${annotation.id}'>")
             is SourceLineRef -> html("<a href='/${Escaper.HTML.escape(scopes.getValue(scope).artifactId + '/' + annotation.sourceFile)}#${annotation.line}'>")
+            is RenderedJavadoc -> {
+                if (renderJavadoc) {
+                    val renderedJavadocId = "javadoc-rendered-${renderedJavadocOverlayIndex++}"
+                    val content = Jsoup.parse(annotation.html)
+                    content.outputSettings().prettyPrint(false)
+                    NodeTraversor.traverse(ApplyBindingLinkVisitor(scopes.getValue(scope)), content)
+
+                    html("<span class='javadoc-render-toggle' title='Toggle Javadoc rendering'></span>")
+                    html("<span id='$renderedJavadocId' tabindex='-1' class='javadoc-rendered javadoc-rendered-placeholder'>$content</span>")
+                    renderedJavadocOverlays.append("<span data-overlay-id='$renderedJavadocId' class='javadoc-rendered javadoc-rendered-overlay'>$content</span>")
+
+                    html("<span class='javadoc-raw'>")
+                }
+            }
+        }
+    }
+
+    private inner class ApplyBindingLinkVisitor(private val scopeInfo: ScopeInfo) : NodeVisitor {
+        override fun head(node: Node, depth: Int) {
+            if (node !is Element) return
+            val bindingIdString = node.attr(RenderedJavadoc.ATTRIBUTE_BINDING_ID)
+            if (bindingIdString.isNullOrEmpty()) return
+            val bindingId = RenderedJavadoc.attributeValueToBinding(bindingIdString)
+            node.removeAttr(RenderedJavadoc.ATTRIBUTE_BINDING_ID)
+            val uri = bindingResolver.resolveBinding(scopeInfo.realm, scopeInfo.classpath, bindingId).firstOrNull()
+                ?.toASCIIString() ?: return
+            node.attr("href", uri)
+        }
+
+        override fun tail(node: Node?, depth: Int) {
         }
     }
 
@@ -126,6 +166,11 @@ class HtmlEmitter(
             is BindingRef -> html(linkBindingEnd((memory as Memory.ResolvedBinding).uri))
             is BindingDecl, is SourceLineRef -> html("</a>")
             is Style, is LocalVariableOrLabelRef -> html("</span>")
+            is RenderedJavadoc -> {
+                if (renderJavadoc) {
+                    html("</span>")
+                }
+            }
         }
     }
 
@@ -187,5 +232,9 @@ class HtmlEmitter(
 
     override fun normalLineMarker(line: Int) {
         lineMarker((line + 1).toString(), line, forDiff = false)
+    }
+
+    fun writeJavadocOverlays() {
+        html(renderedJavadocOverlays.toString())
     }
 }

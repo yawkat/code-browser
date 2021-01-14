@@ -7,9 +7,12 @@ import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.FileASTRequestor
 import org.eclipse.jdt.core.dom.ModuleDeclaration
 import org.eclipse.jdt.core.dom.RequiresDirective
+import org.eclipse.jdt.internal.compiler.parser.PrepareMonkeyPatch
 import java.nio.file.Path
 
 fun parseModuleFile(path: Path): ModuleDeclaration {
+    PrepareMonkeyPatch
+
     var moduleDeclaration: ModuleDeclaration? = null
     val parser = ASTParser.newParser(AST.JLS10)
     parser.setCompilerOptions(mapOf(

@@ -52,6 +52,11 @@
             <artifactId>org.eclipse.jdt.core</artifactId>
             <version>${jdt.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.13.1</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -11,6 +11,7 @@ import org.eclipse.jdt.core.dom.ASTParser
 import org.eclipse.jdt.core.dom.CompilationUnit
 import org.eclipse.jdt.core.dom.FileASTRequestor
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
+import org.eclipse.jdt.internal.compiler.parser.PrepareMonkeyPatch
 import org.objectweb.asm.ClassReader
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -31,15 +32,21 @@ class SourceFileParser(
     var includeRunningVmBootclasspath = true
     var pathPrefix = ""
     var outputClassesTo: Path? = null
+
     /**
      * For logging
      */
     var artifactId: String? = null
     var printBytecode: Boolean = false
 
+    init {
+        PrepareMonkeyPatch
+    }
+
     suspend fun compile() {
         val parser = ASTParser.newParser(AST.JLS10)
-        parser.setCompilerOptions(mapOf(
+        parser.setCompilerOptions(
+            mapOf(
                 JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
                 JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM to JavaCore.VERSION_10,
                 JavaCore.CORE_ENCODING to "UTF-8",
@@ -128,18 +135,32 @@ class SourceFileParser(
                 sourceFilePath.endsWith("module-info.java") -> BindingVisitor.SourceFileType.MODULE_INFO
                 else -> BindingVisitor.SourceFileType.REGULAR
             }
-            val bindingVisitor = BindingVisitor(sourceFilePath, sourceFileType, ast, annotatedSourceFile,printer::hashBinding)
+            val bindingVisitor = BindingVisitor(
+                sourceFilePath, sourceFileType, ast, annotatedSourceFile, printer::hashBinding
+            )
             try {
                 ast.accept(bindingVisitor)
             } catch (e: Exception) {
-                throw RuntimeException("Failed to accept node on character ${bindingVisitor.lastVisited?.startPosition}",
-                        e)
+                throw RuntimeException(
+                    "Failed to accept node on character ${bindingVisitor.lastVisited?.startPosition}",
+                    e
+                )
             }
             KeywordHandler.annotateKeywords(
-                    annotatedSourceFile,
-                    styleVisitor.noKeywordRanges,
-                    sourceFileType
+                annotatedSourceFile,
+                styleVisitor.noKeywordRanges,
+                sourceFileType
             )
+            val javadocRenderVisitor = JavadocRenderVisitor(printer::hashBinding, annotatedSourceFile)
+            try {
+                ast.accept(javadocRenderVisitor)
+            } catch (e: Exception) {
+                throw RuntimeException(
+                    "Failed to accept javadoc on character ${javadocRenderVisitor.lastVisited?.startPosition}",
+                    e
+                )
+            }
+            javadocRenderVisitor.finish()
 
             annotatedSourceFile.bake()
 
