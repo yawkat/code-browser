@@ -129,7 +129,7 @@ class HtmlEmitter(
                     content.outputSettings().prettyPrint(false)
                     NodeTraversor.traverse(ApplyBindingLinkVisitor(scopes.getValue(scope)), content)
 
-                    html("<span class='javadoc-render-toggle' title='Toggle Javadoc rendering'></span>")
+                    html("<span class='javadoc-render-toggle' title='Toggle Javadoc rendering (sets a cookie)'></span>")
                     html("<span tabindex='-1' class='javadoc-rendered javadoc-rendered-placeholder'>$content</span>")
 
                     html("<span class='javadoc-raw'>")
