@@ -41,9 +41,6 @@ class HtmlEmitter(
 ) : SourceFilePrinter.Emitter<HtmlEmitter.Memory> {
     private val ownUriString = ownUri?.toASCIIString() ?: ""
 
-    private val renderedJavadocOverlays = StringBuilder()
-    private var renderedJavadocOverlayIndex = 0
-
     sealed class Memory {
         object None : Memory()
         class ResolvedBinding(val uri: String?) : Memory()
@@ -128,14 +125,12 @@ class HtmlEmitter(
             is SourceLineRef -> html("<a href='/${Escaper.HTML.escape(scopes.getValue(scope).artifactId + '/' + annotation.sourceFile)}#${annotation.line}'>")
             is RenderedJavadoc -> {
                 if (renderJavadoc) {
-                    val renderedJavadocId = "javadoc-rendered-${renderedJavadocOverlayIndex++}"
                     val content = Jsoup.parse(annotation.html)
                     content.outputSettings().prettyPrint(false)
                     NodeTraversor.traverse(ApplyBindingLinkVisitor(scopes.getValue(scope)), content)
 
                     html("<span class='javadoc-render-toggle' title='Toggle Javadoc rendering'></span>")
-                    html("<span id='$renderedJavadocId' tabindex='-1' class='javadoc-rendered javadoc-rendered-placeholder'>$content</span>")
-                    renderedJavadocOverlays.append("<span data-overlay-id='$renderedJavadocId' class='javadoc-rendered javadoc-rendered-overlay'>$content</span>")
+                    html("<span tabindex='-1' class='javadoc-rendered javadoc-rendered-placeholder'>$content</span>")
 
                     html("<span class='javadoc-raw'>")
                 }
@@ -232,9 +227,5 @@ class HtmlEmitter(
 
     override fun normalLineMarker(line: Int) {
         lineMarker((line + 1).toString(), line, forDiff = false)
-    }
-
-    fun writeJavadocOverlays() {
-        html(renderedJavadocOverlays.toString())
     }
 }

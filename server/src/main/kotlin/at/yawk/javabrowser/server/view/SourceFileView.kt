@@ -77,7 +77,6 @@ class SourceFileView(
             } else {
                 SourceFilePrinter.toHtmlSingle(emitter, newInfo.sourceFile)
             }
-            emitter.writeJavadocOverlays()
         }
     }
 }

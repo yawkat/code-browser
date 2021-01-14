@@ -58,28 +58,6 @@ $(function () {
         document.cookie = "theme=" + newTheme + "; expires=Fri, 1 Jan 9999 00:00:00 UTC; path=/";
     });
 
-    let overlaysPlaced = false;
-
-    /**
-     * Place the rendered javadoc overlays over their placeholders. Can only be done if javadoc rendering is enabled,
-     * or the positions will be off!
-     */
-    function placeJavadocOverlays() {
-        if (overlaysPlaced) {
-            return;
-        }
-        const overlays = document.getElementsByClassName("javadoc-rendered-overlay");
-        for (let i = 0; i < overlays.length; i++) {
-            const overlay = overlays[i];
-            const placeholder = document.getElementById(overlay.getAttribute("data-overlay-id"));
-            overlay.style.left = placeholder.offsetLeft + "px";
-            overlay.style.top = placeholder.offsetTop + "px";
-            overlay.classList.add("placed");
-            placeholder.classList.add("placed");
-        }
-        overlaysPlaced = true;
-    }
-
     const javadocRenderToggles = document.getElementsByClassName("javadoc-render-toggle");
 
     function isJavadocRenderEnabled() {
@@ -106,16 +84,10 @@ $(function () {
                 toggle.checked = enabled;
             }
         }
-        if (enabled) {
-            placeJavadocOverlays();
-        }
         // scroll so that the button stays at the same position
         window.scrollTo(0, window.pageYOffset + element.getBoundingClientRect().y - posTopBefore);
     }
 
-    if (isJavadocRenderEnabled()) {
-        placeJavadocOverlays();
-    }
     for (let i = 0; i < javadocRenderToggles.length; i++) {
         const toggle = javadocRenderToggles[i];
         if (toggle.tagName === "INPUT") {
