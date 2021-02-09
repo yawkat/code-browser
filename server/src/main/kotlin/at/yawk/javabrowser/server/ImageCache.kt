@@ -106,7 +106,7 @@ class ImageCache {
 
     private fun parseImage(key: CacheKey): Entry {
         val connection = URL(key.url).openConnection()
-        connection.setRequestProperty("User-Agent", "yawkat/java-browser image cache fetcher")
+        connection.setRequestProperty("User-Agent", "code.yawk.at image cache fetcher")
         val stream = BufferedInputStream(connection.getInputStream())
         stream.mark(8)
 

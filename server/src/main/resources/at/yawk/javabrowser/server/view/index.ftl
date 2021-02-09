@@ -1,7 +1,7 @@
 <#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.IndexView" -->
 <#import "page.ftl" as page>
 <#import "fullTextSearchForm.ftl" as ftsf>
-<@page.page title="Java Browser" realm='source' artifactId=artifactId hasSearch=(artifactId.stringId == "")>
+<@page.page title="Code Browser" realm='source' artifactId=artifactId hasSearch=(artifactId.stringId == "")>
   <div id="noncode">
     <#if artifactId.stringId == "">
       <div class="message-box">
@@ -11,7 +11,7 @@
 
           <br><br>
 
-          <a href="https://github.com/yawkat/java-browser">Contribute on GitHub</a>
+          <a href="https://github.com/yawkat/code-browser">Contribute on GitHub</a>
         </p>
       </div>
     </#if>

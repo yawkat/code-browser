@@ -8,6 +8,9 @@ fun main(args: Array<String>) {
     val logoUrls = cfg.artifacts.mapNotNull { it.metadata?.logoUrl }.toSet()
     for (logoUrl in logoUrls) {
         println("Checking $logoUrl")
-        URL(logoUrl).openStream().use { it.readBytes() }
+        URL(logoUrl).openConnection()
+            .also { it.setRequestProperty("User-Agent", "code.yawk.at image cache fetcher") }
+            .getInputStream()
+            .use { it.readBytes() }
     }
 }

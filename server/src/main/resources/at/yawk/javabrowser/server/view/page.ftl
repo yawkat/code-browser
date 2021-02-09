@@ -53,7 +53,7 @@
             <input class="javadoc-render-toggle" type="checkbox" <#if javadocRenderEnabled>checked</#if>>
           </label><br>
           Missing a library or version you want to see?
-          <a href="https://github.com/yawkat/java-browser/issues/new?labels=library">Open an issue!</a><br>
+          <a href="https://github.com/yawkat/code-browser/issues/new?labels=library">Open an issue!</a><br>
           Icon set and themes from <a href="https://github.com/JetBrains/intellij-community/">IntelliJ Community</a>
         </div>
       </div>
