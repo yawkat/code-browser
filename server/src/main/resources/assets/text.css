@@ -127,15 +127,47 @@ code .javadoc-rendered p {
     margin-bottom: .5em;
 }
 
+code .javadoc-rendered table {
+    border-collapse: collapse;
+}
+
+code .javadoc-rendered td, code .javadoc-rendered th {
+    border: 1px solid;
+}
+
+code .javadoc-rendered ul, code .javadoc-rendered ol {
+    list-style-type: initial;
+    padding-left: 1em;
+}
+
+code .javadoc-rendered li {
+    list-style-type: initial;
+}
+
+code .javadoc-rendered h1, code .javadoc-rendered h2, code .javadoc-rendered h3, code .javadoc-rendered h4, code .javadoc-rendered h5, code .javadoc-rendered h6 {
+    margin-top: 1em;
+}
+
 code .javadoc-rendered > table > tbody > tr > th {
     vertical-align: top;
     padding-right: .5em;
     font-weight: normal;
     text-align: left;
+    border: 0;
 }
 
 code .javadoc-rendered > table > tbody > tr > td {
     vertical-align: top;
+    border: 0;
+}
+
+code .javadoc-rendered > table > tbody > tr > td > ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+code .javadoc-rendered > table > tbody > tr > td > ul > li {
+    list-style-type: none;
 }
 
 code .javadoc-rendered-placeholder {
