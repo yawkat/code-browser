@@ -108,7 +108,7 @@ function expandDeclaration(element) {
     const loadChildrenFrom = wrapped.data('load-children-from');
     if (loadChildrenFrom) {
         wrapped.data('loadChildrenFrom', null);
-        const spinner = $("<span class='spinner'>…</span>");
+        const spinner = $("<div class='spinner'></div>");
         container.append(spinner);
         $.ajax({
             url: loadChildrenFrom,

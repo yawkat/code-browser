@@ -72,14 +72,21 @@
     position: relative;
 }
 
-.spinner {
+.search-spinner-wrapper .spinner {
     display: none;
 }
 
-.loading ~ .spinner {
-    right: 0;
+.search-spinner-wrapper .loading ~ .spinner {
     position: absolute;
+    right: 0;
     top: 50%;
+}
+
+.declaration-tree .spinner {
+    margin: .1em;
+}
+
+.spinner {
     display: block;
     border: solid black;
     border-width: 1px 0 0 1px;

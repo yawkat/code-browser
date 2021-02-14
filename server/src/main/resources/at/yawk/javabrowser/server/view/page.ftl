@@ -40,7 +40,7 @@
       <div>
         <#nested/>
 
-        <div class="small" style="text-align: right">
+        <div id="footer">
           <label>
             Theme (changing this sets a cookie):
             <select id="theme-selector">

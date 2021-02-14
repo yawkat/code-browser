@@ -280,3 +280,9 @@ li {
     max-height: 17em;
     overflow-y: hidden;
 }
+
+#footer {
+    font-size: .85em;
+    text-align: right;
+    padding: 0.5em;
+}
