@@ -144,7 +144,7 @@ suspend fun compileMaven(
         var name = it.coordinate.groupId + "/" + it.coordinate.artifactId + "/" + it.coordinate.version
         if (!it.coordinate.classifier.isNullOrEmpty()) name += "/" + it.coordinate.classifier
         name
-    }
+    }.toSet() // remove duplicates
     val aliasNames = artifact.aliases.map { getArtifactId(it) }
     val sourceJar = printer.concurrencyControl.fetchMavenDeps {
         Maven.resolver()
