@@ -8,7 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-const val COMPILER_VERSION = 40
+const val COMPILER_VERSION = 41
 
 fun getArtifactId(artifact: ArtifactConfig) = when (artifact) {
     is ArtifactConfig.Java -> "java/${artifact.version}"

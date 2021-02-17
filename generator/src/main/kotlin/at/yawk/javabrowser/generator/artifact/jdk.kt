@@ -22,14 +22,14 @@ private class ArchiveEntry(
 
 private fun loadArchive(archiveUrl: URL, handleEntry: (ArchiveEntry) -> Unit) {
     if (archiveUrl.file.endsWith(".zst")) {
-        TarArchiveInputStream(ZstdInputStream(archiveUrl.openStream().buffered()).buffered()).use { tar ->
+        TarArchiveInputStream(ZstdInputStream(ResumingUrlInputStream(archiveUrl).buffered()).buffered()).use { tar ->
             while (true) {
                 val entry = tar.nextEntry ?: break
                 handleEntry(ArchiveEntry(entry.name, entry.isDirectory, tar))
             }
         }
     } else if (archiveUrl.file.endsWith(".zip")) {
-        ZipInputStream(archiveUrl.openStream().buffered()).use { zip ->
+        ZipInputStream(ResumingUrlInputStream(archiveUrl).buffered()).use { zip ->
             while (true) {
                 val entry = zip.nextEntry ?: break
                 handleEntry(ArchiveEntry(entry.name, entry.isDirectory, zip))
@@ -53,14 +53,24 @@ suspend fun compileJdk(
         // old: jdk6_jdk6/jdk/src/{share,solaris}/classes/*
         // platforms at low indices in this list will overwrite files from high indices
         val platforms = listOf("share", "linux", "unix", "solaris", "macosx", "windows", "aix")
-        val namePattern = Pattern.compile(
-            "^/?[a-z0-9_-]+/${if (artifact.jigsaw) "(\\w+/)?" else "jdk/"}src/${if (artifact.jigsaw) "(?<module>[a-z\\.]+)/" else ""}(?<platform>${platforms.joinToString(
-                "|")})/classes/(?<path>.+)$")
+        val platformGroup = "(?<platform>" + platforms.joinToString("|") + ")"
+        val moduleGroup = "(?<module>[a-z.]+)"
+        val namePatterns =
+            if (artifact.jigsaw)
+                listOf(
+                    Pattern.compile("^/?[\\w-]+/(\\w+/)?src/$moduleGroup/$platformGroup/classes/(?<path>.+)$"),
+                    Pattern.compile("^/?[\\w-]+/build/$platformGroup-[\\w-]+/support/gensrc/$moduleGroup/(?<path>.+)$")
+                )
+            else
+                listOf(
+                    Pattern.compile("^/?\\w+/jdk/src/$platformGroup/classes/(?<path>.+)$"),
+                    Pattern.compile("^/?\\w+/build/$platformGroup-\\w+/(jdk/)?gensrc/(?<path>.+)$")
+                )
         val bestPlatform = HashMap<String, String>()
         loadArchive(artifact.archiveUrl) { entry ->
             if (entry.isDirectory) return@loadArchive
-            val matcher = namePattern.matcher(entry.name)
-            if (!matcher.matches()) return@loadArchive
+            val matcher = namePatterns.map { it.matcher(entry.name) }.firstOrNull { it.matches() }
+                ?: return@loadArchive
             val module = if (artifact.jigsaw) matcher.group("module") else null
             val platform = matcher.group("platform")!!
             val path = matcher.group("path")!!

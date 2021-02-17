@@ -15,11 +15,14 @@ artifacts {
             )),
             url = "https://openjdk.java.net/"
     )
-    java(version = "6", archiveUrl = "https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk6_jdk6/lastSuccessfulBuild/artifact/jdk6_jdk6.tar.zst", jigsaw = false, metadata = openjdkMetadata)
-    java(version = "7", archiveUrl = "https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk7u_jdk7u/lastSuccessfulBuild/artifact/jdk7u_jdk7u.tar.zst", jigsaw = false, metadata = openjdkMetadata)
-    java(version = "8", archiveUrl = "https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk8u_jdk8u/lastSuccessfulBuild/artifact/jdk8u_jdk8u.tar.zst", jigsaw = false, metadata = openjdkMetadata)
-    for (version in listOf("9", "10", "11", "12", "13", "14")) {
-        java(version = version, archiveUrl = "https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk${version}u/lastSuccessfulBuild/artifact/jdk-updates_jdk${version}u.tar.zst", jigsaw = true, metadata = openjdkMetadata)
+    for (version in 6..16) {
+        // these archives are full build dumps, meaning they contain generated sources as well.
+        java(
+            version = version.toString(),
+            archiveUrl = "https://ci.yawk.at/job/openjdk/job/openjdk$version/lastSuccessfulBuild/artifact/jdk$version.tar.zst",
+            jigsaw = version >= 9,
+            metadata = openjdkMetadata
+        )
     }
 
     android(

@@ -10,7 +10,10 @@ import at.yawk.javabrowser.generator.GeneratorSourceFile
 import at.yawk.javabrowser.generator.MavenDependencyResolver
 import at.yawk.javabrowser.generator.Printer
 import at.yawk.javabrowser.generator.PrinterWithDependencies
+import com.github.luben.zstd.ZstdInputStreamNoFinalizer
+import com.google.common.io.CountingInputStream
 import kotlinx.coroutines.runBlocking
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.testng.Assert
 import org.testng.annotations.Test
 import java.net.URL
@@ -181,32 +184,22 @@ class CompilerTest {
         Assert.assertTrue(foundFile)
     }
 
-    @Test(enabled = false)
-    fun `java 9`() {
-        runBlocking {
-            compileJdk(
-                    object : Printer {
-                        override fun addSourceFile(path: String,
-                                                   sourceFile: GeneratorSourceFile,
-                                                   tokens: List<Tokenizer.Token>,
-                                                   realm: Realm) {
-                        }
-
-                        override fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
-                    },
-                    "x",
-                    ArtifactConfig.Java(
-                            version = "9",
-                            archiveUrl = URL("https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk9u/lastSuccessfulBuild/artifact/jdk-updates_jdk9u.tar.zst"),
-                            jigsaw = true,
-                            metadata = ArtifactMetadata()
-                    ))
+    @Test//(enabled = false)
+    fun zstd() {
+        val url =
+            ResumingUrlInputStream(URL("https://ci.yawk.at/job/openjdk/job/openjdk9/lastSuccessfulBuild/artifact/jdk9.tar.zst"))
+        val counting = CountingInputStream(url)
+        val zstd =
+            ZstdInputStreamNoFinalizer(counting)
+        val tar = TarArchiveInputStream(zstd.buffered())
+        while (true) {
+            tar.nextEntry ?: break
         }
     }
 
     @Test(enabled = false)
-    fun `java 10`() {
-        var any = false
+    fun `java 14`() {
+        var hasByteBuffer = false
         runBlocking {
             compileJdk(
                     object : Printer {
@@ -214,20 +207,22 @@ class CompilerTest {
                                                    sourceFile: GeneratorSourceFile,
                                                    tokens: List<Tokenizer.Token>,
                                                    realm: Realm) {
-                            any = true
+                            if (path == "java.base/java/nio/ByteBuffer.java") {
+                                hasByteBuffer = true
+                            }
                         }
 
                         override fun hashBinding(binding: String) = BindingId(binding.hashCode().toLong())
                     },
                     "x",
                     ArtifactConfig.Java(
-                            version = "10",
-                            archiveUrl = URL("https://ci.yawk.at/job/jdk-hg-snapshot/repo_path=jdk-updates_jdk10u/lastSuccessfulBuild/artifact/jdk-updates_jdk10u.tar.zst"),
+                            version = "14",
+                            archiveUrl = URL("https://ci.yawk.at/job/openjdk/job/openjdk14/lastSuccessfulBuild/artifact/jdk14.tar.zst"),
                             jigsaw = true,
                             metadata = ArtifactMetadata()
                     ))
         }
-        Assert.assertTrue(any)
+        Assert.assertTrue(hasByteBuffer)
     }
 
     @Test(enabled = false)
