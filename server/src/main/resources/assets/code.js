@@ -50,7 +50,7 @@ $(function () {
                 let targetTop = target.getBoundingClientRect().top;
                 // if this is the first load of this page, check if the browser scrolled to the element on its own. This
                 // might not be the case, eg during reload. If it didn't scroll to the element, we don't either.
-                if (!firstLoad || targetTop === 0) {
+                if (!firstLoad || (targetTop >= 0 && targetTop < 1)) {
                     window.scrollTo(0, targetTop - topBarOffset + window.pageYOffset);
                 }
             }
