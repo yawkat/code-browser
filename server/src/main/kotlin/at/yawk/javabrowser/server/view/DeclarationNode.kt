@@ -16,6 +16,10 @@ data class DeclarationNode(
         val description: BindingDecl.Description,
         val modifiers: Int,
 
+        /**
+         * Source file path to this binding, including potential diff query parameter, but excluding the hash to the
+         * specific binding.
+         */
         val fullSourceFilePath: String? = null,
 
         /**
@@ -26,6 +30,19 @@ data class DeclarationNode(
 
         val diffResult: DiffResult? = null
 ) {
+    companion object {
+        /**
+         * The comparator used for display ordering. Have to be careful here to preserve source file order for bindings
+         * that reside in .java files, but at the same time keep a total order for items at the package level.
+         */
+        val DISPLAY_ORDER = Comparator.comparing<DeclarationNode, Realm> { it.realm }
+            .thenComparing<String> { it.artifactId }
+            .thenComparing<String> {
+                if (it.description is BindingDecl.Description.Package) it.binding
+                else it.fullSourceFilePath ?: it.binding
+            }!!
+    }
+
     val kind: Kind
         get() = when (description) {
             is BindingDecl.Description.Type -> Kind.TYPE

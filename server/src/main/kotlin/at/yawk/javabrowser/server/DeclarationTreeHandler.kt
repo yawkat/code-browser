@@ -190,7 +190,10 @@ ${if (limit != null) "limit ? + 1" else ""}
                 }
                 .list()
         if (limit != null && nodes.size > limit) return null
-        else return nodes
+
+        // see comment on DISPLAY_ORDER, this should only reorder bindings at the package level
+        nodes.sortWith(DeclarationNode.DISPLAY_ORDER)
+        return nodes
     }
 
     private fun getBindingId(conn: Handle, realm: Realm, artifactId: Long, binding: String): BindingId? {
