@@ -182,9 +182,11 @@ class BaseHandler @Inject constructor(
     }
 
     @VisibleForTesting
-    internal fun sourceFile(conn: Handle,
-                           parsedPath: ParsedPath.SourceFile,
-                           diffWith: ParsedPath.SourceFile?): SourceFileView {
+    internal fun sourceFile(
+        conn: Handle,
+        parsedPath: ParsedPath.SourceFile,
+        diffWith: ParsedPath.SourceFile?
+    ): SourceFileView {
         val artifactId = parsedPath.artifact.dbId
         val dependencies =
                 if (artifactId == null) emptyList()
@@ -192,6 +194,7 @@ class BaseHandler @Inject constructor(
 
         val sourceFile = requestSourceFile(conn, parsedPath)
 
+        // potential source files that could match the given parsedPath, but may come from a different artifact.
         val alternatives = ArrayList<SourceFileView.Alternative>()
         fun tryExactMatch(path: String) {
             conn.createQuery("select artifact_id, path from source_file where realm = ? and path = ?")
@@ -206,19 +209,22 @@ class BaseHandler @Inject constructor(
                     .forEach { alternatives.add(it) }
         }
 
+        // first, try the path itself
         tryExactMatch(parsedPath.sourceFilePath)
 
         if (parsedPath.artifact.stringIdList[0] == "java") {
+            // for java artifacts, also try with / without module
+
             if (parsedPath.artifact.stringIdList[1].toInt() < 9) {
                 // java 9 introduced the module path at the start
                 val modernJavaArtifacts = artifactIndex.leafArtifacts.filter {
-                    it.stringId.startsWith("java/") &&
-                            it.stringIdList[1].toInt() >= 9
+                    it.stringIdList[0] == "java" && it.stringIdList[1].toInt() >= 9
                 }.map { it.dbId!! }.toLongArray()
-                conn.createQuery("select artifact_id, path from source_file where realm = ? and artifact_id = any(?) and path like ?")
+                // we do LIKE escaping on the db side
+                conn.createQuery("select artifact_id, path from source_file where realm = ? and artifact_id = any(?) and path like '%/' || regexp_replace(?, '([\\\\%_])', '\\\\\\1', 'g')")
                         .bind(0, parsedPath.realm?.id)
                         .bind(1, modernJavaArtifacts)
-                        .bind(2, "%/${parsedPath.sourceFilePath}")
+                        .bind(2, parsedPath.sourceFilePath)
                         .map { _, r, _ ->
                             SourceFileView.Alternative(parsedPath.realm!!,
                                     artifactIndex.allArtifactsByDbId[r.getLong(1)]!!.stringId,
