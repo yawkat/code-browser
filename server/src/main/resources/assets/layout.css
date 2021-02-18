@@ -14,7 +14,6 @@ html {
     display: block;
     padding-bottom: 1em;
     position: relative;
-    overflow-x: auto;
 }
 #noncode {
     padding: 0 1em;
@@ -260,6 +259,9 @@ li {
         position: fixed;
         width: 25%;
         overflow: scroll;
+        /* Place above code when code is scrolling left */
+        background: white;
+        z-index: 10;
     }
     /* expand top level items by default */
     .structure .expanded-on-desktop > .line .expander {
