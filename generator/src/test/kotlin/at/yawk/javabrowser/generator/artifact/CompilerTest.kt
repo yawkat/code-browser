@@ -184,7 +184,7 @@ class CompilerTest {
         Assert.assertTrue(foundFile)
     }
 
-    @Test//(enabled = false)
+    @Test(enabled = false)
     fun zstd() {
         val url =
             ResumingUrlInputStream(URL("https://ci.yawk.at/job/openjdk/job/openjdk9/lastSuccessfulBuild/artifact/jdk9.tar.zst"))

@@ -64,7 +64,7 @@ suspend fun compileJdk(
             else
                 listOf(
                     Pattern.compile("^/?\\w+/jdk/src/$platformGroup/classes/(?<path>.+)$"),
-                    Pattern.compile("^/?\\w+/build/$platformGroup-\\w+/(jdk/)?gensrc/(?<path>.+)$")
+                    Pattern.compile("^/?\\w+/build/$platformGroup-[\\w-]+/(jdk/)?gensrc/(?<path>.+)$")
                 )
         val bestPlatform = HashMap<String, String>()
         loadArchive(artifact.archiveUrl) { entry ->
