@@ -1,11 +1,8 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.server.view.DeclarationNode
+import com.google.common.base.Equivalence
 import com.google.common.collect.Iterators
-import org.eclipse.jgit.diff.DiffAlgorithm
-import org.eclipse.jgit.diff.Sequence
-import org.eclipse.jgit.diff.SequenceComparator
-import java.net.URLEncoder
 import java.util.Objects
 
 /**
@@ -31,60 +28,29 @@ object DeclarationTreeDiff {
         }
 
         fun diffNode(parentBinding: String?): List<DeclarationNode> {
-            val new = fullDumpNew[parentBinding]!!
-            val old = fullDumpOld[parentBinding]!!
-            val algorithm = DiffAlgorithm.getAlgorithm(DiffAlgorithm.SupportedAlgorithm.HISTOGRAM)
+            val newItems = fullDumpNew[parentBinding]!!
+            val oldItems = fullDumpOld[parentBinding]!!
+            return mapEdits(
+                diff = buildDiffEdits(
+                    newItems = newItems,
+                    oldItems = oldItems,
+                    equivalence = object : Equivalence<DeclarationNode>() {
+                        override fun doEquivalent(a: DeclarationNode, b: DeclarationNode) =
+                            a.binding == b.binding &&
+                                    a.description == b.description &&
+                                    a.modifiers == b.modifiers
 
-            class SequenceImpl(val items: List<DeclarationNode>) : Sequence() {
-                override fun size() = items.size
-            }
-
-            class ComparatorImpl : SequenceComparator<SequenceImpl>() {
-                override fun hash(seq: SequenceImpl, ptr: Int) = Objects.hash(
-                        seq.items[ptr].binding.hashCode(),
-                        seq.items[ptr].description.hashCode(),
-                        seq.items[ptr].modifiers.hashCode()
-                )
-
-                override fun equals(a: SequenceImpl, ai: Int, b: SequenceImpl, bi: Int): Boolean {
-                    val nodeA = a.items[ai]
-                    val nodeB = b.items[bi]
-                    return nodeA.binding == nodeB.binding &&
-                            nodeA.description == nodeB.description &&
-                            nodeA.modifiers == nodeB.modifiers
-                }
-            }
-
-            val diff = algorithm.diff(ComparatorImpl(), SequenceImpl(old), SequenceImpl(new))
-
-            val result = ArrayList<DeclarationNode>()
-            var newI = 0
-            var oldI = 0
-
-            for (edit in diff) {
-                while (newI < edit.beginB) {
-                    assert(oldI < edit.beginA)
-                    result.add(mapNode(new[newI], DeclarationNode.DiffResult.UNCHANGED))
-                    newI++
-                    oldI++
-                }
-
-                while (oldI < edit.endA) {
-                    result.add(mapNode(old[oldI++], DeclarationNode.DiffResult.DELETION))
-                }
-                while (newI < edit.endB) {
-                    result.add(mapNode(new[newI++], DeclarationNode.DiffResult.INSERTION))
-                }
-            }
-            while (newI < new.size) {
-                assert(oldI < old.size)
-                result.add(mapNode(new[newI], DeclarationNode.DiffResult.UNCHANGED))
-                newI++
-                oldI++
-            }
-            assert(oldI == old.size)
-
-            return result
+                        override fun doHash(t: DeclarationNode) = Objects.hash(
+                            t.binding.hashCode(),
+                            t.description.hashCode(),
+                            t.modifiers.hashCode()
+                        )
+                    }
+                ),
+                newItems = newItems,
+                oldItems = oldItems,
+                mapItem = ::mapNode
+            )
         }
 
         fun mapNode(node: DeclarationNode, diffResult: DeclarationNode.DiffResult): DeclarationNode {
@@ -151,8 +117,7 @@ object DeclarationTreeDiff {
                         val oldNode = old.next()
                         val diffPath =
                                 if (newNode.fullSourceFilePath != null && oldNode.fullSourceFilePath != null)
-                                    "${newNode.fullSourceFilePath}" +
-                                            "?diff=${URLEncoder.encode(oldNode.fullSourceFilePath, "UTF-8")}"
+                                    Locations.diffPath(newNode.fullSourceFilePath, oldNode.fullSourceFilePath)
                                 else
                                     null
                         return newNode.copy(

@@ -82,4 +82,8 @@ class ArtifactNode private constructor(
     ) {
         constructor(dbId: Long, stringId: String) : this(dbId = dbId, components = stringId.split('/'))
     }
+
+    override fun toString(): String {
+        return "ArtifactNode($dbId: $stringId)"
+    }
 }

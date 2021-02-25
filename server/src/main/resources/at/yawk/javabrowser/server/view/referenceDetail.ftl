@@ -1,7 +1,6 @@
 <#ftl strip_text=true>
 <#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.ReferenceDetailView" -->
 <#import "page.ftl" as page>
-<#import "path.ftl" as path>
 <#assign title>
   References to ${targetBinding}
   <#if sourceArtifactId??>from ${sourceArtifactId}</#if>
@@ -14,7 +13,7 @@
 <#assign additionalMenu>
   <#if sourceArtifactId?? || type??><a href="${baseUri}">Show all results</a></#if>
 </#assign>
-<@page.page title=title realm=realm artifactId=sourceArtifactId!"" additionalTitle=head additionalMenu=additionalMenu>
+<@page.page title=title realm=realm newPath=artifactPath! additionalTitle=head additionalMenu=additionalMenu>
   <div id="noncode">
     <div class="reference-detail-table size-expander-wrapper <#if (artifacts?size) gt 10> retracted</#if>">
       <div class="size-expander-target">

@@ -134,7 +134,7 @@
     background: #eee;
 }
 
-.theme-default .reference-detail-list h2, .theme-default .reference-detail-list h3 {
+.theme-default .reference-detail-list h2, .theme-default .reference-detail-list h3, .theme-default .structure > ul {
     background: white;
 }
 

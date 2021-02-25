@@ -1,4 +1,5 @@
 <#ftl strip_text=true>
+<#import "diffIcon.ftl" as diffIcon>
 <#-- @ftlvariable name="Modifier" type="java.lang.reflect.Modifier" -->
 <#macro typeName type><#-- @ftlvariable name="type" type="at.yawk.javabrowser.BindingDecl.Description.Type" -->${type.simpleName}<#if type.typeParameters?has_content>&lt;<#list type.typeParameters as par><#if !par?is_first>, </#if><@typeName par/></#list>&gt;</#if></#macro>
 <#macro decoratedIcon modifiers showAccess=true>
@@ -87,19 +88,6 @@
     <i>Lambda implementing <@typeName decl.description.implementingTypeBinding/></i><#t>
   </span>
 </#macro>
-<#macro diffIcon node>
-  <#if node.diffResult??>
-    <span class="decl-diff-icon"><#t>
-      <#if node.diffResult == "INSERTION">
-        +<#t>
-      <#elseif node.diffResult == "DELETION">
-        -<#t>
-      <#elseif node.diffResult == "CHANGED_INTERNALLY">
-        ~<#t>
-      </#if>
-    </span><#t>
-  </#if>
-</#macro>
 
 <#macro declarationNode node fullSourceFilePath="" parentBinding="" diffArtifactId="">
   <#-- @ftlvariable name="node" type="at.yawk.javabrowser.server.view.DeclarationNode" -->
@@ -117,7 +105,7 @@
     </#if>
 
     <#if fullSourceFilePath??><a href="${fullSourceFilePath}#<#if node.diffResult?? && node.diffResult == "DELETION">---%20</#if>${node.binding?url}"><#t></#if>
-      <@diffIcon node/>
+      <@diffIcon.diffIcon node/>
       <#if node.kind == "TYPE">
         <@type node/>
       <#elseif node.kind == "LAMBDA">

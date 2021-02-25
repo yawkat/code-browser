@@ -34,6 +34,7 @@ class Ftl @Inject constructor(imageCache: ImageCache) {
         val statics = BeansWrapperBuilder(Configuration.VERSION_2_3_28).build().staticModels
         configuration.setSharedVariable("Modifier", statics[Modifier::class.qualifiedName])
         configuration.setSharedVariable("ConservativeLoopBlock", ConservativeLoopBlock())
+        configuration.setSharedVariable("Path", PathDirective())
 
         configuration.setSharedVariable("imageCache", imageCache.directive)
     }

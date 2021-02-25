@@ -56,6 +56,8 @@ private inline fun finallyWithSuppressed(
 
 @Suppress("UnstableApiUsage")
 private val BINDING_HASHER = Hashing.sipHash24()
+@Suppress("UnstableApiUsage")
+private val SOURCE_FILE_HASHER = Hashing.sipHash24()
 
 class Session(private val dbi: DBI) {
     private var tasks = ArrayList<Task>()
@@ -277,14 +279,29 @@ class Session(private val dbi: DBI) {
             private fun addSourceFile0(path: String, sourceFile: GeneratorSourceFile, tokens: List<Tokenizer.Token>,
                                        realm: Realm) {
                 val sourceFileId = nextSourceFileId++
+                val textBytes = sourceFile.text.toByteArray(Charsets.UTF_8)
+                val annotationBytes = cborMapper.writeValueAsBytes(sourceFile.entries)
+                /*
+                 * There is a decision to make here. The source file hash *could* include context information such as
+                 * binding references. This would allow the hash to reflect subtle changes e.g. in which overload is
+                 * called. Unfortunately, such changes would not show up in the textual diff, and even if they did,
+                 * they would be confusing. So, we don't include this information in the hash.
+                 */
+                @Suppress("UnstableApiUsage")
+                val hash = SOURCE_FILE_HASHER.newHasher()
+                    // can't hash artifactId because that would kill the diff.
+                    // can't hash the file path because that would kill diffs between java versions with/without jigsaw.
+                    .putInt(textBytes.size).putBytes(textBytes)
+                    .hash().asLong()
                 conn.insert(
-                        "insert into source_file (realm, artifact_id, source_file_id, path, text, annotations) values (?, ?, ?, ?, ?, ?)",
-                        realm.id,
-                        artifactId,
-                        sourceFileId,
-                        path,
-                        sourceFile.text.toByteArray(Charsets.UTF_8),
-                        cborMapper.writeValueAsBytes(sourceFile.entries)
+                    "insert into source_file (realm, artifact_id, source_file_id, hash, path, text, annotations) values (?, ?, ?, ?, ?, ?)",
+                    realm.id,
+                    artifactId,
+                    sourceFileId,
+                    hash,
+                    path,
+                    textBytes,
+                    annotationBytes
                 )
 
                 if (realm == Realm.SOURCE) {

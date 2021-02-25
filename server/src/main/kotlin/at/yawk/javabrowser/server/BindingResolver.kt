@@ -7,7 +7,6 @@ import com.google.common.cache.CacheLoader
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
 import java.net.URI
-import java.net.URLEncoder
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,13 +19,6 @@ class BindingResolver @Inject constructor(
         private val dbi: DBI,
         private val artifactIndex: ArtifactIndex
 ) {
-    companion object {
-        fun bindingHash(binding: String) = "#${URLEncoder.encode(binding, "UTF-8")}"
-
-        fun location(artifactId: String, sourceFilePath: String, hash: String) =
-                URI.create("/$artifactId/$sourceFilePath$hash")!!
-    }
-
     private val caches = Realm.values().associate {
         it to CacheBuilder.newBuilder()
                 .softValues()
@@ -63,6 +55,6 @@ class BindingResolver @Inject constructor(
             val sourceFile: String,
             val binding: String
     ) {
-        val uri = location(artifact, sourceFile, bindingHash(binding))
+        val uri = Locations.location(artifact, sourceFile, Locations.bindingHash(binding))
     }
 }

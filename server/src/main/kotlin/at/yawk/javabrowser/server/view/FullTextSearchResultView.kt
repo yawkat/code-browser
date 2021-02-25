@@ -2,6 +2,7 @@ package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.server.BindingResolver
+import at.yawk.javabrowser.server.ParsedPath
 import at.yawk.javabrowser.server.SourceFilePrinter
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import freemarker.core.Environment
@@ -21,6 +22,8 @@ class FullTextSearchResultView(
         val searchArtifact: ArtifactNode?,
         val results: Iterator<SourceFileResult>
 ) : View("fullTextSearchResultView.ftl") {
+    val path = searchArtifact?.let { ParsedPath.LeafArtifact(searchArtifact) }
+
     class SourceFileResult(
             private val bindingResolver: BindingResolver,
 

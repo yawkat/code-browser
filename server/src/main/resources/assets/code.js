@@ -88,7 +88,7 @@ const tooltip = {
         this.element.appendChild(content);
 
         const pos = at.getBoundingClientRect();
-        const wrapperPos = $("#content > div")[0].getBoundingClientRect();
+        const wrapperPos = this.element.parentElement.getBoundingClientRect();
         this.element.style.top = (pos.bottom - wrapperPos.top) + "px";
         this.element.style.left = rightAlign ? "auto" : (pos.left - wrapperPos.left) + "px";
         this.element.style.right = rightAlign ? (pos.right - wrapperPos.right) + "px" : "auto";
@@ -118,7 +118,7 @@ function showAlternativeSourceFiles(alternativeSourceFiles) {
             const path = alternativeSourceFile.path;
             const diffUrl = alternativeSourceFile.diffPath;
             tooltipBody.insertAdjacentHTML("beforeend",
-                "<li><a href='/" + artifact + "/" + path + location.hash + "'>" + artifact + "</a> (" +
+                "<li><a href='" + path + location.hash + "'>" + artifact + "</a> (" +
                 (diffUrl ? "<a href='" + diffUrl + "'>diff</a>" : "current") + ")</li>"
             );
         }

@@ -20,6 +20,7 @@ create table source_file
     realm          realm_id       not null,
     artifact_id    artifact_id    not null,
     source_file_id source_file_id not null,
+    hash           int8           not null,
     path           varchar        not null,
     text           bytea          not null,
     annotations    bytea          not null

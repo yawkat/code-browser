@@ -15,8 +15,9 @@ html {
     padding-bottom: 1em;
     position: relative;
 }
-#noncode {
-    padding: 0 1em;
+
+#content.narrow > div {
+    max-width: 60em;
 }
 
 #header {
@@ -197,10 +198,9 @@ li {
 .declaration-tree > ul > li {
     padding-left: 0;
 }
-.declaration-tree a {
+.declaration-tree a, .directory a {
     color: inherit !important;
     text-decoration: none;
-    cursor: default;
     width: 100%;
     display: block;
     background: inherit;
@@ -236,7 +236,7 @@ li {
 .declaration-tree .expanded > ul, .declaration-tree > ul {
     display: block;
 }
-.decl-diff-icon {
+.diff-icon {
     width: 1em;
     display: inline-block;
     text-align: center;
@@ -260,7 +260,6 @@ li {
         width: 25%;
         overflow: scroll;
         /* Place above code when code is scrolling left */
-        background: white;
         z-index: 10;
     }
     /* expand top level items by default */
@@ -287,4 +286,36 @@ li {
     font-size: .85em;
     text-align: right;
     padding: 0.5em;
+}
+
+details {
+    border: 1px solid #ccc;
+    margin-bottom: 0.5em;
+}
+
+details > * {
+    padding: 0.5em;
+}
+
+details > summary {
+    width: 100%;
+
+}
+
+details > div {
+    border-top: 1px solid #ccc;
+}
+
+.path-diff {
+    font-size: 0.7em;
+    display: inline-block;
+    line-height: 0.6em;
+}
+.path-diff > span {
+    display: block;
+    position: relative;
+    top: 0.1em;
+}
+.path-diff > span:last-child {
+    top: 0.3em;
 }

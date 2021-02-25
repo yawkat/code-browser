@@ -137,7 +137,7 @@ html.theme-darcula {
     background: #383838;
 }
 
-.theme-darcula .reference-detail-list h2, .theme-darcula .reference-detail-list h3 {
+.theme-darcula .reference-detail-list h2, .theme-darcula .reference-detail-list h3, .theme-darcula .structure > ul {
     background: #2B2B2B;
 }
 

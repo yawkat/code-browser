@@ -10,6 +10,7 @@ import at.yawk.javabrowser.SourceLineRef
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.server.BindingResolver
 import at.yawk.javabrowser.server.Escaper
+import at.yawk.javabrowser.server.Locations
 import at.yawk.javabrowser.server.SourceFilePrinter
 import org.intellij.lang.annotations.Language
 import org.jsoup.Jsoup
@@ -118,7 +119,7 @@ class HtmlEmitter(
                 }
 
                 val id = scope.prefix + annotation.binding
-                html("<a id='$id' href='$ownUriString${BindingResolver.bindingHash(id)}'>")
+                html("<a id='$id' href='$ownUriString${Locations.bindingHash(id)}'>")
             }
             is Style -> html("<span class='${annotation.styleClass.joinToString(" ")}'>")
             is LocalVariableOrLabelRef -> html("<span class='local-variable' data-local-variable='${annotation.id}'>")

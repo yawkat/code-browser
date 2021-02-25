@@ -176,16 +176,18 @@ ${if (limit != null) "limit ? + 1" else ""}
                     val modifiers = rs.getInt(5)
                     val sourceFile: String? = rs.getString(6)
                     DeclarationNode(
-                            realm = realm,
-                            artifactId = artifact.stringId,
-                            parent = parent,
-                            bindingId = bindingId,
-                            binding = binding,
-                            fullSourceFilePath = sourceFile?.let { "/${artifact.stringId}/$it" },
-                            modifiers = modifiers,
-                            description =
-                            cborMapper.readValue(description, BindingDecl.Description::class.java),
-                            children = null
+                        realm = realm,
+                        artifactId = artifact.stringId,
+                        parent = parent,
+                        bindingId = bindingId,
+                        binding = binding,
+                        fullSourceFilePath = sourceFile?.let {
+                            Locations.fullSourceFilePath(artifact.stringId, it)
+                        },
+                        modifiers = modifiers,
+                        description =
+                        cborMapper.readValue(description, BindingDecl.Description::class.java),
+                        children = null
                     )
                 }
                 .list()

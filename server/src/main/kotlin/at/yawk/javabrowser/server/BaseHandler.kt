@@ -1,7 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.Realm
-import at.yawk.javabrowser.server.artifact.ArtifactNode
+import at.yawk.javabrowser.server.view.Alternative
 import at.yawk.javabrowser.server.view.DeclarationNode
 import at.yawk.javabrowser.server.view.IndexView
 import at.yawk.javabrowser.server.view.LeafArtifactView
@@ -14,18 +14,11 @@ import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
 import org.skife.jdbi.v2.DBI
 import org.skife.jdbi.v2.Handle
-import java.net.URLEncoder
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.function.Function
 import javax.inject.Inject
-
-private fun realmForSourcePath(path: String): Realm? {
-    if (path.endsWith(".java")) return Realm.SOURCE
-    if (path.endsWith(".class")) return Realm.BYTECODE
-    return null
-}
 
 /**
  * @author yawkat
@@ -38,17 +31,9 @@ class BaseHandler @Inject constructor(
         private val declarationTreeHandler: DeclarationTreeHandler,
         private val siteStatisticsService: SiteStatisticsService,
         private val aliasIndex: AliasIndex,
-        private val metadataCache: ArtifactMetadataCache
+        private val metadataCache: ArtifactMetadataCache,
+        private val directoryHandler: DirectoryHandler
 ) : HttpHandler {
-    @VisibleForTesting
-    internal sealed class ParsedPath(val artifact: ArtifactNode) {
-        class SourceFile(artifact: ArtifactNode, val sourceFilePath: String) : ParsedPath(artifact) {
-            val realm = realmForSourcePath(sourceFilePath)
-        }
-
-        class LeafArtifact(artifact: ArtifactNode) : ParsedPath(artifact)
-        class Group(artifact: ArtifactNode) : ParsedPath(artifact)
-    }
 
     private fun parsePath(rawPath: String): ParsedPath {
         val parsed = artifactIndex.parse(rawPath)
@@ -70,13 +55,17 @@ class BaseHandler @Inject constructor(
             val view = when (path) {
                 is ParsedPath.SourceFile -> sourceFile(exchange, conn, path)
                 is ParsedPath.LeafArtifact -> leafArtifact(exchange, conn, path)
-                is ParsedPath.Group -> IndexView(path.artifact, siteStatisticsService.statistics)
+                is ParsedPath.Group -> IndexView(path, siteStatisticsService.statistics)
             }
             ftl.render(exchange, view)
         }
     }
 
-    private fun leafArtifact(exchange: HttpServerExchange, conn: Handle, path: ParsedPath): LeafArtifactView {
+    private fun leafArtifact(
+        exchange: HttpServerExchange,
+        conn: Handle,
+        path: ParsedPath.LeafArtifact
+    ): LeafArtifactView {
         val diffWith = exchange.queryParameters["diff"]?.peekFirst()?.let { parsePath(it) }
         if (diffWith !is ParsedPath.LeafArtifact?) {
             throw HttpException(StatusCodes.BAD_REQUEST, "Can't diff with that")
@@ -85,7 +74,11 @@ class BaseHandler @Inject constructor(
     }
 
     @VisibleForTesting
-    internal fun leafArtifact(conn: Handle, path: ParsedPath, diffWith: ParsedPath.LeafArtifact?): LeafArtifactView {
+    internal fun leafArtifact(
+        conn: Handle,
+        path: ParsedPath.LeafArtifact,
+        diffWith: ParsedPath.LeafArtifact?
+    ): LeafArtifactView {
         val topLevelPackages: Iterator<DeclarationNode>
         if (diffWith == null) {
             topLevelPackages = declarationTreeHandler.packageTree(conn, Realm.SOURCE, path.artifact.stringId)
@@ -98,24 +91,24 @@ class BaseHandler @Inject constructor(
         val alternatives = path.artifact.parent!!.children.values
                 .sortedWith(Comparator.comparing(Function { it.stringId }, VersionComparator))
                 .map {
-                    val cmp = VersionComparator.compare(it.stringId, path.artifact.stringId)
-                    when {
-                        cmp < 0 -> LeafArtifactView.Alternative(it,
-                                "/${it.stringId}?diff=${URLEncoder.encode(path.artifact.stringId, "UTF-8")}")
-                        cmp > 0 -> LeafArtifactView.Alternative(it,
-                                "/${path.artifact.stringId}?diff=${URLEncoder.encode(it.stringId, "UTF-8")}")
-                        else -> LeafArtifactView.Alternative(it, null)
-                    }
+                    Alternative.fromPathPair(null, path, ParsedPath.LeafArtifact(it))
                 }
         return LeafArtifactView(
-                path.artifact,
-                diffWith?.artifact,
-                metadataCache.getArtifactMetadata(path.artifact),
-                conn.attach(DependencyDao::class.java).getDependencies(path.artifact.dbId!!).map {
-                    buildDependencyInfo(it)
-                },
-                topLevelPackages,
-                alternatives
+            path,
+            diffWith,
+            metadataCache.getArtifactMetadata(path.artifact),
+            conn.attach(DependencyDao::class.java).getDependencies(path.artifact.dbId!!).map {
+                buildDependencyInfo(it)
+            },
+            topLevelPackages,
+            alternatives,
+            Realm.values().associate {
+                it.name to directoryHandler.getDirectoryEntries(
+                    conn, it,
+                    ParsedPath.SourceFile(path.artifact, ""),
+                    diffWith?.let { ParsedPath.SourceFile(diffWith.artifact, "") }
+                )
+            }
         )
     }
 
@@ -141,16 +134,19 @@ class BaseHandler @Inject constructor(
         return LeafArtifactView.Dependency(null, it, matchingAlias?.stringId)
     }
 
-    private fun requestSourceFile(conn: Handle, parsedPath: ParsedPath.SourceFile): ServerSourceFile {
-        if (parsedPath.realm == null) {
-            throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
-        }
-        val result = conn.select("select text, annotations from source_file where realm = ? and artifact_id = ? and path = ?",
-                parsedPath.realm.id,
-                parsedPath.artifact.dbId,
-                parsedPath.sourceFilePath)
+    private fun requestSourceFile(
+        conn: Handle,
+        realm: Realm,
+        parsedPath: ParsedPath.SourceFile
+    ): ServerSourceFile? {
+        val result = conn.select(
+            "select text, annotations from source_file where realm = ? and artifact_id = ? and path = ?",
+            realm.id,
+            parsedPath.artifact.dbId,
+            parsedPath.sourceFilePath
+        )
         if (result.isEmpty()) {
-            throw HttpException(StatusCodes.NOT_FOUND, "No such source file")
+            return null
         }
         val sourceFile = ServerSourceFile(result.single()["text"] as ByteArray,
                 result.single()["annotations"] as ByteArray)
@@ -165,7 +161,9 @@ class BaseHandler @Inject constructor(
         if (diffWith !is ParsedPath.SourceFile?) {
             throw HttpException(StatusCodes.BAD_REQUEST, "Can't diff with that")
         }
-        val view = sourceFile(conn, parsedPath, diffWith)
+        val realmOverride = exchange.queryParameters["realm"]?.peekFirst()?.let { Realm.parse(it) }
+        val view = sourceFile(conn, realmOverride, parsedPath, diffWith) ?:
+        directoryHandler.directoryView(conn, realmOverride, parsedPath, diffWith)
         if (!exchange.isCrawler()) {
             // increment hit counter for this time bin
             val timestamp = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS)
@@ -184,27 +182,29 @@ class BaseHandler @Inject constructor(
     @VisibleForTesting
     internal fun sourceFile(
         conn: Handle,
+        realmOverride: Realm?,
         parsedPath: ParsedPath.SourceFile,
         diffWith: ParsedPath.SourceFile?
-    ): SourceFileView {
+    ): SourceFileView? {
+        val parsedPathRealm = realmOverride ?: parsedPath.realmFromExtension ?: return null
+        val sourceFile = requestSourceFile(conn, parsedPathRealm, parsedPath) ?: return null
+
         val artifactId = parsedPath.artifact.dbId
         val dependencies =
-                if (artifactId == null) emptyList()
-                else conn.attach(DependencyDao::class.java).getDependencies(artifactId)
-
-        val sourceFile = requestSourceFile(conn, parsedPath)
+            if (artifactId == null) emptyList()
+            else conn.attach(DependencyDao::class.java).getDependencies(artifactId)
 
         // potential source files that could match the given parsedPath, but may come from a different artifact.
-        val alternatives = ArrayList<SourceFileView.Alternative>()
+        val alternatives = ArrayList<ParsedPath.SourceFile>()
         fun tryExactMatch(path: String) {
             conn.createQuery("select artifact_id, path from source_file where realm = ? and path = ?")
-                    .bind(0, parsedPath.realm?.id)
+                    .bind(0, parsedPathRealm.id)
                     .bind(1, path)
                     .map { _, r, _ ->
-                        SourceFileView.Alternative(parsedPath.realm!!,
-                                artifactIndex.allArtifactsByDbId[r.getLong(1)]!!.stringId,
-                                r.getString(2),
-                                null)
+                        ParsedPath.SourceFile(
+                            artifactIndex.allArtifactsByDbId[r.getLong(1)]!!,
+                            r.getString(2)
+                        )
                     }
                     .forEach { alternatives.add(it) }
         }
@@ -221,15 +221,21 @@ class BaseHandler @Inject constructor(
                     it.stringIdList[0] == "java" && it.stringIdList[1].toInt() >= 9
                 }.map { it.dbId!! }.toLongArray()
                 // we do LIKE escaping on the db side
-                conn.createQuery("select artifact_id, path from source_file where realm = ? and artifact_id = any(?) and path like '%/' || regexp_replace(?, '([\\\\%_])', '\\\\\\1', 'g')")
-                        .bind(0, parsedPath.realm?.id)
+                conn.createQuery(
+                    "select artifact_id, path from source_file where realm = ? and artifact_id = any(?) and path like '%/' || ${
+                        escapeLike(
+                            "?"
+                        )
+                    }"
+                )
+                        .bind(0, parsedPathRealm.id)
                         .bind(1, modernJavaArtifacts)
                         .bind(2, parsedPath.sourceFilePath)
                         .map { _, r, _ ->
-                            SourceFileView.Alternative(parsedPath.realm!!,
-                                    artifactIndex.allArtifactsByDbId[r.getLong(1)]!!.stringId,
-                                    r.getString(2),
-                                    null)
+                            ParsedPath.SourceFile(
+                                artifactIndex.allArtifactsByDbId[r.getLong(1)]!!,
+                                r.getString(2)
+                            )
                         }
                         .forEach { alternatives.add(it) }
             } else {
@@ -238,63 +244,57 @@ class BaseHandler @Inject constructor(
             }
         }
 
-        alternatives.sortWith(Comparator.comparing(Function { it.artifactId }, VersionComparator))
-        alternatives.replaceAll {
-            if (it.artifactId == parsedPath.artifact.stringId) {
-                it
-            } else {
-                val newerAlternative = VersionComparator.compare(it.artifactId, parsedPath.artifact.stringId) < 0
-                var new = "/${parsedPath.artifact.stringId}/${parsedPath.sourceFilePath}"
-                var old = "/${it.artifactId}/${it.sourceFilePath}"
-                if (newerAlternative) {
-                    val tmp = new
-                    new = old
-                    old = tmp
-                }
-                it.copy(diffPath = "$new?diff=${URLEncoder.encode(old, "UTF-8")}")
-            }
-        }
+        alternatives.sortWith(Comparator.comparing(Function { it.artifact.stringId }, VersionComparator))
 
         val declarations: Iterator<DeclarationNode>
         val oldInfo: SourceFileView.FileInfo?
         if (diffWith == null) {
             oldInfo = null
-            declarations = declarationTreeHandler.sourceDeclarationTree(parsedPath.realm!!,
-                    parsedPath.artifact.stringId,
-                    sourceFile.annotations)
+            declarations = declarationTreeHandler.sourceDeclarationTree(
+                parsedPathRealm,
+                parsedPath.artifact.stringId,
+                sourceFile.annotations
+            )
         } else {
-            val oldSourceFile = requestSourceFile(conn, diffWith)
+            val diffRealm = realmOverride ?: diffWith.realmFromExtension
+                // this can only happen if the normal source has a normal extension, but the diff file does not
+                ?: throw HttpException(StatusCodes.BAD_REQUEST, "Diff source file not compatible")
+            val oldSourceFile = requestSourceFile(conn, diffRealm, diffWith)
+                ?: throw HttpException(StatusCodes.NOT_FOUND, "Diff source file not found")
             @Suppress("USELESS_CAST")
             oldInfo = SourceFileView.FileInfo(
-                    realm = diffWith.realm!!, // null would error in requestSourceFile already
-                    artifactId = diffWith.artifact,
-                    sourceFile = oldSourceFile,
-                    classpath = conn.attach(DependencyDao::class.java).getDependencies(diffWith.artifact.dbId!!).toSet() + diffWith.artifact.stringId,
-                    sourceFilePath = diffWith.sourceFilePath
+                realm = diffWith.realmFromExtension!!,
+                sourceFile = oldSourceFile,
+                classpath = conn.attach(DependencyDao::class.java).getDependencies(diffWith.artifact.dbId!!).toSet()
+                        + diffWith.artifact.stringId,
+                sourceFilePath = diffWith
             )
             declarations = DeclarationTreeDiff.diffUnordered(
-                    declarationTreeHandler.sourceDeclarationTree(diffWith.realm,
-                            diffWith.artifact.stringId,
-                            oldInfo.sourceFile.annotations),
-                    declarationTreeHandler.sourceDeclarationTree(parsedPath.realm!!,
-                            parsedPath.artifact.stringId,
-                            sourceFile.annotations)
+                declarationTreeHandler.sourceDeclarationTree(
+                    diffRealm,
+                    diffWith.artifact.stringId,
+                    oldInfo.sourceFile.annotations
+                ),
+                declarationTreeHandler.sourceDeclarationTree(
+                    parsedPathRealm,
+                    parsedPath.artifact.stringId,
+                    sourceFile.annotations
+                )
             )
         }
 
         return SourceFileView(
-                newInfo = SourceFileView.FileInfo(
-                        realm = parsedPath.realm,
-                        artifactId = parsedPath.artifact,
-                        classpath = dependencies.toSet() + parsedPath.artifact.stringId,
-                        sourceFile = sourceFile,
-                        sourceFilePath = parsedPath.sourceFilePath
-                ),
-                oldInfo = oldInfo,
-                alternatives = alternatives,
-                artifactMetadata = metadataCache.getArtifactMetadata(parsedPath.artifact),
-                declarations = declarations,
-                bindingResolver = bindingResolver
+            newInfo = SourceFileView.FileInfo(
+                realm = parsedPathRealm,
+                classpath = dependencies.toSet() + parsedPath.artifact.stringId,
+                sourceFile = sourceFile,
+                sourceFilePath = parsedPath
+            ),
+            oldInfo = oldInfo,
+            alternatives = alternatives.map { Alternative.fromPathPair(parsedPathRealm, parsedPath, it) },
+            artifactMetadata = metadataCache.getArtifactMetadata(parsedPath.artifact),
+            declarations = declarations,
+            bindingResolver = bindingResolver
         )
     }
 }

@@ -168,7 +168,7 @@ order by type, source_artifact_id != :targetArtifactId, source_artifact_id, path
             val line: Int,
             sourceFileId: Int
     ) {
-        val uri = BindingResolver.location(artifactId, sourceFile, "#ref-$sourceFileId")
+        val uri = Locations.location(artifactId, sourceFile, "#ref-$sourceFileId")
 
         override fun toString() = "ResponseItem($uri, line=$line)"
     }

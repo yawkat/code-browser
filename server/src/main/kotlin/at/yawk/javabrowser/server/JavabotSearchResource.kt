@@ -191,7 +191,7 @@ class JavabotSearchResource @Inject constructor(
             @JsonIgnore val sourceFile: String
     ) {
         val uri: URI
-            get() = BindingResolver.location(artifactId, sourceFile, BindingResolver.bindingHash(binding))
+            get() = Locations.location(artifactId, sourceFile, Locations.bindingHash(binding))
 
         override fun equals(other: Any?) =
                 other is ResultRow && this.artifactId == other.artifactId && this.binding == other.binding && this.sourceFile == other.sourceFile

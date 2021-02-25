@@ -2,7 +2,8 @@ package at.yawk.javabrowser.server.view
 
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.Realm
-import at.yawk.javabrowser.server.BindingResolver
+import at.yawk.javabrowser.server.Locations
+import at.yawk.javabrowser.server.ParsedPath
 import at.yawk.javabrowser.server.VersionComparator
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import com.google.common.collect.Table
@@ -30,6 +31,8 @@ data class ReferenceDetailView(
         /** null elements are ignored */
         val results: Iterator<TypeListing?>
 ) : View("referenceDetail.ftl") {
+    val artifactPath = sourceArtifactId?.let { ParsedPath.LeafArtifact(it) }
+
     val artifacts: List<String> = countsByArtifact.keys.sortedWith(VersionComparator)
 
     class TypeListing(
@@ -59,7 +62,7 @@ data class ReferenceDetailView(
             val sourceFileLine: Int,
             sourceFileRefId: Int
     ) {
-        val sourceLocation = BindingResolver.location(sourceArtifactStringId, sourceFile, "#ref-$sourceFileRefId")
+        val sourceLocation = Locations.location(sourceArtifactStringId, sourceFile, "#ref-$sourceFileRefId")
 
         override fun toString(): String {
             return "ReferenceListing(sourceFileLine=$sourceFileLine, sourceLocation=$sourceLocation)"

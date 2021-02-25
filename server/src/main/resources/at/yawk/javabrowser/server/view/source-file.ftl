@@ -2,16 +2,13 @@
 <#-- @ftlvariable name="" type="at.yawk.javabrowser.server.view.SourceFileView" -->
 <#import "page.ftl" as page>
 <#import "declarationNode.ftl" as declarationNode>
+<#import "alternatives.ftl" as at>
+<#import "diffStats.ftl" as diffStats>
 
-<#assign additionalTitle>
-  <span class="source-file-dir">${newInfo.sourceFilePathDir}</span>${newInfo.sourceFilePathFile}
-</#assign>
 <#assign additionalMenu>
-  <a id="alt-versions" href="javascript:showAlternativeSourceFiles([
-      <#list alternatives as alternative>{artifact:'${alternative.artifactId}',path:'${alternative.sourceFilePath}'<#if alternative.diffPath??>,diffPath:'${alternative.diffPath}'</#if>},</#list>
-      ])"><i class="ij ij-history"></i></a>
+    <@at.alternatives alternatives/>
 </#assign>
-<@page.page title="${newInfo.artifactId.stringId} : ${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile}" realm=newInfo.realm artifactId=newInfo.artifactId hasSearch=true additionalTitle=additionalTitle additionalMenu=additionalMenu>
+<@page.page title="${newInfo.sourceFilePath.artifact.stringId} : ${newInfo.sourceFilePath.sourceFilePath}" realm=newInfo.realm newPath=newInfo.sourceFilePath oldPath=(oldInfo.sourceFilePath)! hasSearch=true additionalMenu=additionalMenu tooltip=true narrow=false>
 
   <div id="code">
     <div class="declaration-tree structure">
@@ -28,9 +25,7 @@
       <#include "metadata.ftl">
 
       <#if oldInfo??>
-        Showing changes in
-        <span class="foreground-new"><b>${newInfo.artifactId.stringId}</b>/${newInfo.sourceFilePathDir}${newInfo.sourceFilePathFile} (new version)</span> from
-        <span class="foreground-old"><b>${oldInfo.artifactId.stringId}</b>/${oldInfo.sourceFilePathDir}${oldInfo.sourceFilePathFile} (old version)</span>.
+        <@diffStats.diffStats newInfo.sourceFilePath oldInfo.sourceFilePath/>
         <span class="diff-stats">
           <span class="foreground-new">+${diff.insertions}</span>
           <span class="foreground-old">-${diff.deletions}</span>
@@ -39,8 +34,5 @@
 
       <code><pre><@printerDirective/></pre></code>
     </div>
-  </div>
-
-  <div id="tooltip">
   </div>
 </@page.page>
