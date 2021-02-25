@@ -160,7 +160,7 @@ class PathDirective : TemplateDirectiveModel {
                                 },
                                 old = {
                                     if (!oldR.isEmpty()) {
-                                        out.write(escape(splitNew.subList(newR.first, newR.last + 1).joinToString("")))
+                                        out.write(escape(splitOld.subList(oldR.first, oldR.last + 1).joinToString("")))
                                     }
                                 }
                             )

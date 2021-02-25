@@ -6,6 +6,8 @@ import org.testng.annotations.BeforeClass
 import org.testng.annotations.Test
 import java.io.StringWriter
 
+private val zwsp = '\u200b'
+
 class PathDirectiveTest {
     private lateinit var java8: ArtifactNode
     private lateinit var java11: ArtifactNode
@@ -41,7 +43,7 @@ class PathDirectiveTest {
     fun `diff leaf artifact`() {
         val out = StringWriter()
         PathDirective.Impl(out).run(ParsedPath.LeafArtifact(java11), ParsedPath.LeafArtifact(java8))
-        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>11/</span><span class='foreground-old'>8/</span></span></a> ")
+        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>${zwsp}11/</span><span class='foreground-old'>${zwsp}8/</span></span></a> ")
     }
 
     @Test
@@ -55,14 +57,14 @@ class PathDirectiveTest {
     fun `diff directory empty path`() {
         val out = StringWriter()
         PathDirective.Impl(out).run(ParsedPath.SourceFile(java11, "java.base/java/lang/"), ParsedPath.SourceFile(java8, "java/lang/"))
-        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>11/</span><span class='foreground-old'>8/</span></span></a> <span class='source-file-dir'><span class='path-diff'><span class='foreground-new'>java.base/</span><span class='foreground-old'></span></span><a href='/java/11/java.base/java/?diff=%2Fjava%2F8%2Fjava%2F'>java/</a><a href='/java/11/java.base/java/lang/?diff=%2Fjava%2F8%2Fjava%2Flang%2F'>lang/</a></span>")
+        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>${zwsp}11/</span><span class='foreground-old'>${zwsp}8/</span></span></a> <span class='source-file-dir'><span class='path-diff'><span class='foreground-new'>${zwsp}java.base/</span><span class='foreground-old'>${zwsp}</span></span><a href='/java/11/java.base/java/?diff=%2Fjava%2F8%2Fjava%2F'>java/</a><a href='/java/11/java.base/java/lang/?diff=%2Fjava%2F8%2Fjava%2Flang%2F'>lang/</a></span>")
     }
 
     @Test
     fun `diff directory`() {
         val out = StringWriter()
         PathDirective.Impl(out).run(ParsedPath.SourceFile(java11, "java.base/java/lang/"), ParsedPath.SourceFile(java8, "java.base/lang/"))
-        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>11/</span><span class='foreground-old'>8/</span></span></a> <span class='source-file-dir'><a href='/java/11/java.base/?diff=%2Fjava%2F8%2Fjava.base%2F'>java.base/</a><a href='/java/11/java.base/java/?diff=%2Fjava%2F8%2Fjava.base%2F'><span class='path-diff'><span class='foreground-new'>java/</span><span class='foreground-old'></span></span></a><a href='/java/11/java.base/java/lang/?diff=%2Fjava%2F8%2Fjava.base%2Flang%2F'>lang/</a></span>")
+        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>${zwsp}11/</span><span class='foreground-old'>${zwsp}8/</span></span></a> <span class='source-file-dir'><a href='/java/11/java.base/?diff=%2Fjava%2F8%2Fjava.base%2F'>java.base/</a><a href='/java/11/java.base/java/?diff=%2Fjava%2F8%2Fjava.base%2F'><span class='path-diff'><span class='foreground-new'>${zwsp}java/</span><span class='foreground-old'>${zwsp}</span></span></a><a href='/java/11/java.base/java/lang/?diff=%2Fjava%2F8%2Fjava.base%2Flang%2F'>lang/</a></span>")
     }
 
     @Test
@@ -76,13 +78,13 @@ class PathDirectiveTest {
     fun `diff file`() {
         val out = StringWriter()
         PathDirective.Impl(out).run(ParsedPath.SourceFile(java11, "java/lang/String.java"), ParsedPath.SourceFile(java8, "java/lang/Stringx.java"))
-        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>11/</span><span class='foreground-old'>8/</span></span></a> <span class='source-file-dir'><a href='/java/11/java/?diff=%2Fjava%2F8%2Fjava%2F'>java/</a><a href='/java/11/java/lang/?diff=%2Fjava%2F8%2Fjava%2Flang%2F'>lang/</a></span><a href='/java/11/java/lang/String.java?diff=%2Fjava%2F8%2Fjava%2Flang%2FStringx.java'><span class='path-diff'><span class='foreground-new'>String.java</span><span class='foreground-old'>String.java</span></span></a>")
+        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>${zwsp}11/</span><span class='foreground-old'>${zwsp}8/</span></span></a> <span class='source-file-dir'><a href='/java/11/java/?diff=%2Fjava%2F8%2Fjava%2F'>java/</a><a href='/java/11/java/lang/?diff=%2Fjava%2F8%2Fjava%2Flang%2F'>lang/</a></span><a href='/java/11/java/lang/String.java?diff=%2Fjava%2F8%2Fjava%2Flang%2FStringx.java'><span class='path-diff'><span class='foreground-new'>${zwsp}String.java</span><span class='foreground-old'>${zwsp}Stringx.java</span></span></a>")
     }
 
     @Test
     fun `diff file and dir`() {
         val out = StringWriter()
         PathDirective.Impl(out).run(ParsedPath.SourceFile(java11, "java/lang/String.java"), ParsedPath.SourceFile(java8, "java/langx/Stringx.java"))
-        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>11/</span><span class='foreground-old'>8/</span></span></a> <span class='source-file-dir'><a href='/java/11/java/?diff=%2Fjava%2F8%2Fjava%2F'>java/</a></span><a href='/java/11/java/lang/String.java?diff=%2Fjava%2F8%2Fjava%2Flangx%2FStringx.java'><span class='path-diff'><span class='foreground-new'>lang/String.java</span><span class='foreground-old'>lang/String.java</span></span></a>")
+        Assert.assertEquals(out.toString(), "<a href='/java'>java/</a> <a href='/java/11?diff=%2Fjava%2F8'><span class='path-diff'><span class='foreground-new'>${zwsp}11/</span><span class='foreground-old'>${zwsp}8/</span></span></a> <span class='source-file-dir'><a href='/java/11/java/?diff=%2Fjava%2F8%2Fjava%2F'>java/</a></span><a href='/java/11/java/lang/String.java?diff=%2Fjava%2F8%2Fjava%2Flangx%2FStringx.java'><span class='path-diff'><span class='foreground-new'>${zwsp}lang/String.java</span><span class='foreground-old'>${zwsp}langx/Stringx.java</span></span></a>")
     }
 }
