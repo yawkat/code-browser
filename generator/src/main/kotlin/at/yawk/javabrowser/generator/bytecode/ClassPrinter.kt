@@ -61,15 +61,17 @@ class ClassPrinter private constructor(
             printer.append(' ')
 
             val binding = BytecodeBindings.toStringClass(Type.getObjectType(name))
+            val id = printer.hashBinding(binding)
             printer.annotate(BindingDecl(
-                    id = printer.hashBinding(binding),
+                    id = id,
                     binding = binding,
                     description = typeDescription(printer, Type.getObjectType(name)),
                     modifiers = asmAccessToSourceAnnotation(access),
                     parent = null,
                     superBindings = superTypeNames.map { Type.getObjectType(it) }.map {
                         BindingDecl.Super(name = it.simpleName, binding = printer.hashBinding(BytecodeBindings.toStringClass(it)))
-                    }
+                    },
+                    corresponding = printer.getCorresponding(id)
             )) {
                 printer.append(Type.getObjectType(name).className)
             }

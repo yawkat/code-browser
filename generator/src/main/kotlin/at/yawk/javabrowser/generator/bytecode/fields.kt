@@ -16,8 +16,9 @@ internal fun printField(printer: BytecodePrinter, owner: Type, field: FieldNode)
     }
     printer.append(' ')
     val binding = BytecodeBindings.toStringField(owner, field.name, type)
+    val id = printer.hashBinding(binding)
     printer.annotate(BindingDecl(
-            id = printer.hashBinding(binding),
+            id = id,
             binding = binding,
             description = BindingDecl.Description.Field(
                     name = field.name,
@@ -25,7 +26,8 @@ internal fun printField(printer: BytecodePrinter, owner: Type, field: FieldNode)
             ),
             modifiers = asmAccessToSourceAnnotation(field.access),
             parent = printer.hashBinding(BytecodeBindings.toStringClass(owner)),
-            superBindings = emptyList()
+            superBindings = emptyList(),
+            corresponding = printer.getCorresponding(id)
     )) {
         printer.append(field.name)
     }

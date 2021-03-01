@@ -107,8 +107,9 @@ internal class MethodPrinter private constructor(
                     name = node.name,
                     type = methodType
             )
+            val id = printer.hashBinding(binding)
             BindingDecl(
-                    id = printer.hashBinding(binding),
+                    id = id,
                     binding = binding,
                     superBindings = emptyList(),
                     parent = printer.hashBinding(BytecodeBindings.toStringClass(methodOwnerType)),
@@ -117,7 +118,8 @@ internal class MethodPrinter private constructor(
                             name = node.name,
                             returnTypeBinding = typeDescription(printer, methodType.returnType),
                             parameterTypeBindings = methodType.argumentTypes.map { typeDescription(printer, it) }
-                    )
+                    ),
+                    corresponding = printer.getCorresponding(id)
             )
         }
 

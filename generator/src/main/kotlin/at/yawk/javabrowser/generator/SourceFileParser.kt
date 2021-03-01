@@ -1,5 +1,6 @@
 package at.yawk.javabrowser.generator
 
+import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.generator.bytecode.BytecodePrinter
@@ -53,7 +54,8 @@ class SourceFileParser(
                 JavaCore.COMPILER_DOC_COMMENT_SUPPORT to JavaCore.ENABLED,
                 JavaCore.COMPILER_LOCAL_VARIABLE_ATTR to JavaCore.GENERATE,
                 JavaCore.COMPILER_LINE_NUMBER_ATTR to JavaCore.GENERATE,
-                JavaCore.COMPILER_CODEGEN_METHOD_PARAMETERS_ATTR to JavaCore.GENERATE
+                JavaCore.COMPILER_CODEGEN_METHOD_PARAMETERS_ATTR to JavaCore.GENERATE,
+                JavaCore.COMPILER_COMPLIANCE to JavaCore.VERSION_10
         ))
         parser.setResolveBindings(true)
         parser.setKind(ASTParser.K_COMPILATION_UNIT)
@@ -94,34 +96,6 @@ class SourceFileParser(
 
         private fun accept0(sourceFilePath: String, ast: CompilationUnit) {
             val sourceRelativePath = pathPrefix + sourceRoot.relativize(Paths.get(sourceFilePath))
-
-            val outputClassesTo = outputClassesTo
-            if (outputClassesTo != null || printBytecode) {
-                val internalDeclaration = unsafeGetInternalNode(ast) as CompilationUnitDeclaration
-                for (classFile in internalDeclaration.compilationResult.classFiles) {
-                    val classRelativePath = String(classFile.fileName()) + ".class"
-                    if (outputClassesTo != null) {
-                        val target = outputClassesTo.resolve(classRelativePath).normalize()
-                        if (!target.startsWith(outputClassesTo)) throw AssertionError("Bad class file name")
-                        try {
-                            Files.createDirectories(target.parent)
-                        } catch (ignored: FileAlreadyExistsException) {
-                        }
-                        Files.write(target, classFile.bytes)
-                    }
-                    if (printBytecode) {
-                        val bytecodePrinter = BytecodePrinter(printer::hashBinding)
-                        val reader = ClassReader(classFile.bytes)
-                        ClassPrinter.accept(bytecodePrinter, sourceRelativePath, reader)
-                        printer.addSourceFile(
-                                pathPrefix + classRelativePath,
-                                sourceFile = bytecodePrinter.finish(),
-                                tokens = emptyList(), // TODO
-                                realm = Realm.BYTECODE
-                        )
-                    }
-                }
-            }
 
             val text = Files.readAllBytes(Paths.get(sourceFilePath)).toString(Charsets.UTF_8)
             val annotatedSourceFile = GeneratorSourceFile(ast.`package`?.name?.fullyQualifiedName, text)
@@ -167,6 +141,40 @@ class SourceFileParser(
             val tokens = Tokenizer.tokenize(text).toList()
 
             printer.addSourceFile(sourceRelativePath, annotatedSourceFile, tokens, Realm.SOURCE)
+
+            val outputClassesTo = outputClassesTo
+            if (outputClassesTo != null || printBytecode) {
+                val internalDeclaration = unsafeGetInternalNode(ast) as CompilationUnitDeclaration
+                for (classFile in internalDeclaration.compilationResult.classFiles) {
+                    val classRelativePath = String(classFile.fileName()) + ".class"
+                    if (outputClassesTo != null) {
+                        val target = outputClassesTo.resolve(classRelativePath).normalize()
+                        if (!target.startsWith(outputClassesTo)) throw AssertionError("Bad class file name")
+                        try {
+                            Files.createDirectories(target.parent)
+                        } catch (ignored: FileAlreadyExistsException) {
+                        }
+                        Files.write(target, classFile.bytes)
+                    }
+                    if (printBytecode) {
+                        val sourceFileRefs = annotatedSourceFile.entries
+                                .map { it.annotation }
+                                .filterIsInstance<BindingDecl>()
+                                .filter { it.corresponding.containsKey(Realm.BYTECODE) }
+                                .associate { it.corresponding.getValue(Realm.BYTECODE) to it.id }
+
+                        val bytecodePrinter = BytecodePrinter(printer::hashBinding, sourceFileRefs)
+                        val reader = ClassReader(classFile.bytes)
+                        ClassPrinter.accept(bytecodePrinter, sourceRelativePath, reader)
+                        printer.addSourceFile(
+                                pathPrefix + classRelativePath,
+                                sourceFile = bytecodePrinter.finish(),
+                                tokens = emptyList(), // TODO
+                                realm = Realm.BYTECODE
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -7,7 +7,10 @@ import at.yawk.javabrowser.SourceAnnotation
 import org.testng.Assert
 import org.testng.annotations.DataProvider
 import org.testng.annotations.Test
-import java.util.ArrayDeque
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.asSequence
+import kotlin.collections.emptyMap
 
 /**
  * @author yawkat
@@ -178,7 +181,7 @@ stu""",
 
     companion object {
         private fun mockAnnotation(text: String): SourceAnnotation = BindingDecl(
-                BindingId(text.hashCode().toLong()), text, parent = null, description = BindingDecl.Description.Package, modifiers = 0)
+                BindingId(text.hashCode().toLong()), text, parent = null, description = BindingDecl.Description.Package, modifiers = 0, corresponding = emptyMap())
 
         private fun textFromMockAnnotation(annotation: SourceAnnotation) = (annotation as BindingDecl).binding
     }

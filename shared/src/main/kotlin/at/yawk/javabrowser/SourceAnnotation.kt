@@ -126,19 +126,29 @@ data class BindingDecl(
          */
         val modifiers: Int,
 
-        val superBindings: List<Super> = emptyList()
+        val superBindings: List<Super> = emptyList(),
+        val corresponding: Map<Realm, BindingId> = emptyMap() // todo: make non-optional
 ) : SourceAnnotation() {
     companion object {
         @JvmStatic
         @JsonCreator
         fun jacksonCreator(
-                           id: Long,
-                           binding: String,
-                           parent: Long?,
-                           description: Description,
-                           modifiers: Int,
-                           superBindings: List<Super> = emptyList()
-        ) = BindingDecl(BindingId(id), binding, parent?.let { BindingId(it) }, description, modifiers, superBindings)
+            id: Long,
+            binding: String,
+            parent: Long?,
+            description: Description,
+            modifiers: Int,
+            superBindings: List<Super> = emptyList(),
+            corresponding: Map<Realm, Long> = emptyMap()
+        ) = BindingDecl(
+            BindingId(id),
+            binding,
+            parent?.let { BindingId(it) },
+            description,
+            modifiers,
+            superBindings,
+            corresponding.mapValues { BindingId(it.value) }
+        )
 
         const val MODIFIER_DEPRECATED: Int = 1 shl 31
         const val MODIFIER_LOCAL: Int = 1 shl 30

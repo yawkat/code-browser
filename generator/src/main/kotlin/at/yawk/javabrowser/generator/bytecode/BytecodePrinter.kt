@@ -4,12 +4,17 @@ import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.PositionedAnnotation
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
 import at.yawk.javabrowser.generator.GeneratorSourceFile
 import org.apache.commons.lang3.StringEscapeUtils
 
-class BytecodePrinter(val hashBinding: String.() -> BindingId) {
+class BytecodePrinter(
+        val hashBinding: String.() -> BindingId,
+        // map bytecode binding -> source file binding
+        private val sourceFileRefs: Map<BindingId, BindingId> = emptyMap()
+) {
     private val annotations: MutableList<PositionedAnnotation> = ArrayList()
     private val text = StringBuilder()
 
@@ -76,6 +81,9 @@ class BytecodePrinter(val hashBinding: String.() -> BindingId) {
         }
         return this
     }
+
+    fun getCorresponding(bindingId: BindingId): Map<Realm, BindingId> =
+            sourceFileRefs[bindingId]?.let { mapOf(Realm.SOURCE to it) }.orEmpty()
 }
 
 fun BytecodePrinter.printSourceModifiers(access: Int, target: Flag.Target, trailingSpace: Boolean) {

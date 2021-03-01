@@ -5,8 +5,10 @@ import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.PositionedAnnotation
+import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.RenderedJavadoc
 import at.yawk.javabrowser.SourceAnnotation
+import at.yawk.javabrowser.generator.bytecode.BytecodeBindings
 import at.yawk.javabrowser.generator.bytecode.testHashBinding
 import com.google.common.io.MoreFiles
 import kotlinx.coroutines.runBlocking
@@ -16,6 +18,7 @@ import org.hamcrest.Matcher
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
 import org.intellij.lang.annotations.Language
+import org.objectweb.asm.Type
 import org.testng.annotations.AfterMethod
 import org.testng.annotations.BeforeMethod
 import org.testng.annotations.Test
@@ -808,16 +811,20 @@ class SourceFileParserTest {
         write("A.java", "class A { @Deprecated volatile int i; }")
         val entries = compile().getValue("A.java").entries
         MatcherAssert.assertThat(
-                entries,
-                Matchers.hasItem(matches<PositionedAnnotation> {
-                    val annotation = it.annotation as? BindingDecl ?: return@matches false
-                    val description = annotation.description
-                    description is BindingDecl.Description.Field &&
-                            description.name == "i" &&
-                            description.typeBinding.simpleName == "int" &&
-                            annotation.modifiers == Modifier.VOLATILE or BindingDecl.MODIFIER_DEPRECATED &&
-                            annotation.parent == "A".hashBinding()
-                })
+            entries,
+            Matchers.hasItem(matches<PositionedAnnotation> {
+                val annotation = it.annotation as? BindingDecl ?: return@matches false
+                val description = annotation.description
+                description is BindingDecl.Description.Field &&
+                        description.name == "i" &&
+                        description.typeBinding.simpleName == "int" &&
+                        annotation.modifiers == Modifier.VOLATILE or BindingDecl.MODIFIER_DEPRECATED &&
+                        annotation.parent == "A".hashBinding() &&
+                        annotation.corresponding == mapOf(
+                    Realm.BYTECODE to BytecodeBindings.toStringField(Type.getType("LA;"), "i", Type.INT_TYPE)
+                        .hashBinding()
+                )
+            })
         )
     }
 
@@ -833,19 +840,26 @@ class SourceFileParserTest {
                     description is BindingDecl.Description.Method &&
                             description.name == "a" &&
                             description.returnTypeBinding == BindingDecl.Description.Type(
+                        BindingDecl.Description.Type.Kind.INTERFACE,
+                        "java.util.List".hashBinding(),
+                        "List",
+                        listOf(
+                            BindingDecl.Description.Type(
                                 BindingDecl.Description.Type.Kind.INTERFACE,
-                                "java.util.List".hashBinding(),
-                                "List",
-                                listOf(
-                                        BindingDecl.Description.Type(
-                                                BindingDecl.Description.Type.Kind.INTERFACE,
-                                                "java.util.Map.Entry".hashBinding(),
-                                                "Entry"
-                                        )
-                                )
-                        ) &&
+                                "java.util.Map.Entry".hashBinding(),
+                                "Entry"
+                            )
+                        )
+                    ) &&
                             annotation.modifiers == 0 &&
-                            annotation.parent == "A".hashBinding()
+                            annotation.parent == "A".hashBinding() &&
+                            annotation.corresponding == mapOf(
+                        Realm.BYTECODE to BytecodeBindings.toStringMethod(
+                            Type.getType("LA;"),
+                            "a",
+                            Type.getType("(II)Ljava/util/List;")
+                        ).hashBinding()
+                    )
                 })
         )
     }
@@ -861,7 +875,8 @@ class SourceFileParserTest {
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
                             annotation.modifiers == 0 && annotation.parent == "".hashBinding() &&
-                            description.kind == BindingDecl.Description.Type.Kind.EXCEPTION
+                            description.kind == BindingDecl.Description.Type.Kind.EXCEPTION &&
+                            annotation.corresponding == mapOf(Realm.BYTECODE to "LA;".hashBinding())
                 })
         )
     }
@@ -876,7 +891,14 @@ class SourceFileParserTest {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Initializer &&
-                            annotation.modifiers == Modifier.STATIC && annotation.parent == "A".hashBinding()
+                            annotation.modifiers == Modifier.STATIC && annotation.parent == "A".hashBinding() &&
+                            annotation.corresponding == mapOf(
+                        Realm.BYTECODE to BytecodeBindings.toStringMethod(
+                            Type.getType("LA;"),
+                            "<clinit>",
+                            Type.getType("()V")
+                        ).hashBinding()
+                    )
                 })
         )
     }
@@ -891,8 +913,10 @@ class SourceFileParserTest {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
-                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL && annotation.parent == "A".hashBinding() &&
-                            description.kind == BindingDecl.Description.Type.Kind.CLASS
+                            annotation.modifiers == BindingDecl.MODIFIER_LOCAL &&
+                            annotation.parent == "A".hashBinding() &&
+                            description.kind == BindingDecl.Description.Type.Kind.CLASS &&
+                            annotation.corresponding == mapOf(Realm.BYTECODE to "LA$1B;".hashBinding())
                 })
         )
     }
@@ -910,7 +934,8 @@ class SourceFileParserTest {
                             annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
                             annotation.parent == "A#o".hashBinding() &&
                             description.kind == BindingDecl.Description.Type.Kind.CLASS &&
-                            description.simpleName == "$1"
+                            description.simpleName == "$1" &&
+                            annotation.corresponding == mapOf(Realm.BYTECODE to "LA$1;".hashBinding())
                 })
         )
     }
@@ -925,8 +950,10 @@ class SourceFileParserTest {
                     val annotation = it.annotation as? BindingDecl ?: return@matches false
                     val description = annotation.description
                     description is BindingDecl.Description.Lambda &&
+                            annotation.binding == "A#lambda\$0()" &&
                             annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
-                            annotation.parent == "A#o".hashBinding()
+                            annotation.parent == "A#o".hashBinding() &&
+                            annotation.corresponding == mapOf(Realm.BYTECODE to "LA;.lambda\$0:()V".hashBinding())
                 })
         )
     }
@@ -942,7 +969,8 @@ class SourceFileParserTest {
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
                             annotation.modifiers == BindingDecl.MODIFIER_LOCAL or BindingDecl.MODIFIER_ANONYMOUS &&
-                            annotation.parent == "A.B#o".hashBinding()
+                            annotation.parent == "A.B#o".hashBinding() &&
+                            annotation.corresponding == mapOf(Realm.BYTECODE to "LA\$B$1;".hashBinding())
                 })
         )
     }
@@ -958,7 +986,8 @@ class SourceFileParserTest {
                     val description = annotation.description
                     description is BindingDecl.Description.Type &&
                             annotation.modifiers == BindingDecl.MODIFIER_LOCAL &&
-                            annotation.parent == "LA;.lambda\$0()V".hashBinding()
+                            annotation.parent == "LA;.lambda\$0()V".hashBinding() &&
+                            annotation.corresponding == mapOf(Realm.BYTECODE to "LA\$1B;".hashBinding())
                 })
         )
     }
@@ -1107,6 +1136,36 @@ class SourceFileParserTest {
                     val annotation = it.annotation
                     annotation is BindingDecl
                 }))
+        )
+    }
+
+    @Test
+    fun `bytecode source ref`() {
+        write("A.java", "class A { void f() {} int i; }")
+        val entries = compile().getValue("A.class").entries
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<PositionedAnnotation> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl &&
+                            annotation.corresponding == mapOf(Realm.SOURCE to "A".hashBinding())
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<PositionedAnnotation> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl &&
+                            annotation.corresponding == mapOf(Realm.SOURCE to "A#f()".hashBinding())
+                })
+        )
+        MatcherAssert.assertThat(
+                entries,
+                Matchers.hasItem(matches<PositionedAnnotation> {
+                    val annotation = it.annotation
+                    annotation is BindingDecl &&
+                            annotation.corresponding == mapOf(Realm.SOURCE to "A#i".hashBinding())
+                })
         )
     }
 

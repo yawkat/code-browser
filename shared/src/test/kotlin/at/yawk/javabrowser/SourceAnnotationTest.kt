@@ -24,12 +24,13 @@ class SourceAnnotationTest {
                 false
         ))
         testDeser(BindingDecl(
-                id = BindingId(123),
-                binding = "abc",
-                description = BindingDecl.Description.Package,
-                modifiers = 456,
-                superBindings = emptyList(),
-                parent = BindingId(789)
+            id = BindingId(123),
+            binding = "abc",
+            description = BindingDecl.Description.Package,
+            modifiers = 456,
+            superBindings = emptyList(),
+            parent = BindingId(789),
+            corresponding = mapOf(Realm.BYTECODE to BindingId(456))
         ))
         testDeser(BindingDecl.Description.Type(
                 BindingDecl.Description.Type.Kind.CLASS,

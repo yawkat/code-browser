@@ -5,6 +5,8 @@ import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
+import at.yawk.javabrowser.Realm
+import at.yawk.javabrowser.generator.bytecode.BytecodeBindings
 import com.google.common.hash.Hashing
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTNode
@@ -84,6 +86,7 @@ import org.eclipse.jdt.internal.compiler.lookup.MethodBinding
 import org.slf4j.LoggerFactory
 import java.lang.Long
 import java.util.concurrent.ThreadLocalRandom
+import org.objectweb.asm.Type as AsmType
 
 private val log = LoggerFactory.getLogger(BindingVisitor::class.java)
 
@@ -104,6 +107,34 @@ private inline fun <reified T> unsafeBindingResolverCall(ast: AST, name: String,
     val getCorrespondingNode = classDefaultBindingResolver.getDeclaredMethod(name, T::class.java)
     getCorrespondingNode.isAccessible = true
     return getCorrespondingNode.invoke(bindingResolver, param)
+}
+
+private val ITypeBinding.asmType: AsmType?
+    get() = when {
+        isPrimitive -> when (name) {
+            "boolean" -> AsmType.BOOLEAN_TYPE
+            "byte" -> AsmType.BYTE_TYPE
+            "short" -> AsmType.SHORT_TYPE
+            "char" -> AsmType.CHAR_TYPE
+            "int" -> AsmType.INT_TYPE
+            "long" -> AsmType.LONG_TYPE
+            "float" -> AsmType.FLOAT_TYPE
+            "double" -> AsmType.DOUBLE_TYPE
+            "void" -> AsmType.VOID_TYPE
+            else -> throw AssertionError(name)
+        }
+        isArray -> componentType.asmType?.let { AsmType.getType("[$it") }
+        isWildcardType || isTypeVariable || isParameterizedType || isCapture -> erasure?.asmType
+        else -> AsmType.getType("L" + binaryName.replace('.', '/') + ";")
+    }
+
+private fun toBytecodeBinding(method: IMethodBinding): String? {
+    val declaring = method.declaringClass?.asmType ?: return null
+    val parameters = method.parameterTypes?.map { it.asmType ?: return null } ?: return null
+    val ret = method.returnType?.asmType ?: return null
+    val methodType = AsmType.getMethodType(ret, *parameters.toTypedArray())
+    val name = method.name
+    return BytecodeBindings.toStringMethod(declaring, name, methodType)
 }
 
 internal class BindingVisitor(
@@ -262,7 +293,8 @@ internal class BindingVisitor(
                     parent = parent?.hashBinding(),
                     description = describeType(resolved),
                     modifiers = getModifiers(resolved),
-                    superBindings = superBindings
+                    superBindings = superBindings,
+                    corresponding = resolved.asmType?.let { mapOf(Realm.BYTECODE to it.toString().hashBinding()) }.orEmpty()
             ))
         }
     }
@@ -292,7 +324,9 @@ internal class BindingVisitor(
                                     val b = Bindings.toString(it) ?: return@mapNotNull null
                                     val declaringName = (it.declaringClass ?: return@mapNotNull null).name
                                     BindingDecl.Super(declaringName + "." + it.name, hashBinding(b))
-                                }
+                                },
+                                corresponding = toBytecodeBinding(resolved)?.let { mapOf(Realm.BYTECODE to it.hashBinding()) }
+                                        .orEmpty()
                         )
                 )
             }
@@ -331,7 +365,10 @@ internal class BindingVisitor(
         }
         val static = Modifier.isStatic(node.modifiers)
         // TODO: find a binding for this initializer block
-        val binding = Bindings.toString(declaring) + "#" + (if (static) "<clinit>" else "<init>") + initializerCounter++
+        val name = if (static) "<clinit>" else "<init>"
+        val binding = Bindings.toString(declaring) + "#" + name + initializerCounter++
+        val bytecodeBinding =
+                declaring.asmType?.let { BytecodeBindings.toStringMethod(it, name, AsmType.getType("()V")) }
         //val internal = unsafeGetInternalNode(node) as org.eclipse.jdt.internal.compiler.ast.Initializer
         //val binding = unsafeGetMethodBinding(node.ast, internal.methodBinding)!!
         annotatedSourceFile.annotate(
@@ -341,7 +378,8 @@ internal class BindingVisitor(
                         binding = binding,
                         parent = parentToString(declaring)?.hashBinding(),
                         description = BindingDecl.Description.Initializer,
-                        modifiers = node.modifiers
+                        modifiers = node.modifiers,
+                        corresponding = bytecodeBinding?.let { mapOf(Realm.BYTECODE to it.hashBinding()) }.orEmpty()
                 )
         )
         return true
@@ -411,6 +449,15 @@ internal class BindingVisitor(
         if (resolved != null && resolved.isField) {
             val binding = Bindings.toString(resolved)
             if (binding != null) {
+                val declaringAsmType = resolved.declaringClass?.asmType
+                val fieldAsmType = resolved.type?.asmType
+                val bytecodeBinding =
+                        if (declaringAsmType != null && fieldAsmType != null) BytecodeBindings.toStringField(
+                                declaringAsmType,
+                                resolved.name,
+                                fieldAsmType
+                        )
+                        else null
                 annotatedSourceFile.annotate(name, BindingDecl(
                         id = binding.hashBinding(),
                         binding = binding,
@@ -419,7 +466,8 @@ internal class BindingVisitor(
                                 name = resolved.name,
                                 typeBinding = describeType(resolved.type)
                         ),
-                        modifiers = getModifiers(resolved)
+                        modifiers = getModifiers(resolved),
+                        corresponding = bytecodeBinding?.let { mapOf(Realm.BYTECODE to it.hashBinding()) }.orEmpty()
                 ))
             }
         }
@@ -870,7 +918,8 @@ internal class BindingVisitor(
             }
 
             if (binding.declaringClass != null) {
-                val bindingString = Bindings.toStringKeyBinding(binding)
+                val implBinding = unsafeGetImplementation(binding)
+                val bindingString = Bindings.toString(implBinding) ?: Bindings.toStringKeyBinding(binding)
                 annotatedSourceFile.annotate(node.startPosition, 0, BindingDecl(
                         id = bindingString.hashBinding(),
                         binding = bindingString,
@@ -879,7 +928,8 @@ internal class BindingVisitor(
                                 implementingMethodBinding = describeMethod(binding),
                                 implementingTypeBinding = describeType(binding.declaringClass)
                         ),
-                        modifiers = BindingDecl.MODIFIER_ANONYMOUS or BindingDecl.MODIFIER_LOCAL
+                        modifiers = BindingDecl.MODIFIER_ANONYMOUS or BindingDecl.MODIFIER_LOCAL,
+                        corresponding = toBytecodeBinding(implBinding)?.let { mapOf(Realm.BYTECODE to it.hashBinding()) }.orEmpty()
                 ))
             } else {
                 warn { "No declaring class for lambda" }
@@ -1017,7 +1067,8 @@ internal class BindingVisitor(
                         binding = b,
                         parent = parentPackage.hashBinding(),
                         description = BindingDecl.Description.Package,
-                        modifiers = modifiers
+                        modifiers = modifiers,
+                        corresponding = emptyMap()
                 ))
             }
         } else {

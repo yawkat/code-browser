@@ -294,7 +294,7 @@ class Session(private val dbi: DBI) {
                     .putInt(textBytes.size).putBytes(textBytes)
                     .hash().asLong()
                 conn.insert(
-                    "insert into source_file (realm, artifact_id, source_file_id, hash, path, text, annotations) values (?, ?, ?, ?, ?, ?)",
+                    "insert into source_file (realm, artifact_id, source_file_id, hash, path, text, annotations) values (?, ?, ?, ?, ?, ?, ?)",
                     realm.id,
                     artifactId,
                     sourceFileId,

@@ -6,6 +6,17 @@ import org.eclipse.jdt.core.dom.IPackageBinding
 import org.eclipse.jdt.core.dom.ITypeBinding
 import org.eclipse.jdt.core.dom.IVariableBinding
 
+private val LAMBDA_METHOD_CLASS = Class.forName("org.eclipse.jdt.core.dom.MethodBinding\$LambdaMethod")
+private val LAMBDA_METHOD_IMPL_FIELD = LAMBDA_METHOD_CLASS.declaredFields.single { it.name == "implementation" }.also {
+    it.isAccessible = true
+}
+
+/**
+ * [org.eclipse.jdt.core.dom.MethodBinding.LambdaMethod.implementation]
+ */
+internal fun unsafeGetImplementation(binding: IMethodBinding) =
+        LAMBDA_METHOD_IMPL_FIELD.get(binding) as IMethodBinding
+
 /**
  * @author yawkat
  */
@@ -43,7 +54,10 @@ object Bindings {
     }
 
     fun toString(methodBinding: IMethodBinding): String? {
-        val decl = methodBinding.methodDeclaration ?: return null
+        var decl = methodBinding.methodDeclaration ?: return null
+        if (LAMBDA_METHOD_CLASS.isInstance(decl)) {
+            decl = unsafeGetImplementation(decl)
+        }
         val builder = StringBuilder(toString(decl.declaringClass) ?: return null)
         if (!decl.isConstructor) {
             builder.append('#')
