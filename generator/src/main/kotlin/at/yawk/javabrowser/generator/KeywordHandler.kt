@@ -2,6 +2,7 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.IntRangeSet
 import at.yawk.javabrowser.Style
+import at.yawk.javabrowser.generator.source.BindingVisitor
 
 /**
  * @author yawkat

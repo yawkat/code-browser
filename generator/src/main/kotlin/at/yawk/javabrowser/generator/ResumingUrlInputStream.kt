@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.generator.artifact
+package at.yawk.javabrowser.generator
 
 import java.io.IOException
 import java.io.InputStream

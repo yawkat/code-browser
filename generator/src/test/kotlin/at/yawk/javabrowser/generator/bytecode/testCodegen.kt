@@ -4,8 +4,9 @@ import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
 import at.yawk.javabrowser.generator.GeneratorSourceFile
-import at.yawk.javabrowser.generator.Printer
-import at.yawk.javabrowser.generator.SourceFileParser
+import at.yawk.javabrowser.generator.SourceSetConfig
+import at.yawk.javabrowser.generator.source.Printer
+import at.yawk.javabrowser.generator.source.SourceFileParser
 import com.google.common.io.MoreFiles
 import kotlinx.coroutines.runBlocking
 import org.intellij.lang.annotations.Language
@@ -28,16 +29,15 @@ fun getOutput(
 
         val out = tmp.resolve("out")
         Files.createDirectory(out)
-        val sourceFileParser = SourceFileParser(tmp, object : Printer {
-            override fun addSourceFile(path: String,
+        val sourceFileParser = SourceFileParser(object : Printer {
+            override suspend fun addSourceFile(path: String,
                                        sourceFile: GeneratorSourceFile,
                                        tokens: List<Tokenizer.Token>,
                                        realm: Realm) {
             }
 
             override fun hashBinding(binding: String) = testHashBinding(binding)
-        })
-        sourceFileParser.outputClassesTo = out
+        }, SourceSetConfig("MethodPrinterTest", tmp, outputClassesTo = out, dependencies = emptyList()))
         runBlocking {
             sourceFileParser.compile()
         }

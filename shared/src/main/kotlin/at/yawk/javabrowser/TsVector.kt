@@ -6,7 +6,16 @@ import org.eclipse.collections.api.list.primitive.IntList
 import org.eclipse.collections.api.list.primitive.MutableIntList
 import org.eclipse.collections.impl.factory.primitive.IntLists
 import org.eclipse.collections.impl.factory.primitive.IntSets
-import java.util.BitSet
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.all
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.getOrPut
+import kotlin.collections.indices
+import kotlin.collections.minBy
+import kotlin.collections.withIndex
 
 /**
  * @author yawkat
@@ -118,11 +127,6 @@ class TsVector {
             }
         }
         return tsVector.toString()
-    }
-
-    fun clear() {
-        map.clear()
-        size = 0
     }
 
     private fun TsQuery.Term.matchesLexeme(lexeme: String): Boolean {

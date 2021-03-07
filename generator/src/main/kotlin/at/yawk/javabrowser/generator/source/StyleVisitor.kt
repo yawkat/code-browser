@@ -1,8 +1,9 @@
-package at.yawk.javabrowser.generator
+package at.yawk.javabrowser.generator.source
 
 import at.yawk.javabrowser.IntRangeSet
 import at.yawk.javabrowser.SourceAnnotation
 import at.yawk.javabrowser.Style
+import at.yawk.javabrowser.generator.GeneratorSourceFile
 import org.eclipse.jdt.core.dom.ASTNode
 import org.eclipse.jdt.core.dom.ASTVisitor
 import org.eclipse.jdt.core.dom.Annotation

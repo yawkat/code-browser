@@ -1,6 +1,6 @@
-package at.yawk.javabrowser.generator
+package at.yawk.javabrowser.generator.source
 
-import at.yawk.javabrowser.generator.artifact.tempDir
+import at.yawk.javabrowser.generator.work.TempDirProviderTest
 import org.testng.Assert
 import org.testng.annotations.Test
 import java.nio.file.Files
@@ -8,7 +8,7 @@ import java.nio.file.Files
 class ModuleFileParserTest {
     @Test
     fun test() {
-        tempDir { tmp ->
+        TempDirProviderTest.withTempDirSync("ModuleFileParserTest") { tmp ->
             val moduleInfo = tmp.resolve("module-info.java")
             Files.write(moduleInfo, """
 module foo {

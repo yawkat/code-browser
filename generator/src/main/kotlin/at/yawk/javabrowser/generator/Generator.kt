@@ -1,21 +1,61 @@
 package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.DbConfig
-import at.yawk.javabrowser.generator.artifact.COMPILER_VERSION
-import at.yawk.javabrowser.generator.artifact.compileAndroid
-import at.yawk.javabrowser.generator.artifact.compileJdk
-import at.yawk.javabrowser.generator.artifact.compileMaven
-import at.yawk.javabrowser.generator.artifact.getArtifactId
-import at.yawk.javabrowser.generator.artifact.resolveMavenMetadata
+import at.yawk.javabrowser.generator.db.ActorAsyncTransactionProvider
+import at.yawk.javabrowser.generator.db.FullUpdateStrategy
+import at.yawk.javabrowser.generator.db.InPlaceUpdateStrategy
+import at.yawk.javabrowser.generator.db.LimitedTransactionProvider
+import at.yawk.javabrowser.generator.db.TransactionProvider
+import at.yawk.javabrowser.generator.db.UpdateStrategy
+import at.yawk.javabrowser.generator.work.CompileWorker
+import at.yawk.javabrowser.generator.work.PrepareAndroidWorker
+import at.yawk.javabrowser.generator.work.PrepareArtifactWorker
+import at.yawk.javabrowser.generator.work.PrepareJdkWorker
+import at.yawk.javabrowser.generator.work.PrepareMavenWorker
+import at.yawk.javabrowser.generator.work.TempDirProvider
 import com.google.common.collect.HashMultiset
-import org.skife.jdbi.v2.Handle
+import com.google.common.io.MoreFiles
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Paths
+import java.util.concurrent.Executors
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * @author yawkat
- */
 private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.Generator")
+
+const val COMPILER_VERSION = 42
+
+private class CombinedPrepareWorker(
+    tempDirProvider: TempDirProvider,
+    config: Config
+) : PrepareArtifactWorker<ArtifactConfig> {
+    private val jdk = PrepareJdkWorker(tempDirProvider)
+    private val android = PrepareAndroidWorker(tempDirProvider)
+    private val maven = PrepareMavenWorker(tempDirProvider, MavenDependencyResolver(config.mavenResolver))
+
+    override fun getArtifactId(config: ArtifactConfig) = when (config) {
+        is ArtifactConfig.Android -> android.getArtifactId(config)
+        is ArtifactConfig.Java -> jdk.getArtifactId(config)
+        is ArtifactConfig.Maven -> maven.getArtifactId(config)
+    }
+
+    override suspend fun prepareArtifact(
+        artifactId: String,
+        config: ArtifactConfig,
+        listener: PrepareArtifactWorker.PrepareListener
+    ) = when (config) {
+        is ArtifactConfig.Android -> android.prepareArtifact(artifactId, config, listener)
+        is ArtifactConfig.Java -> jdk.prepareArtifact(artifactId, config, listener)
+        is ArtifactConfig.Maven -> maven.prepareArtifact(artifactId, config, listener)
+    }
+}
 
 fun main(args: Array<String>) {
     val config = Config.fromFile(Paths.get(args[0]))
@@ -26,52 +66,92 @@ fun main(args: Array<String>) {
         return
     }
 
+    val base = Paths.get("/var/tmp/code-browser-generator")
+    try {
+        @Suppress("UnstableApiUsage")
+        MoreFiles.deleteDirectoryContents(base)
+    } catch (ignored: NoSuchFileException) {
+    }
+    Files.createDirectories(base)
+    val tempDirProvider = TempDirProvider.Limited(
+        TempDirProvider.FromDirectory(base)
+    )
+    val prepareWorker = CombinedPrepareWorker(tempDirProvider, config)
+
+    val artifacts = config.artifacts.associateBy { prepareWorker.getArtifactId(it) }
+
     val dbi = config.database.start(mode = DbConfig.Mode.GENERATOR)
 
-    val session = Session(dbi)
-    val mavenDependencyResolver = MavenDependencyResolver(config.mavenResolver)
+    // select update strategy
 
-    val artifactIds = config.artifacts.map { getArtifactId(it) }.sorted()
-    val duplicate = HashSet<String>()
-    for (i in artifactIds.indices) {
-        if (i > 0 && artifactIds[i] == artifactIds[i - 1]) {
-            duplicate.add(artifactIds[i])
+    val upToDate: List<String>
+    val updateStrategy: UpdateStrategy
+
+    val inPlace = InPlaceUpdateStrategy(dbi)
+    if (inPlace.hasSchema()) {
+        // old `data` schema exists, check that
+        val upToDateInPlace = inPlace.listUpToDate()
+        if (upToDateInPlace.size > artifacts.size * 0.6) {
+            log.info("Performing incremental update")
+            // incremental update
+            updateStrategy = inPlace
+            upToDate = upToDateInPlace
+            updateStrategy.prepare()
+        } else {
+            log.info("Performing full update (too many changes)")
+            // too many changes, fall back to full update
+            updateStrategy = FullUpdateStrategy(dbi)
+            updateStrategy.prepare()
+            upToDate = updateStrategy.listUpToDate()
+        }
+    } else {
+        log.info("Performing full update (new database)")
+        // no data schema yet, fall back to full update
+        updateStrategy = FullUpdateStrategy(dbi)
+        updateStrategy.prepare()
+        upToDate = updateStrategy.listUpToDate()
+    }
+
+    var transactionProvider: TransactionProvider = updateStrategy
+    transactionProvider = LimitedTransactionProvider(transactionProvider)
+
+    val dbWorkerThread = CoroutineScope(
+        Executors.newSingleThreadExecutor(PrefixThreadFactory("db"))
+            .asCoroutineDispatcher()
+    )
+    transactionProvider = ActorAsyncTransactionProvider(transactionProvider, dbWorkerThread)
+
+    val pushWorker = CompileWorker(
+        acceptScope = CoroutineScope(
+            Executors.newFixedThreadPool(8, PrefixThreadFactory("accept")).asCoroutineDispatcher()
+        ),
+        transactionProvider = transactionProvider
+    )
+
+    // perform compilation
+
+    val prepareScope = CoroutineScope(
+        Executors.newFixedThreadPool(8, PrefixThreadFactory("prepare")).asCoroutineDispatcher()
+    )
+    val futures = artifacts.filter { it.key !in upToDate }.toList().map { (artifactId, config) ->
+        prepareScope.async {
+            pushWorker.forArtifact(artifactId) { forArtifact ->
+                prepareWorker.prepareArtifact(artifactId, config, forArtifact)
+            }
         }
     }
-    if (duplicate.isNotEmpty()) {
-        throw RuntimeException("Duplicate artifacts: $duplicate")
+    runBlocking {
+        futures.awaitAll()
     }
+    updateStrategy.finish(artifacts.keys)
+}
 
-    val newDb = dbi.inTransaction { conn: Handle, _ ->
-        !conn.select("select 1 from information_schema.tables where table_schema = 'data' and table_name = 'artifact'").any()
+private class PrefixThreadFactory(private val prefix: String) : ThreadFactory {
+    private val counter = AtomicInteger(1)
+
+    override fun newThread(r: Runnable): Thread {
+        val thread = Thread(r, "$prefix-${counter.getAndIncrement()}")
+        thread.isDaemon = true
+        return thread
     }
-
-    for (artifact in config.artifacts) {
-        val id = getArtifactId(artifact)
-        try {
-            if (!newDb && dbi.inTransaction { conn: Handle, _ ->
-                        conn.select("select 1 from artifact where string_id = ? and last_compile_version >= ?", id, COMPILER_VERSION).any()
-                    }) {
-                // already compiled with this version.
-                continue
-            }
-
-            val metadata = when (artifact) {
-                is ArtifactConfig.Java -> artifact.metadata
-                is ArtifactConfig.Maven -> resolveMavenMetadata(artifact)
-                is ArtifactConfig.Android -> artifact.metadata
-            }
-            session.withPrinter(id, metadata) { printer ->
-                when (artifact) {
-                    is ArtifactConfig.Java -> compileJdk(printer, id, artifact)
-                    is ArtifactConfig.Android -> compileAndroid(printer, id, artifact)
-                    is ArtifactConfig.Maven -> compileMaven(mavenDependencyResolver, printer, id, artifact)
-                }
-            }
-        } catch (e: Exception) {
-            throw RuntimeException("Failed to compile artifact $artifact", e)
-        }
-    }
-
-    session.execute(totalArtifacts = config.artifacts.size)
 }

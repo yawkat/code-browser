@@ -1,8 +1,10 @@
-package at.yawk.javabrowser.generator
+package at.yawk.javabrowser.generator.source
 
 import at.yawk.javabrowser.RenderedJavadoc
-import at.yawk.javabrowser.generator.artifact.tempDir
+import at.yawk.javabrowser.generator.GeneratorSourceFile
+import at.yawk.javabrowser.generator.JavadocRenderVisitor
 import at.yawk.javabrowser.generator.bytecode.testHashBinding
+import at.yawk.javabrowser.generator.work.TempDirProviderTest
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTParser
@@ -30,7 +32,7 @@ class JavadocRendererTest {
 
     private fun compile(@Language("java") sourceFile: String): CompilationUnit {
         lateinit var unit: CompilationUnit
-        tempDir { tmp ->
+        TempDirProviderTest.withTempDirSync("JavadocRendererTest") { tmp ->
             val path = tmp.resolve("Test.java")
             Files.write(path, sourceFile.toByteArray())
 
@@ -63,7 +65,7 @@ class JavadocRendererTest {
     private fun realJavadocOutput(
         @Language(value = "java") java: String
     ): List<Node> {
-        val document = tempDir { tmp ->
+        val document = TempDirProviderTest.withTempDirSync("JavadocRendererTest") { tmp ->
             val path = tmp.resolve("Test.java")
             Files.write(path, (java).toByteArray())
 

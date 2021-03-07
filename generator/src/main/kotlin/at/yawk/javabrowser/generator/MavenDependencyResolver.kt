@@ -33,7 +33,7 @@ class MavenDependencyResolver(val config: Config = Config()) {
         val dynamicExclusions = ArrayList<Artifact>()
         retry@ while (true) {
             try {
-                var resolver = Maven.configureResolver()
+                val resolver = Maven.configureResolver()
                         .withMavenCentralRepo(true)
                 val s1 = resolver.addDependency(MavenDependencies.createDependency(
                         MavenCoordinates.createCoordinate(

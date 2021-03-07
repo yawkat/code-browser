@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.generator
+package at.yawk.javabrowser.generator.source
 
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST

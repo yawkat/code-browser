@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.generator
+package at.yawk.javabrowser.generator.source
 
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.BindingId
@@ -6,6 +6,7 @@ import at.yawk.javabrowser.BindingRef
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.LocalVariableOrLabelRef
 import at.yawk.javabrowser.Realm
+import at.yawk.javabrowser.generator.GeneratorSourceFile
 import at.yawk.javabrowser.generator.bytecode.BytecodeBindings
 import com.google.common.hash.Hashing
 import org.eclipse.jdt.core.dom.AST
@@ -161,9 +162,9 @@ internal class BindingVisitor(
     private fun buildNodeLogTag() =
             "$logTag:${lastVisited?.startPosition}_${lastVisited?.length}_${lastVisited?.javaClass?.simpleName}"
 
-    private inline fun warn(msg: () -> String) {
-        if (log.isWarnEnabled) {
-            log.warn("${buildNodeLogTag()}: ${msg()}")
+    private inline fun logWeird(msg: () -> String) {
+        if (log.isDebugEnabled) {
+            log.debug("${buildNodeLogTag()}: ${msg()}")
         }
     }
 
@@ -203,7 +204,7 @@ internal class BindingVisitor(
         var throwable = false
         while (possibleExceptionType != null) {
             if (possibleExceptionType.isMember && possibleExceptionType.declaringClass == null) {
-                warn { "No declaring class for possible member exception type ${possibleExceptionType!!.binaryName}" }
+                logWeird { "No declaring class for possible member exception type ${possibleExceptionType!!.binaryName}" }
                 break
             }
             if (possibleExceptionType.qualifiedName == "java.lang.Throwable") {
@@ -360,7 +361,7 @@ internal class BindingVisitor(
             else -> throw AssertionError(parentNode.javaClass.name)
         }
         if (declaring == null) {
-            warn { "No declaring type binding for initializer block" }
+            logWeird { "No declaring type binding for initializer block" }
             return true
         }
         val static = Modifier.isStatic(node.modifiers)
@@ -646,7 +647,7 @@ internal class BindingVisitor(
         if (binding != null) {
             val declaringClass: ITypeBinding? = binding.declaringClass
             if (declaringClass == null) {
-                warn { "No declaring class for constructor" }
+                logWeird { "No declaring class for constructor" }
             }
             if (declaringClass != null && binding.isDefaultConstructor) {
                 if (declaringClass.isAnonymous) {
@@ -932,7 +933,7 @@ internal class BindingVisitor(
                         corresponding = toBytecodeBinding(implBinding)?.let { mapOf(Realm.BYTECODE to it.hashBinding()) }.orEmpty()
                 ))
             } else {
-                warn { "No declaring class for lambda" }
+                logWeird { "No declaring class for lambda" }
             }
         }
         val typeBinding = node.resolveTypeBinding()

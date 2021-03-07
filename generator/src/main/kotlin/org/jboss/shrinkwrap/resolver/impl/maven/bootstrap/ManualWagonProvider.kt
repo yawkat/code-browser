@@ -46,7 +46,7 @@ class ManualWagonProvider : WagonProvider {
     private companion object {
         fun checkRepo(repository: Repository) {
             if (repository.host != "repo1.maven.org" && repository.host != "repo.maven.apache.org") {
-                log.warn("Denying access to repository on host {}", repository.host)
+                log.debug("Denying access to repository on host {}", repository.host)
                 throw ResourceDoesNotExistException("Only central allowed")
             }
         }

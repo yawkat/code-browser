@@ -1,10 +1,16 @@
-package at.yawk.javabrowser.generator
+package at.yawk.javabrowser.generator.source
 
 import at.yawk.javabrowser.BindingDecl
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.Tokenizer
+import at.yawk.javabrowser.generator.GeneratorSourceFile
+import at.yawk.javabrowser.generator.JavadocRenderVisitor
+import at.yawk.javabrowser.generator.KeywordHandler
+import at.yawk.javabrowser.generator.SourceSetConfig
 import at.yawk.javabrowser.generator.bytecode.BytecodePrinter
 import at.yawk.javabrowser.generator.bytecode.ClassPrinter
+import kotlinx.coroutines.ObsoleteCoroutinesApi
+import kotlinx.coroutines.runBlocking
 import org.eclipse.jdt.core.JavaCore
 import org.eclipse.jdt.core.dom.AST
 import org.eclipse.jdt.core.dom.ASTNode
@@ -16,9 +22,10 @@ import org.eclipse.jdt.internal.compiler.parser.PrepareMonkeyPatch
 import org.objectweb.asm.ClassReader
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.stream.Collectors
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 private val log = LoggerFactory.getLogger(SourceFileParser::class.java)
 
@@ -26,19 +33,12 @@ private val log = LoggerFactory.getLogger(SourceFileParser::class.java)
  * @author yawkat
  */
 class SourceFileParser(
-        private val sourceRoot: Path,
-        private val printer: Printer
+    private val printer: Printer,
+    private val config: SourceSetConfig
 ) {
-    var dependencies = emptyList<Path>()
-    var includeRunningVmBootclasspath = true
-    var pathPrefix = ""
-    var outputClassesTo: Path? = null
+    var acceptContext: CoroutineContext = EmptyCoroutineContext
 
-    /**
-     * For logging
-     */
-    var artifactId: String? = null
-    var printBytecode: Boolean = false
+    var withSourceFilePermits: suspend (Int, suspend () -> Unit) -> Unit = { _, f -> f() }
 
     init {
         PrepareMonkeyPatch
@@ -55,47 +55,64 @@ class SourceFileParser(
                 JavaCore.COMPILER_LOCAL_VARIABLE_ATTR to JavaCore.GENERATE,
                 JavaCore.COMPILER_LINE_NUMBER_ATTR to JavaCore.GENERATE,
                 JavaCore.COMPILER_CODEGEN_METHOD_PARAMETERS_ATTR to JavaCore.GENERATE,
-                JavaCore.COMPILER_COMPLIANCE to JavaCore.VERSION_10
-        ))
+                JavaCore.COMPILER_COMPLIANCE to
+                        // java.base contains @PolymorphicSignature methods. JDT doesn't like compiling those, so fall
+                        // back to 1.6, which doesn't allow them.
+                        if (config.quirkIsJavaBase) JavaCore.VERSION_1_6
+                        else JavaCore.VERSION_10
+            )
+        )
         parser.setResolveBindings(true)
         parser.setKind(ASTParser.K_COMPILATION_UNIT)
         parser.setEnvironment(
-                dependencies.map { it.toString() }.toTypedArray(),
-                // source dir arrays. Attention: When these are set, the source bytecode is compiled *without* our
-                // compiler options.
-                emptyArray(), emptyArray(),
-                includeRunningVmBootclasspath)
+            config.dependencies.map { it.toString() }.toTypedArray(),
+            // source dir arrays. Attention: When these are set, the source bytecode is compiled *without* our
+            // compiler options.
+            emptyArray(), emptyArray(),
+            config.includeRunningVmBootclasspath
+        )
 
 
-        val files = Files.walk(sourceRoot)
-                .filter { it.toString().endsWith(".java") && !Files.isDirectory(it) }
-                .collect(Collectors.toList())
+        @Suppress("BlockingMethodInNonBlockingContext")
+        val files = Files.walk(config.sourceRoot)
+            .filter { it.toString().endsWith(".java") && !Files.isDirectory(it) }
+            .collect(Collectors.toList())
 
-        printer.concurrencyControl.runParser(files.size) {
-            log.info("Compiling $sourceRoot with dependencies $dependencies")
+        if (files.isEmpty()) throw Exception("No source files for ${config.debugTag} (${config.sourceRoot})")
 
-            val requestor = Requestor()
-            parser.createASTs(
+        withSourceFilePermits(files.size) {
+            log.info("Compiling ${config.debugTag} (${config.sourceRoot}) with dependencies ${config.dependencies}")
+
+            try {
+                val requestor = Requestor()
+                parser.createASTs(
                     files.map { it.toString() }.toTypedArray(),
                     files.map { "UTF-8" }.toTypedArray(),
                     emptyArray<String>(),
                     requestor,
                     null
-            )
+                )
+            } catch (e: Exception) {
+                throw RuntimeException("Failed to compile ${config.debugTag}", e)
+            }
         }
     }
 
     private inner class Requestor : FileASTRequestor() {
+        @ObsoleteCoroutinesApi
         override fun acceptAST(sourceFilePath: String, ast: CompilationUnit) {
             try {
-                accept0(sourceFilePath, ast)
+                runBlocking(acceptContext) {
+                    accept0(sourceFilePath, ast)
+                }
             } catch (e: Exception) {
                 throw RuntimeException("Failed to accept $sourceFilePath", e)
             }
         }
 
-        private fun accept0(sourceFilePath: String, ast: CompilationUnit) {
-            val sourceRelativePath = pathPrefix + sourceRoot.relativize(Paths.get(sourceFilePath))
+        @Suppress("BlockingMethodInNonBlockingContext")
+        private suspend fun accept0(sourceFilePath: String, ast: CompilationUnit) {
+            val sourceRelativePath = config.pathPrefix + config.sourceRoot.relativize(Paths.get(sourceFilePath))
 
             val text = Files.readAllBytes(Paths.get(sourceFilePath)).toString(Charsets.UTF_8)
             val annotatedSourceFile = GeneratorSourceFile(ast.`package`?.name?.fullyQualifiedName, text)
@@ -142,38 +159,34 @@ class SourceFileParser(
 
             printer.addSourceFile(sourceRelativePath, annotatedSourceFile, tokens, Realm.SOURCE)
 
-            val outputClassesTo = outputClassesTo
-            if (outputClassesTo != null || printBytecode) {
-                val internalDeclaration = unsafeGetInternalNode(ast) as CompilationUnitDeclaration
-                for (classFile in internalDeclaration.compilationResult.classFiles) {
-                    val classRelativePath = String(classFile.fileName()) + ".class"
-                    if (outputClassesTo != null) {
-                        val target = outputClassesTo.resolve(classRelativePath).normalize()
-                        if (!target.startsWith(outputClassesTo)) throw AssertionError("Bad class file name")
-                        try {
-                            Files.createDirectories(target.parent)
-                        } catch (ignored: FileAlreadyExistsException) {
-                        }
-                        Files.write(target, classFile.bytes)
+            val outputClassesTo = config.outputClassesTo
+            val internalDeclaration = unsafeGetInternalNode(ast) as CompilationUnitDeclaration
+            for (classFile in internalDeclaration.compilationResult.classFiles) {
+                val classRelativePath = String(classFile.fileName()) + ".class"
+                if (outputClassesTo != null) {
+                    val target = outputClassesTo.resolve(classRelativePath).normalize()
+                    if (!target.startsWith(outputClassesTo)) throw AssertionError("Bad class file name")
+                    try {
+                        Files.createDirectories(target.parent)
+                    } catch (ignored: FileAlreadyExistsException) {
                     }
-                    if (printBytecode) {
-                        val sourceFileRefs = annotatedSourceFile.entries
-                                .map { it.annotation }
-                                .filterIsInstance<BindingDecl>()
-                                .filter { it.corresponding.containsKey(Realm.BYTECODE) }
-                                .associate { it.corresponding.getValue(Realm.BYTECODE) to it.id }
-
-                        val bytecodePrinter = BytecodePrinter(printer::hashBinding, sourceFileRefs)
-                        val reader = ClassReader(classFile.bytes)
-                        ClassPrinter.accept(bytecodePrinter, sourceRelativePath, reader)
-                        printer.addSourceFile(
-                                pathPrefix + classRelativePath,
-                                sourceFile = bytecodePrinter.finish(),
-                                tokens = emptyList(), // TODO
-                                realm = Realm.BYTECODE
-                        )
-                    }
+                    Files.write(target, classFile.bytes)
                 }
+                val sourceFileRefs = annotatedSourceFile.entries
+                    .map { it.annotation }
+                    .filterIsInstance<BindingDecl>()
+                    .filter { it.corresponding.containsKey(Realm.BYTECODE) }
+                    .associate { it.corresponding.getValue(Realm.BYTECODE) to it.id }
+
+                val bytecodePrinter = BytecodePrinter(printer::hashBinding, sourceFileRefs)
+                val reader = ClassReader(classFile.bytes)
+                ClassPrinter.accept(bytecodePrinter, sourceRelativePath, reader)
+                printer.addSourceFile(
+                    config.pathPrefix + classRelativePath,
+                    sourceFile = bytecodePrinter.finish(),
+                    tokens = emptyList(), // TODO
+                    realm = Realm.BYTECODE
+                )
             }
         }
     }

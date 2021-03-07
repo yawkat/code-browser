@@ -5,9 +5,11 @@ create domain binding_id as int8;
 
 -- ARTIFACTS
 
+create sequence artifact_id_sequence as int2 no cycle;
+
 create table artifact
 (
-    artifact_id          serial2 not null primary key,
+    artifact_id          int2    not null primary key,
     string_id            varchar not null,
     last_compile_version integer not null default 0,
     metadata             bytea   not null default '{}'

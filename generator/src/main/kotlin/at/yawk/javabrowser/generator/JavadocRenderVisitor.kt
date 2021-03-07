@@ -2,6 +2,8 @@ package at.yawk.javabrowser.generator
 
 import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.RenderedJavadoc
+import at.yawk.javabrowser.generator.source.JavadocRenderer
+import at.yawk.javabrowser.generator.source.annotate
 import org.eclipse.jdt.core.dom.ASTNode
 import org.eclipse.jdt.core.dom.ASTVisitor
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration

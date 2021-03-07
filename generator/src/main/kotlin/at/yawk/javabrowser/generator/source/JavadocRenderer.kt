@@ -1,4 +1,4 @@
-package at.yawk.javabrowser.generator
+package at.yawk.javabrowser.generator.source
 
 import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.RenderedJavadoc
@@ -33,8 +33,31 @@ import org.jsoup.parser.Parser
 import org.jsoup.parser.Tag
 import org.jsoup.safety.Cleaner
 import org.jsoup.safety.Whitelist
-import java.util.Base64
+import java.util.*
 import java.util.concurrent.ThreadLocalRandom
+import kotlin.collections.ArrayList
+import kotlin.collections.List
+import kotlin.collections.all
+import kotlin.collections.drop
+import kotlin.collections.emptyList
+import kotlin.collections.filter
+import kotlin.collections.first
+import kotlin.collections.firstOrNull
+import kotlin.collections.flatMap
+import kotlin.collections.getOrNull
+import kotlin.collections.getValue
+import kotlin.collections.indices
+import kotlin.collections.isNotEmpty
+import kotlin.collections.isNullOrEmpty
+import kotlin.collections.joinToString
+import kotlin.collections.listOf
+import kotlin.collections.mapIndexed
+import kotlin.collections.mapOf
+import kotlin.collections.mutableMapOf
+import kotlin.collections.set
+import kotlin.collections.single
+import kotlin.collections.toMutableList
+import kotlin.collections.withIndex
 
 private val CLEANER = Cleaner(
     Whitelist.none()

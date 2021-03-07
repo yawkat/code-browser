@@ -5,6 +5,10 @@
         </encoder>
     </appender>
 
+    <!-- Central is a mess, there's too many errors to log them all. -->
+    <logger name="org.jboss.shrinkwrap.resolver.impl.maven.logging.LogRepositoryListener" level="ERROR"/>
+    <logger name="org.jboss.shrinkwrap.resolver.impl.maven.logging.LogTransferListener" level="ERROR"/>
+
     <root level="info">
         <appender-ref ref="out"/>
     </root>
