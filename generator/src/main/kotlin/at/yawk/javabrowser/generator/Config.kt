@@ -14,6 +14,65 @@ import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvmhost.BasicJvmScriptingHost
 import kotlin.script.experimental.jvmhost.createJvmCompilationConfigurationFromTemplate
 
+
+@KotlinScript(
+    fileExtension = "generator.kts",
+    compilationConfiguration = Config.Companion.Configuration::class
+)
+abstract class ConfigScript {
+    var dbConfig: DbConfig? = null
+    var mavenResolver: MavenDependencyResolver.Config = MavenDependencyResolver.Config()
+    val artifacts = ArrayList<ArtifactConfig>()
+
+    fun database(
+        url: String,
+        user: String,
+        password: String
+    ) {
+        if (dbConfig != null) throw IllegalStateException()
+        dbConfig = DbConfig(url, user, password)
+    }
+
+    fun mavenResolver(config: MavenDependencyResolver.Config) {
+        this.mavenResolver = config
+    }
+
+    fun artifacts(f: ArtifactCollector.() -> Unit) {
+        ArtifactCollector().f()
+    }
+
+    inner class ArtifactCollector {
+        fun java(version: String, archiveUrl: String, jigsaw: Boolean, metadata: ArtifactMetadata) {
+            artifacts.add(ArtifactConfig.Java(version, URL(archiveUrl), jigsaw, metadata))
+        }
+
+        fun android(version: String, repos: List<ArtifactConfig.GitRepo>, buildTools: String,
+                    metadata: ArtifactMetadata) {
+            artifacts.add(ArtifactConfig.Android(repos, version, URL(buildTools), metadata))
+        }
+
+        fun maven(groupId: String, artifactId: String, version: String, metadata: ArtifactMetadata? = null,
+                  f: MavenBuilder.() -> Unit = {}) {
+            val builder = MavenBuilder(groupId, artifactId, version, metadata)
+            builder.f()
+            artifacts.add(builder.build())
+        }
+    }
+
+    class MavenBuilder(private val groupId: String,
+                       private val artifactId: String,
+                       val version: String,
+                       private val metadata: ArtifactMetadata? = null) {
+        private val aliases = ArrayList<ArtifactConfig.Maven>()
+
+        fun alias(groupId: String, artifactId: String, version: String = this.version) {
+            aliases.add(ArtifactConfig.Maven(groupId, artifactId, version))
+        }
+
+        fun build() = ArtifactConfig.Maven(groupId, artifactId, version, metadata, aliases)
+    }
+}
+
 /**
  * @author yawkat
  */
@@ -39,64 +98,6 @@ data class Config(
                     "at.yawk.javabrowser.*"
             )
         })
-
-        @KotlinScript(
-                fileExtension = "generator.kts",
-                compilationConfiguration = Configuration::class
-        )
-        abstract class ConfigScript {
-            var dbConfig: DbConfig? = null
-            var mavenResolver: MavenDependencyResolver.Config = MavenDependencyResolver.Config()
-            val artifacts = ArrayList<ArtifactConfig>()
-
-            fun database(
-                    url: String,
-                    user: String,
-                    password: String
-            ) {
-                if (dbConfig != null) throw IllegalStateException()
-                dbConfig = DbConfig(url, user, password)
-            }
-
-            fun mavenResolver(config: MavenDependencyResolver.Config) {
-                this.mavenResolver = config
-            }
-
-            fun artifacts(f: ArtifactCollector.() -> Unit) {
-                ArtifactCollector().f()
-            }
-
-            inner class ArtifactCollector {
-                fun java(version: String, archiveUrl: String, jigsaw: Boolean, metadata: ArtifactMetadata) {
-                    artifacts.add(ArtifactConfig.Java(version, URL(archiveUrl), jigsaw, metadata))
-                }
-
-                fun android(version: String, repos: List<ArtifactConfig.GitRepo>, buildTools: String,
-                            metadata: ArtifactMetadata) {
-                    artifacts.add(ArtifactConfig.Android(repos, version, URL(buildTools), metadata))
-                }
-
-                fun maven(groupId: String, artifactId: String, version: String, metadata: ArtifactMetadata? = null,
-                          f: MavenBuilder.() -> Unit = {}) {
-                    val builder = MavenBuilder(groupId, artifactId, version, metadata)
-                    builder.f()
-                    artifacts.add(builder.build())
-                }
-            }
-
-            class MavenBuilder(private val groupId: String,
-                               private val artifactId: String,
-                               val version: String,
-                               private val metadata: ArtifactMetadata? = null) {
-                private val aliases = ArrayList<ArtifactConfig.Maven>()
-
-                fun alias(groupId: String, artifactId: String, version: String = this.version) {
-                    aliases.add(ArtifactConfig.Maven(groupId, artifactId, version))
-                }
-
-                fun build() = ArtifactConfig.Maven(groupId, artifactId, version, metadata, aliases)
-            }
-        }
 
         fun fromFile(path: Path): Config {
             val compilationConfiguration = createJvmCompilationConfigurationFromTemplate<ConfigScript> {
