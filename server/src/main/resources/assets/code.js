@@ -134,16 +134,19 @@ function showReferences(targetElement) {
 
     const realm = targetElement.getAttribute("data-realm");
     const bindingName = targetElement.getAttribute("data-binding");
-    const superHtml = targetElement.getAttribute("data-super-html");
+    const tooltipStartHtml = targetElement.getAttribute("data-tooltip-start-html");
     const targetArtifactId = targetElement.getAttribute("data-artifact-id");
 
     const tooltipBody = document.createElement("div");
 
-    if (superHtml) {
-        tooltipBody.insertAdjacentHTML("beforeend", "<b>Extends</b>");
-        tooltipBody.insertAdjacentHTML("beforeend", superHtml);
-        tooltipBody.insertAdjacentHTML("beforeend", "<br>");
+    if (tooltipStartHtml) {
+        tooltipBody.insertAdjacentHTML("beforeend", tooltipStartHtml);
     }
+
+    const showAll = document.createElement("b");
+    showAll.innerHTML = "<a href='/references/" + realm + '/' + encodeURIComponent(bindingName) + "'>Show all (new page)</a>";
+    tooltipBody.appendChild(showAll);
+    tooltipBody.appendChild(document.createElement("br"));
 
     const loading = document.createElement("i");
     loading.textContent = "Loading…";
@@ -160,9 +163,6 @@ function showReferences(targetElement) {
             let anyItems = false;
             for (const key of Object.keys(data)) {
                 if (data[key].length > 0) {
-                    if (!anyItems) {
-                        tooltipBody.insertAdjacentHTML("beforeend", "<b><a href='/references/" + realm + '/' + encodeURIComponent(bindingName) + "'>Show all (new page)</a></b><br>");
-                    }
                     anyItems = true;
                     let name;
                     switch (key) {
@@ -291,6 +291,7 @@ function showReferences(targetElement) {
                 }
             }
             if (!anyItems) {
+                showAll.remove(); // don't bother with a 'show all' link when there's no refs in the first place
                 tooltipBody.insertAdjacentHTML("beforeend", "<i>No references found</i>");
             }
         }

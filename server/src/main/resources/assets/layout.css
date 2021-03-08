@@ -157,6 +157,12 @@ li {
     display: inline-block;
 }
 
+/* icon for bytecode/source reference in tooltip */
+#tooltip .corresponding img {
+    display: inline-block;
+    height: 0.8em;
+}
+
 .missing-lib {
     font-size: .85em;
     margin-top: 1em;

@@ -20,6 +20,7 @@ import org.jsoup.select.NodeTraversor
 import org.jsoup.select.NodeVisitor
 import java.io.Writer
 import java.net.URI
+import java.util.*
 
 class HtmlEmitter(
         private val bindingResolver: BindingResolver,
@@ -45,7 +46,10 @@ class HtmlEmitter(
     sealed class Memory {
         object None : Memory()
         class ResolvedBinding(val uri: String?) : Memory()
-        class Decl(val superBindingUris: List<String?>) : Memory()
+        class Decl(
+            val superBindingUris: List<String?>,
+            val correspondingUris: Map<Realm, URI>
+        ) : Memory()
     }
 
     data class ScopeInfo(
@@ -61,11 +65,24 @@ class HtmlEmitter(
         val scopeInfo = scopes.getValue(scope)
         return when (annotation) {
             is BindingRef -> Memory.ResolvedBinding(
-                    bindingResolver.resolveBinding(scopeInfo.realm, scopeInfo.classpath, annotation.binding).firstOrNull()?.toASCIIString())
-            is BindingDecl -> Memory.Decl(
+                bindingResolver.resolveBinding(scopeInfo.realm, scopeInfo.classpath, annotation.binding).firstOrNull()
+                    ?.toASCIIString()
+            )
+            is BindingDecl -> {
+                val corresponding = EnumMap<Realm, URI>(Realm::class.java)
+                for ((realm, bindingId) in annotation.corresponding) {
+                    val uri = bindingResolver.resolveBinding(realm, setOf(scopeInfo.artifactId), bindingId)
+                        .singleOrNull() ?: continue
+                    corresponding[realm] = uri
+                }
+                Memory.Decl(
                     annotation.superBindings.map {
-                        bindingResolver.resolveBinding(scopeInfo.realm, scopeInfo.classpath, it.binding).firstOrNull()?.toASCIIString()
-                    })
+                        bindingResolver.resolveBinding(scopeInfo.realm, scopeInfo.classpath, it.binding).firstOrNull()
+                            ?.toASCIIString()
+                    },
+                    corresponding
+                )
+            }
             else -> Memory.None
         }
     }
@@ -102,20 +119,32 @@ class HtmlEmitter(
 
                 if (hasOverlay && showDeclaration) {
                     val superUris = (memory as Memory.Decl).superBindingUris
-                    val superHtml = if (annotation.superBindings.isNotEmpty()) {
-                        "<ul id='super-types'>" +
+                    var tooltipStartHtml = ""
+                    if (annotation.superBindings.isNotEmpty()) {
+                        tooltipStartHtml += "<b>Extends</b><ul id='super-types'>" +
                                 annotation.superBindings.withIndex().joinToString { (i, binding) ->
                                     "<li>" +
                                             linkBindingStart(scope, superUris[i], refId = null) +
                                             Escaper.HTML.escape(binding.name) +
                                             "</li>"
                                 } +
-                                "</ul>"
-                    } else {
-                        ""
+                                "</ul><br>"
                     }
-                    html("<a class='show-refs' href='javascript:;' onclick='showReferences(this); arguments[0].stopPropagation(); return false' data-binding='${Escaper.HTML.escape(
-                            annotation.binding)}' data-super-html='${Escaper.HTML.escape(superHtml)}' data-realm='${scopes.getValue(scope).realm}' data-artifact-id='${Escaper.HTML.escape(scopes.getValue(scope).artifactId)}'></a>")
+                    for ((realm, bindingUri) in memory.correspondingUris) {
+                        val escapedUri = Escaper.HTML.escape(bindingUri.toASCIIString())
+                        tooltipStartHtml += when (realm) {
+                            Realm.SOURCE -> "<a class='corresponding' href='$escapedUri'><img src='/assets/icons/fileTypes/java.svg'> Source Code</a><br>"
+                            Realm.BYTECODE -> "<a class='corresponding' href='$escapedUri'><img src='/assets/icons/fileTypes/javaClass.svg'> Bytecode</a><br>"
+                        }
+                    }
+
+                    html(
+                        "<a class='show-refs' href='javascript:;' onclick='showReferences(this); arguments[0].stopPropagation(); return false' data-binding='${
+                            Escaper.HTML.escape(annotation.binding)
+                        }' data-tooltip-start-html='${Escaper.HTML.escape(tooltipStartHtml)}' data-realm='${
+                            scopes.getValue(scope).realm
+                        }' data-artifact-id='${Escaper.HTML.escape(scopes.getValue(scope).artifactId)}'></a>"
+                    )
                 }
 
                 val id = scope.prefix + annotation.binding
