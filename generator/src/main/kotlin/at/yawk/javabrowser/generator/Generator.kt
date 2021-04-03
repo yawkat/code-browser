@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 private val log = LoggerFactory.getLogger("at.yawk.javabrowser.generator.Generator")
 
-const val COMPILER_VERSION = 42
+const val COMPILER_VERSION = 43
 
 private class CombinedPrepareWorker(
     tempDirProvider: TempDirProvider,

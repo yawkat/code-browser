@@ -14,9 +14,9 @@ fun parseModuleFile(path: Path): ModuleDeclaration {
     PrepareMonkeyPatch
 
     var moduleDeclaration: ModuleDeclaration? = null
-    val parser = ASTParser.newParser(AST.JLS10)
+    val parser = ASTParser.newParser(AST.JLS_Latest)
     parser.setCompilerOptions(mapOf(
-            JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
+            JavaCore.COMPILER_SOURCE to JavaCore.latestSupportedJavaVersion(),
             JavaCore.CORE_ENCODING to "UTF-8"
     ))
     parser.setKind(ASTParser.K_COMPILATION_UNIT)

@@ -69,7 +69,7 @@ class ArtifactPrinterTest {
             tx.insertArtifact(
                 id = 0,
                 stringId = "test",
-                compilerVersion = 42,
+                compilerVersion = any(),
                 metaBytes = ArtifactPrinter.jsonMapper.writeValueAsBytes(metadata)
             )
             tx.insertAlias(0, "alias1")

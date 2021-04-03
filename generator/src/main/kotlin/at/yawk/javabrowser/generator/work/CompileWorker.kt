@@ -48,6 +48,8 @@ class CompileWorker(
         private val completion = CompletableDeferred<Unit>()
         private lateinit var metadata: PrepareArtifactWorker.Metadata
 
+        private var anyJobs = false
+
         @Suppress("EXPERIMENTAL_API_USAGE")
         private val compileChannel = compileScope.actor<CompileJob>(
             CoroutineName("compileChannel: $artifactStringId"),
@@ -74,6 +76,7 @@ class CompileWorker(
         }
 
         override suspend fun compileSourceSet(config: SourceSetConfig) {
+            anyJobs = true
             val job = CompileJob(config)
             compileChannel.send(job)
             job.future.await()
@@ -82,6 +85,9 @@ class CompileWorker(
         override suspend fun close() {
             compileChannel.close()
             completion.await()
+            if (!anyJobs) {
+                throw Exception("No source sets for $artifactStringId")
+            }
         }
     }
 

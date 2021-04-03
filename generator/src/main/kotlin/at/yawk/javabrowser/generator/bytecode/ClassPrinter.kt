@@ -147,6 +147,7 @@ class ClassPrinter private constructor(
                 printer.indent(1)
                 printer.appendJavaName(Type.getObjectType(nestMember), BindingRefType.NEST_MEMBER)
             }
+            printer.append('\n')
         }
         if (this.nestHostClass != null) {
             printer.append("NestHost: ")

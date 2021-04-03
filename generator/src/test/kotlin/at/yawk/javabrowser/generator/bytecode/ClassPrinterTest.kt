@@ -4,7 +4,7 @@ import org.intellij.lang.annotations.Language
 import org.testng.Assert
 import org.testng.annotations.Test
 
-const val VERSION = 54
+const val VERSION = 59
 
 class ClassPrinterTest {
     private fun getClassOutput(
@@ -168,6 +168,8 @@ class A
             0    1     0  this  LA;
 }
 SourceFile: "Main.java"
+NestMembers:
+  A${'$'}B
 InnerClasses:
   B = A${'$'}B of A
         """.trimIndent())
@@ -217,6 +219,7 @@ class A${'$'}B
       this${'$'}0  final
 }
 SourceFile: "Main.java"
+NestHost: A
 InnerClasses:
   B = A${'$'}B of A
         """.trimIndent())
@@ -234,7 +237,7 @@ class A {
         ), """
 class A${'$'}1
   minor version: 0
-  major version: 54
+  major version: $VERSION
   flags: flags: (0x0020) ACC_SUPER
   this_class: A${'$'}1
   super_class: java.lang.Object
@@ -256,6 +259,7 @@ class A${'$'}1
 }
 SourceFile: "Main.java"
 EnclosingMethod: A
+NestHost: A
 InnerClasses:
   A${'$'}1
         """.trimIndent())
@@ -273,7 +277,7 @@ class A {
         ), """
 class A${'$'}1
   minor version: 0
-  major version: 54
+  major version: $VERSION
   flags: flags: (0x0020) ACC_SUPER
   this_class: A${'$'}1
   super_class: java.lang.Object
@@ -295,6 +299,7 @@ class A${'$'}1
 }
 SourceFile: "Main.java"
 EnclosingMethod: A.a:(I)V
+NestHost: A
 InnerClasses:
   A${'$'}1
         """.trimIndent())

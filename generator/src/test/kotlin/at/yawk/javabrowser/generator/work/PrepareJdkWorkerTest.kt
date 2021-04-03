@@ -87,4 +87,68 @@ class PrepareJdkWorkerTest {
             }
         }
     }
+
+    @Test(groups = ["longRunningDownload"])
+    fun `java 16 compilation integration test`() {
+        val config = ArtifactConfig.Java(
+            version = "16",
+            archiveUrl = URL("https://ci.yawk.at/job/openjdk/job/openjdk16/lastSuccessfulBuild/artifact/jdk16.tar.zst"),
+            jigsaw = true,
+            metadata = ArtifactMetadata()
+        )
+        runBlocking {
+            CompileWorker(
+                transactionProvider = object : TransactionProvider {
+                    override suspend fun claimArtifactId() = 0L
+
+                    override suspend fun withArtifactTransaction(
+                        artifactId: String,
+                        task: suspend (Transaction) -> Unit
+                    ) {
+                        task(TestTransaction())
+                    }
+                },
+                acceptScope = GlobalScope
+            ).forArtifact("java/16") { compileWorker ->
+                val prepWorker = PrepareJdkWorker(TempDirProviderTest)
+                prepWorker.prepareArtifact(
+                    prepWorker.getArtifactId(config),
+                    config,
+                    compileWorker
+                )
+            }
+        }
+    }
+
+    @Test(groups = ["longRunningDownload"])
+    fun `java 7 compilation integration test`() {
+        val config = ArtifactConfig.Java(
+            version = "7",
+            archiveUrl = URL("https://ci.yawk.at/job/openjdk/job/openjdk7/lastSuccessfulBuild/artifact/jdk7.tar.zst"),
+            jigsaw = false,
+            metadata = ArtifactMetadata()
+        )
+        runBlocking {
+            CompileWorker(
+                transactionProvider = object : TransactionProvider {
+                    override suspend fun claimArtifactId() = 0L
+
+                    override suspend fun withArtifactTransaction(
+                        artifactId: String,
+                        task: suspend (Transaction) -> Unit
+                    ) {
+                        task(TestTransaction())
+                    }
+                },
+                acceptScope = GlobalScope
+            ).forArtifact("java/7") { compileWorker ->
+                val prepWorker = PrepareJdkWorker(TempDirProviderTest)
+                prepWorker.prepareArtifact(
+                    prepWorker.getArtifactId(config),
+                    config,
+                    compileWorker
+                )
+            }
+        }
+    }
 }

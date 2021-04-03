@@ -1,17 +1,5 @@
-/*
- * This is a monkeypatched version of the JDT class of the same name. This file is patched for
- * https://bugs.eclipse.org/bugs/show_bug.cgi?id=570137 , backported to JDT 3.15 because of
- * https://bugs.eclipse.org/bugs/show_bug.cgi?id=560434 .
- *
- * Before this monkey patch is used, class signature verification must be disabled by loading the class
- * PrepareMonkeyPatch.
- *
- * This file is .java but is placed in src/main/kotlin because that's where all the other source files are and because
- * that's how maven is set up. I'm not gonna configure the kotlin plugin separately just for one source file.
- */
-
 /*******************************************************************************
- * Copyright (c) 2000, 2016 IBM Corporation and others.
+ * Copyright (c) 2000, 2020 IBM Corporation and others.
  *
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License 2.0
@@ -29,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
+import org.eclipse.jdt.internal.compiler.ast.TypeReference;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.util.Util;
 
@@ -113,10 +102,19 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
     protected int astLengthPtr;
     protected int[] astLengthStack;
 
+    // Uses stack
+    protected int usesReferencesPtr = -1;
+    protected TypeReference[] usesReferencesStack;
+
+    // Provides stack
+    protected int providesReferencesPtr = -1;
+    protected TypeReference[] providesReferencesStack;
+
 
     protected AbstractCommentParser(Parser sourceParser) {
         this.sourceParser = sourceParser;
-        this.scanner = new Scanner(false, false, false, ClassFileConstants.JDK1_3, null, null, true/*taskCaseSensitive*/);
+        this.scanner = new Scanner(false, false, false, ClassFileConstants.JDK1_3, null, null, true/*taskCaseSensitive*/,
+                                   sourceParser != null ? this.sourceParser.options.enablePreviewFeatures : false);
         this.identifierStack = new char[20][];
         this.identifierPositionStack = new long[20];
         this.identifierLengthStack = new int[10];
@@ -498,6 +496,7 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
     protected Object createReturnStatement() { return null; }
     protected abstract void createTag();
     protected abstract Object createTypeReference(int primitiveToken);
+    protected abstract Object createModuleTypeReference(int primitiveToken, int moduleRefTokenCount);
 
     private int getIndexPosition() {
         if (this.index > this.lineEnd) {
@@ -523,7 +522,7 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
         return Util.getLineNumber(position, this.lineEnds, 0, this.lineEnds.length-1);
     }
 
-    private int getTokenEndPosition() {
+    protected int getTokenEndPosition() {
         if (this.scanner.getCurrentTokenEndPosition() > this.lineEnd) {
             return this.lineEnd;
         } else {
@@ -1079,10 +1078,19 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
         }
     }
 
+    private boolean isTokenModule(int token, int moduleRefTokenCount) {
+        return ((token == TerminalTokens.TokenNameDIVIDE)
+                && (moduleRefTokenCount > 0));
+    }
+
+    protected Object parseQualifiedName(boolean reset) throws InvalidInputException {
+        return parseQualifiedName(reset, false);
+    }
+
     /*
      * Parse a qualified name and built a type reference if the syntax is valid.
      */
-    protected Object parseQualifiedName(boolean reset) throws InvalidInputException {
+    protected Object parseQualifiedName(boolean reset, boolean allowModule) throws InvalidInputException {
 
         // Reset identifier stack if requested
         if (reset) {
@@ -1093,8 +1101,24 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
         // Scan tokens
         int primitiveToken = -1;
         int parserKind = this.kind & PARSER_KIND;
+        int prevToken = TerminalTokens.TokenNameNotAToken;
+        int curToken = TerminalTokens.TokenNameNotAToken;
+        int moduleRefTokenCount = 0;
+        boolean lookForModule = false;
+        boolean parsingJava15Plus = this.scanner != null ? this.scanner.sourceLevel >= ClassFileConstants.JDK15 : false;
+        boolean stop = false;
         nextToken : for (int iToken = 0; ; iToken++) {
+            if (iToken == 0) {
+                lookForModule = false;
+                prevToken = TerminalTokens.TokenNameNotAToken;
+            } else {
+                prevToken = curToken;
+            }
+            if (stop) {
+                break;
+            }
             int token = readTokenSafely();
+            curToken= token;
             switch (token) {
                 case TerminalTokens.TokenNameIdentifier :
                     if (((iToken & 1) != 0)) { // identifiers must be odd tokens
@@ -1102,7 +1126,13 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
                     }
                     pushIdentifier(iToken == 0, false);
                     consumeToken();
+                    if (allowModule && parsingJava15Plus && getChar() == '/') {
+                        lookForModule = true;
+                    }
                     break;
+
+                case TerminalTokens.TokenNameRestrictedIdentifierYield:
+                    throw new InvalidInputException(); // unexpected.
 
                 case TerminalTokens.TokenNameDOT :
                     if ((iToken & 1) == 0) { // dots must be even tokens
@@ -1140,11 +1170,14 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
                 case TerminalTokens.TokenNamelong:
                 case TerminalTokens.TokenNamenative:
                 case TerminalTokens.TokenNamenew:
+                case TerminalTokens.TokenNamenon_sealed:
                 case TerminalTokens.TokenNamenull:
                 case TerminalTokens.TokenNamepackage:
+                case TerminalTokens.TokenNameRestrictedIdentifierpermits:
                 case TerminalTokens.TokenNameprivate:
                 case TerminalTokens.TokenNameprotected:
                 case TerminalTokens.TokenNamepublic:
+                case TerminalTokens.TokenNameRestrictedIdentifiersealed:
                 case TerminalTokens.TokenNameshort:
                 case TerminalTokens.TokenNamestatic:
                 case TerminalTokens.TokenNamestrictfp:
@@ -1167,6 +1200,21 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
                     }
                     // Fall through default case to verify that we do not leave on a dot
                     //$FALL-THROUGH$
+                case TerminalTokens.TokenNameDIVIDE:
+                    if (parsingJava15Plus && lookForModule) {
+                        if (((iToken & 1) == 0) || (moduleRefTokenCount > 0)) { // '/' must be even token
+                            throw new InvalidInputException();
+                        }
+                        moduleRefTokenCount = (iToken+1) / 2;
+                        consumeToken();
+                        lookForModule = false;
+                        if (!considerNextChar()) {
+                            stop = true;
+                        }
+                        break;
+                    } // else fall through
+                    // Note: Add other cases before this case.
+                    //$FALL-THROUGH$
                 default :
                     if (iToken == 0) {
                         if (this.identifierPtr>=0) {
@@ -1174,11 +1222,14 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
                         }
                         return null;
                     }
-                    if ((iToken & 1) == 0) { // cannot leave on a dot
+                    if ((iToken & 1) == 0 && !isTokenModule(prevToken, moduleRefTokenCount)) { // cannot leave on a dot
                         switch (parserKind) {
                             case COMPLETION_PARSER:
                                 if (this.identifierPtr>=0) {
                                     this.lastIdentifierEndPosition = (int) this.identifierPositionStack[this.identifierPtr];
+                                }
+                                if (moduleRefTokenCount > 0) {
+                                    return syntaxRecoverModuleQualifiedName(primitiveToken, moduleRefTokenCount);
                                 }
                                 return syntaxRecoverQualifiedName(primitiveToken);
                             case DOM_PARSER:
@@ -1205,13 +1256,20 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
         if (this.identifierPtr>=0) {
             this.lastIdentifierEndPosition = (int) this.identifierPositionStack[this.identifierPtr];
         }
+        if (moduleRefTokenCount > 0) {
+            return createModuleTypeReference(primitiveToken, moduleRefTokenCount);
+        }
         return createTypeReference(primitiveToken);
+    }
+
+    protected boolean parseReference() throws InvalidInputException {
+        return parseReference(false);
     }
 
     /*
      * Parse a reference in @see tag
      */
-    protected boolean parseReference() throws InvalidInputException {
+    protected boolean parseReference(boolean allowModule) throws InvalidInputException {
         int currentPosition = this.scanner.currentPosition;
         try {
             Object typeRef = null;
@@ -1301,7 +1359,7 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
                     case TerminalTokens.TokenNameIdentifier :
                         if (typeRef == null) {
                             typeRefStartPosition = this.scanner.getCurrentTokenStartPosition();
-                            typeRef = parseQualifiedName(true);
+                            typeRef = parseQualifiedName(true, allowModule);
                             if (this.abort) return false; // May be aborted by specialized parser
                             break;
                         }
@@ -1556,6 +1614,41 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
     }
 
     /*
+     * get current character.
+     * Warning: scanner position is unchanged using this method!
+     */
+    private char getChar() {
+        int indexVal = this.index;
+        char c = this.source[indexVal++];
+        if (c == '\\' && this.source[indexVal] == 'u') {
+            int c1, c2, c3, c4;
+            int pos = indexVal;
+            indexVal++;
+            while (this.source[indexVal] == 'u')
+                indexVal++;
+            if (!(((c1 = ScannerHelper.getHexadecimalValue(this.source[indexVal++])) > 15 || c1 < 0)
+                  || ((c2 = ScannerHelper.getHexadecimalValue(this.source[indexVal++])) > 15 || c2 < 0)
+                  || ((c3 = ScannerHelper.getHexadecimalValue(this.source[indexVal++])) > 15 || c3 < 0)
+                  || ((c4 = ScannerHelper.getHexadecimalValue(this.source[indexVal++])) > 15 || c4 < 0))) {
+                c = (char) (((c1 * 16 + c2) * 16 + c3) * 16 + c4);
+            } else {
+                // TODO (frederic) currently reset to previous position, perhaps signal a syntax error would be more appropriate
+                indexVal = pos;
+            }
+        }
+        return c;
+    }
+
+    private boolean considerNextChar() {
+        boolean consider = true;
+        char ch = getChar();
+        if (ch == ' ' || (System.lineSeparator().indexOf(ch) == 0)) {
+            consider = false;
+        }
+        return consider;
+    }
+
+    /*
      * Read token only if previous was consumed
      */
     protected int readToken() throws InvalidInputException {
@@ -1635,6 +1728,14 @@ public abstract class AbstractCommentParser implements JavadocTagConstants {
      * Entry point for recovery on invalid syntax
      */
     protected Object syntaxRecoverQualifiedName(int primitiveToken) throws InvalidInputException {
+        // do nothing, just an entry point for recovery
+        return null;
+    }
+
+    /*
+     * Entry point for recovery on invalid syntax
+     */
+    protected Object syntaxRecoverModuleQualifiedName(int primitiveToken, int moduleTokenCount) throws InvalidInputException {
         // do nothing, just an entry point for recovery
         return null;
     }

@@ -105,9 +105,9 @@ private inline fun <reified T> unsafeBindingResolverCall(ast: AST, name: String,
     val getBindingResolver = AST::class.java.getDeclaredMethod("getBindingResolver")
     getBindingResolver.isAccessible = true
     val bindingResolver = getBindingResolver.invoke(ast)
-    val getCorrespondingNode = classDefaultBindingResolver.getDeclaredMethod(name, T::class.java)
-    getCorrespondingNode.isAccessible = true
-    return getCorrespondingNode.invoke(bindingResolver, param)
+    val method = classDefaultBindingResolver.getDeclaredMethod(name, T::class.java)
+    method.isAccessible = true
+    return method.invoke(bindingResolver, param)
 }
 
 private val ITypeBinding.asmType: AsmType?

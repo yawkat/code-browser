@@ -1201,6 +1201,34 @@ class SourceFileParserTest {
         )
     }
 
+    @Test
+    fun `switch expression`() {
+        write("A.java",
+            """import java.lang.annotation.ElementType;
+
+class A {
+    String x() {
+        ElementType et = ElementType.ANNOTATION_TYPE;
+        return switch (et) {
+            case ANNOTATION_TYPE -> "a";
+            case PACKAGE, TYPE_PARAMETER, TYPE_USE -> {
+                yield "b";
+            }
+            default -> "c";
+        };
+    }
+}"""
+        )
+        val entries = compile().getValue("A.class").entries
+        MatcherAssert.assertThat(
+            entries,
+            Matchers.not(Matchers.hasItem(matches<PositionedAnnotation> {
+                val annotation = it.annotation
+                annotation is BindingRef && annotation.binding == testHashBinding("java.lang.annotation.ElementType#PACKAGE")
+            }))
+        )
+    }
+
     private inline fun <reified T> matches(crossinline pred: (T) -> Boolean): Matcher<T> = object : BaseMatcher<T>() {
         override fun describeTo(description: Description) {
             description.appendText("Matches lambda")

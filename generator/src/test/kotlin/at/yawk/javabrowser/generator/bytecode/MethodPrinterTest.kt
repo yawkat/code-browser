@@ -469,6 +469,9 @@ public abstract Map<? extends java.lang.String, java.lang.Object[]> x();
 public abstract void x(int, int);
   descriptor: (II)V
   flags: (0x0401) ACC_PUBLIC, ACC_ABSTRACT
+  RuntimeInvisibleTypeAnnotations: 
+    METHOD_FORMAL_PARAMETER
+      Ann(value = 0)
   RuntimeInvisibleParameterAnnotations: 
     0:
     1:

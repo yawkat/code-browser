@@ -22,6 +22,7 @@ import org.eclipse.jdt.internal.compiler.parser.PrepareMonkeyPatch
 import org.objectweb.asm.ClassReader
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.stream.Collectors
 import kotlin.coroutines.CoroutineContext
@@ -44,22 +45,19 @@ class SourceFileParser(
         PrepareMonkeyPatch
     }
 
-    suspend fun compile() {
-        val parser = ASTParser.newParser(AST.JLS10)
+    private fun makeParser(): ASTParser {
+        val parser = ASTParser.newParser(AST.JLS_Latest)
+        val versionString = JavaCore.latestSupportedJavaVersion()
         parser.setCompilerOptions(
             mapOf(
-                JavaCore.COMPILER_SOURCE to JavaCore.VERSION_10,
-                JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM to JavaCore.VERSION_10,
+                JavaCore.COMPILER_SOURCE to versionString,
+                JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM to versionString,
                 JavaCore.CORE_ENCODING to "UTF-8",
                 JavaCore.COMPILER_DOC_COMMENT_SUPPORT to JavaCore.ENABLED,
                 JavaCore.COMPILER_LOCAL_VARIABLE_ATTR to JavaCore.GENERATE,
                 JavaCore.COMPILER_LINE_NUMBER_ATTR to JavaCore.GENERATE,
                 JavaCore.COMPILER_CODEGEN_METHOD_PARAMETERS_ATTR to JavaCore.GENERATE,
-                JavaCore.COMPILER_COMPLIANCE to
-                        // java.base contains @PolymorphicSignature methods. JDT doesn't like compiling those, so fall
-                        // back to 1.6, which doesn't allow them.
-                        if (config.quirkIsJavaBase) JavaCore.VERSION_1_6
-                        else JavaCore.VERSION_10
+                JavaCore.COMPILER_COMPLIANCE to versionString
             )
         )
         parser.setResolveBindings(true)
@@ -71,11 +69,14 @@ class SourceFileParser(
             emptyArray(), emptyArray(),
             config.includeRunningVmBootclasspath
         )
+        return parser
+    }
 
-
+    suspend fun compile() {
         @Suppress("BlockingMethodInNonBlockingContext")
-        val files = Files.walk(config.sourceRoot)
+        var files = Files.walk(config.sourceRoot)
             .filter { it.toString().endsWith(".java") && !Files.isDirectory(it) }
+            .sorted() // reproducibility
             .collect(Collectors.toList())
 
         if (files.isEmpty()) throw Exception("No source files for ${config.debugTag} (${config.sourceRoot})")
@@ -85,13 +86,30 @@ class SourceFileParser(
 
             try {
                 val requestor = Requestor()
-                parser.createASTs(
+
+                var moduleInfo: Path? = null
+                if (config.quirkIsJavaBase) {
+                    // https://bugs.eclipse.org/bugs/show_bug.cgi?id=560434
+                    moduleInfo = files.singleOrNull { it.endsWith("module-info.java") }
+                    files = files.filter { !it.endsWith("module-info.java") }
+                }
+
+                makeParser().createASTs(
                     files.map { it.toString() }.toTypedArray(),
                     files.map { "UTF-8" }.toTypedArray(),
                     emptyArray<String>(),
                     requestor,
                     null
                 )
+                if (moduleInfo != null) {
+                    makeParser().createASTs(
+                        arrayOf(moduleInfo.toString()),
+                        arrayOf("UTF-8"),
+                        emptyArray<String>(),
+                        requestor,
+                        null
+                    )
+                }
             } catch (e: Exception) {
                 throw RuntimeException("Failed to compile ${config.debugTag}", e)
             }
