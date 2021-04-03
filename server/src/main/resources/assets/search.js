@@ -11,6 +11,9 @@ class SearchDialog extends Dialog {
     function updateSearch(items, target) {
         console.log("Updating search...");
         let html = "";
+        if (items.length === 0) {
+            html = "<li><i>No Results</i></li>";
+        }
         for (const a of items) {
             html += "<li><a href='/" + a.artifactId + "/" + a.path + "#" + a.binding + "'>";
             let off = 0;
@@ -87,7 +90,7 @@ class SearchDialog extends Dialog {
                 let f = function () {
                     if (hideEmpty && searchField.value === "") {
                         searchField.classList.remove("loading");
-                        updateSearch([], target);
+                        target.innerHTML = "";
                     } else {
                         request = loadQuery(searchField.value, realm, artifactId, includeDependencies, function (data) {
                             searchField.classList.remove("loading");

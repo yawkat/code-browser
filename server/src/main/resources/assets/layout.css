@@ -96,6 +96,7 @@ li {
     top: 0;
     overflow-y: scroll;
     display: none;
+    z-index: 100;
 }
 
 .dialog-wrapper.dialog-visible {
