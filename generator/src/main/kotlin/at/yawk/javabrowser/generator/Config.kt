@@ -51,6 +51,10 @@ abstract class ConfigScript {
             artifacts.add(ArtifactConfig.Android(repos, version, URL(buildTools), metadata))
         }
 
+        fun graal(version: String, repos: List<URL>, jdk: String, metadata: ArtifactMetadata) {
+            artifacts.add(ArtifactConfig.Graal(version, repos, URL(jdk), metadata))
+        }
+
         fun maven(groupId: String, artifactId: String, version: String, metadata: ArtifactMetadata? = null,
                   f: MavenBuilder.() -> Unit = {}) {
             val builder = MavenBuilder(groupId, artifactId, version, metadata)

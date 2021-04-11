@@ -10,6 +10,7 @@ import at.yawk.javabrowser.generator.db.UpdateStrategy
 import at.yawk.javabrowser.generator.work.CompileWorker
 import at.yawk.javabrowser.generator.work.PrepareAndroidWorker
 import at.yawk.javabrowser.generator.work.PrepareArtifactWorker
+import at.yawk.javabrowser.generator.work.PrepareGraalWorker
 import at.yawk.javabrowser.generator.work.PrepareJdkWorker
 import at.yawk.javabrowser.generator.work.PrepareMavenWorker
 import at.yawk.javabrowser.generator.work.TempDirProvider
@@ -36,14 +37,18 @@ private class CombinedPrepareWorker(
     tempDirProvider: TempDirProvider,
     config: Config
 ) : PrepareArtifactWorker<ArtifactConfig> {
+    private val mavenResolver = MavenDependencyResolver(config.mavenResolver)
+
     private val jdk = PrepareJdkWorker(tempDirProvider)
     private val android = PrepareAndroidWorker(tempDirProvider)
-    private val maven = PrepareMavenWorker(tempDirProvider, MavenDependencyResolver(config.mavenResolver))
+    private val maven = PrepareMavenWorker(tempDirProvider, mavenResolver)
+    private val graal = PrepareGraalWorker(tempDirProvider, mavenResolver)
 
     override fun getArtifactId(config: ArtifactConfig) = when (config) {
         is ArtifactConfig.Android -> android.getArtifactId(config)
         is ArtifactConfig.Java -> jdk.getArtifactId(config)
         is ArtifactConfig.Maven -> maven.getArtifactId(config)
+        is ArtifactConfig.Graal -> graal.getArtifactId(config)
     }
 
     override suspend fun prepareArtifact(
@@ -54,6 +59,7 @@ private class CombinedPrepareWorker(
         is ArtifactConfig.Android -> android.prepareArtifact(artifactId, config, listener)
         is ArtifactConfig.Java -> jdk.prepareArtifact(artifactId, config, listener)
         is ArtifactConfig.Maven -> maven.prepareArtifact(artifactId, config, listener)
+        is ArtifactConfig.Graal -> graal.prepareArtifact(artifactId, config, listener)
     }
 }
 

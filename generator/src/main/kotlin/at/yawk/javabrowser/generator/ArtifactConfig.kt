@@ -37,14 +37,21 @@ sealed class ArtifactConfig {
     ) : ArtifactConfig()
 
     data class GitRepo(
-            val url: URL,
-            val tag: String
+        val url: URL,
+        val tag: String
     )
 
     data class Android(
-            val repos: List<GitRepo>,
-            val version: String,
-            val buildTools: URL,
-            override val metadata: ArtifactMetadata
+        val repos: List<GitRepo>,
+        val version: String,
+        val buildTools: URL,
+        override val metadata: ArtifactMetadata
+    ) : ArtifactConfig()
+
+    data class Graal(
+        val version: String,
+        val repos: List<URL>,
+        val jdk: URL,
+        override val metadata: ArtifactMetadata
     ) : ArtifactConfig()
 }

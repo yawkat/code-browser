@@ -4,8 +4,11 @@ import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.TsVector
+import org.eclipse.collections.impl.factory.primitive.LongObjectMaps
 
 open class TestTransaction : Transaction {
+    private val visitedBindingIds = LongObjectMaps.mutable.empty<String>()
+
     open suspend fun onAnyTask() {
     }
 
@@ -56,6 +59,11 @@ open class TestTransaction : Transaction {
         modifiers: Int,
         parent: BindingId?
     ) {
+        val old = visitedBindingIds.put(bindingId.hash, binding)
+        if (old != null) {
+            throw IllegalArgumentException("Duplicate binding ID $old $binding")
+        }
+
         onAnyTask()
     }
 

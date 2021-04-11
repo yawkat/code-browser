@@ -7,6 +7,7 @@ import org.zeroturnaround.exec.InvalidExitValueException
 import org.zeroturnaround.exec.ProcessExecutor
 import org.zeroturnaround.exec.stream.slf4j.Slf4jStream
 import java.io.IOException
+import java.net.URL
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -126,30 +127,8 @@ class PrepareAndroidWorker(
 
             log.info("Downloading build tools for $artifactId from ${config.buildTools}")
             val buildToolsDir = tmp.resolve("build-tools")
-            ZipInputStream(config.buildTools.openStream()).use {
-                while (true) {
-                    val entry = it.nextEntry ?: break
-                    if (entry.isDirectory) continue
-                    val dest = buildToolsDir.resolve(entry.name).normalize()
-                    if (!dest.startsWith(buildToolsDir)) throw AssertionError()
-                    try {
-                        Files.createDirectories(dest.parent)
-                    } catch (ignored: FileAlreadyExistsException) {
-                    }
-                    Files.copy(it, dest)
-                }
-            }
-            var aidlPath = buildToolsDir
-            while (true) {
-                val direct = aidlPath.resolve("aidl")
-                if (Files.exists(direct)) {
-                    aidlPath = direct
-                    break
-                } else {
-                    // descend one directory level, but only if there is only a single directory. else error
-                    aidlPath = Files.list(aidlPath).toList().single()
-                }
-            }
+            downloadZip(config.buildTools, buildToolsDir)
+            val aidlPath = singleDescendant(buildToolsDir).resolve("aidl")
 
             Files.setPosixFilePermissions(
                 aidlPath, setOf(
@@ -205,5 +184,26 @@ class PrepareAndroidWorker(
                 )
             )
         }
+    }
+
+    companion object {
+        internal fun downloadZip(url: URL, dir: Path) {
+            ZipInputStream(url.openStream()).use {
+                while (true) {
+                    val entry = it.nextEntry ?: break
+                    if (entry.isDirectory) continue
+                    val dest = dir.resolve(entry.name).normalize()
+                    if (!dest.startsWith(dir)) throw AssertionError()
+                    try {
+                        Files.createDirectories(dest.parent)
+                    } catch (ignored: FileAlreadyExistsException) {
+                    }
+                    Files.copy(it, dest)
+                }
+            }
+        }
+
+        internal fun singleDescendant(path: Path): Path =
+            Files.list(path).toList().singleOrNull()?.let { singleDescendant(it) } ?: path
     }
 }

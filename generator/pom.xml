@@ -73,6 +73,12 @@
             <artifactId>asm-util</artifactId>
             <version>8.0.1</version>
         </dependency>
+        <!-- for parsing graal mx files -->
+        <dependency>
+            <groupId>org.python</groupId>
+            <artifactId>jython-slim</artifactId>
+            <version>2.7.2</version>
+        </dependency>
 
         <dependency>
             <groupId>at.yawk.java-browser</groupId>
