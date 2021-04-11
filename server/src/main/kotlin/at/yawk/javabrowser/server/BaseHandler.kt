@@ -265,8 +265,7 @@ class BaseHandler @Inject constructor(
             oldInfo = SourceFileView.FileInfo(
                 realm = diffWith.realmFromExtension!!,
                 sourceFile = oldSourceFile,
-                classpath = conn.attach(DependencyDao::class.java).getDependencies(diffWith.artifact.dbId!!).toSet()
-                        + diffWith.artifact.stringId,
+                classpath = listOf(diffWith.artifact.stringId) + conn.attach(DependencyDao::class.java).getDependencies(diffWith.artifact.dbId!!),
                 sourceFilePath = diffWith
             )
             declarations = DeclarationTreeDiff.diffUnordered(
@@ -286,7 +285,7 @@ class BaseHandler @Inject constructor(
         return SourceFileView(
             newInfo = SourceFileView.FileInfo(
                 realm = parsedPathRealm,
-                classpath = dependencies.toSet() + parsedPath.artifact.stringId,
+                classpath = listOf(parsedPath.artifact.stringId) + dependencies,
                 sourceFile = sourceFile,
                 sourceFilePath = parsedPath
             ),

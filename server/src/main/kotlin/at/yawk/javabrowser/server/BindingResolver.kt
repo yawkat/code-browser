@@ -40,11 +40,14 @@ class BindingResolver @Inject constructor(
         }
     }
 
-    fun resolveBinding(realm: Realm, fromArtifacts: Set<String>, binding: BindingId): List<URI> {
+    fun resolveBinding(realm: Realm, fromArtifacts: List<String>, binding: BindingId): List<URI> {
         val candidates = caches.getValue(realm)[binding]
-        for (candidate in candidates) {
-            if (candidate.artifact in fromArtifacts) {
-                return listOf(candidate.uri)
+        // in order of artifact priority
+        for (artifact in fromArtifacts) {
+            for (candidate in candidates) {
+                if (candidate.artifact == artifact) {
+                    return listOf(candidate.uri)
+                }
             }
         }
         return candidates.map { it.uri }

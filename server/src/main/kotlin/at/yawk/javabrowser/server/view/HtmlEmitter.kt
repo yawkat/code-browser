@@ -20,7 +20,7 @@ import org.jsoup.select.NodeTraversor
 import org.jsoup.select.NodeVisitor
 import java.io.Writer
 import java.net.URI
-import java.util.*
+import java.util.EnumMap
 
 class HtmlEmitter(
         private val bindingResolver: BindingResolver,
@@ -55,7 +55,7 @@ class HtmlEmitter(
     data class ScopeInfo(
             val realm: Realm,
             val artifactId: String,
-            val classpath: Set<String>
+            val classpath: List<String>
     )
 
     private val SourceFilePrinter.Scope.prefix: String
@@ -71,7 +71,7 @@ class HtmlEmitter(
             is BindingDecl -> {
                 val corresponding = EnumMap<Realm, URI>(Realm::class.java)
                 for ((realm, bindingId) in annotation.corresponding) {
-                    val uri = bindingResolver.resolveBinding(realm, setOf(scopeInfo.artifactId), bindingId)
+                    val uri = bindingResolver.resolveBinding(realm, listOf(scopeInfo.artifactId), bindingId)
                         .singleOrNull() ?: continue
                     corresponding[realm] = uri
                 }

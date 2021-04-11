@@ -98,7 +98,7 @@ class FullTextSearchResource @Inject constructor(
                     realm = realm,
                     artifactId = artifactStringId,
                     path = path,
-                    classpath = conn.attach(DependencyDao::class.java).getDependencies(artifactId).toSet(),
+                    classpath = listOf(artifactStringId) + conn.attach(DependencyDao::class.java).getDependencies(artifactId).toSet(),
                     partial = partial
             )
         }

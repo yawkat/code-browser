@@ -27,7 +27,7 @@ class SourceFileView(
     class FileInfo(
         val realm: Realm,
         val sourceFile: ServerSourceFile,
-        val classpath: Set<String>,
+        val classpath: List<String>,
         val sourceFilePath: ParsedPath.SourceFile
     )
 

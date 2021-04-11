@@ -30,7 +30,7 @@ class FullTextSearchResultView(
             val realm: Realm,
             val artifactId: String,
             val path: String,
-            private val classpath: Set<String>,
+            private val classpath: List<String>,
             partial: SourceFilePrinter.Partial
     ) {
         val renderer = partial.createRenderer<HtmlEmitter.Memory>(CONTEXT_LINES, CONTEXT_LINES)
