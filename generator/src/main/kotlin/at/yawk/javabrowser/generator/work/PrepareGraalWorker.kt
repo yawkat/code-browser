@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.JsonNodeFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.google.common.hash.Hashing
+import com.google.common.io.BaseEncoding
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.intellij.lang.annotations.Language
 import org.jboss.shrinkwrap.resolver.api.maven.MavenResolvedArtifact
@@ -24,7 +25,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.zip.GZIPInputStream
-import javax.xml.bind.DatatypeConverter
 
 private const val GRAAL_JAVA_VERSION = "java/11"
 
@@ -111,7 +111,7 @@ class PrepareGraalWorker(
                 Files.copy(URL(singleUrl).openStream(), out)
                 @Suppress("BlockingMethodInNonBlockingContext", "UnstableApiUsage", "DEPRECATION")
                 val actualHash = Hashing.sha1().newHasher().putBytes(Files.readAllBytes(out)).hash().asBytes()
-                if (!actualHash.contentEquals(DatatypeConverter.parseHexBinary(library.sha1!!))) {
+                if (!actualHash.contentEquals(BaseEncoding.base16().decode(library.sha1!!))) {
                     throw RuntimeException("Checksum mismatch for $singleUrl: Expected ${library.sha1}")
                 }
                 module.binaryPaths = listOf(out)
