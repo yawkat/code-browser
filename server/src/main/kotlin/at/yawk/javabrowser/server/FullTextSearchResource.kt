@@ -108,7 +108,7 @@ class FullTextSearchResource @Inject constructor(
 CREATE AGGREGATE array_accum (anyarray)
 (
 sfunc = array_cat,
-stype = anyarray,
+stype = anycompatiblearray,
 initcond = '{}'
 )
         """).execute()
