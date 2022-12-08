@@ -7,7 +7,7 @@ import com.google.common.base.Stopwatch
 import com.google.common.collect.ImmutableList
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
-import org.skife.jdbi.v2.DBI
+import org.jdbi.v3.core.Jdbi
 import org.testng.Assert
 import org.testng.annotations.BeforeClass
 import org.testng.annotations.Optional
@@ -15,7 +15,7 @@ import org.testng.annotations.Parameters
 import org.testng.annotations.Test
 
 class ReferenceResourceIntegrationTest {
-    private lateinit var dbi: DBI
+    private lateinit var dbi: Jdbi
     private lateinit var artifactIndex: ArtifactIndex
     private lateinit var referenceResource: ReferenceResource
 
@@ -29,7 +29,7 @@ class ReferenceResourceIntegrationTest {
 
     @Test
     fun `short filter`() {
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val java8 = artifactIndex.allArtifactsByStringId["java/8"]!!
             val result = referenceResource.handleRequest(
                     conn,
@@ -49,7 +49,7 @@ class ReferenceResourceIntegrationTest {
 
     @Test
     fun `large filter`() {
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val java8 = artifactIndex.allArtifactsByStringId["java/8"]!!
             val stopwatch = Stopwatch.createStarted()
             val result = referenceResource.handleRequest(

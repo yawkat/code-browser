@@ -2,7 +2,8 @@ package at.yawk.javabrowser.generator.db
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.test.TestCoroutineScope
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import org.testng.Assert
 import org.testng.annotations.Test
 
@@ -10,17 +11,15 @@ private const val PRINT = false
 
 @ExperimentalCoroutinesApi
 class ActorAsyncTransactionProviderTest {
-    private fun TestCoroutineScope.step(name: String) {
+    private fun TestScope.step(name: String) {
         if (PRINT) println("Step $name")
         advanceUntilIdle()
-        pauseDispatcher()
         if (PRINT) println("/Step $name")
     }
 
     @Test
     fun test() {
-        val workerScope = TestCoroutineScope()
-        workerScope.pauseDispatcher()
+        val workerScope = TestScope()
         var actualTx: TestTx? = null
         val provider = ActorAsyncTransactionProvider(
             workerScope = workerScope,
@@ -36,8 +35,7 @@ class ActorAsyncTransactionProviderTest {
             }
         )
         Assert.assertNull(actualTx)
-        val submitterScope = TestCoroutineScope()
-        submitterScope.pauseDispatcher()
+        val submitterScope = TestScope()
         var submittedTasks = 0
         val run = submitterScope.async {
             provider.withArtifactTransaction("foo") {

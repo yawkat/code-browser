@@ -8,7 +8,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.google.common.collect.ImmutableList
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
-import org.skife.jdbi.v2.DBI
+import org.jdbi.v3.core.Jdbi
 import org.testng.Assert
 import org.testng.annotations.BeforeClass
 import org.testng.annotations.Optional
@@ -16,7 +16,7 @@ import org.testng.annotations.Parameters
 import org.testng.annotations.Test
 
 class DeclarationTreeHandlerIntegrationTest {
-    private lateinit var dbi: DBI
+    private lateinit var dbi: Jdbi
     private lateinit var handler: DeclarationTreeHandler
 
     @Parameters("dataSource")
@@ -28,7 +28,7 @@ class DeclarationTreeHandlerIntegrationTest {
 
     @Test
     fun overview() {
-        dbi.withHandle { handle ->
+        dbi.withHandle<Unit, Exception> { handle ->
             val response = handler.handleRequest(
                     handle,
                     Realm.SOURCE,
@@ -54,7 +54,7 @@ class DeclarationTreeHandlerIntegrationTest {
 
     @Test
     fun `no members at package level`() {
-        dbi.withHandle { handle ->
+        dbi.withHandle<Unit, Exception> { handle ->
             val response = handler.handleRequest(
                     handle,
                     Realm.SOURCE,
@@ -75,7 +75,7 @@ class DeclarationTreeHandlerIntegrationTest {
 
     @Test
     fun deprecated() {
-        dbi.withHandle { handle ->
+        dbi.withHandle<Unit, Exception> { handle ->
             val response = handler.handleRequest(
                     handle,
                     Realm.SOURCE,
@@ -98,8 +98,8 @@ class DeclarationTreeHandlerIntegrationTest {
 
     @Test
     fun `source file`() {
-        dbi.withHandle { handle ->
-            val bytes = handle.select("select annotations from source_file natural join artifact where artifact.string_id = 'java/8' and source_file.path = 'java/lang/String.java'")[0]["annotations"] as ByteArray
+        dbi.withHandle<Unit, Exception> { handle ->
+            val bytes = handle.select("select annotations from source_file natural join artifact where artifact.string_id = 'java/8' and source_file.path = 'java/lang/String.java'").mapToMap().toList()[0]["annotations"] as ByteArray
             val annotations = cborMapper.readValue<List<PositionedAnnotation>>(bytes)
             val iterator = handler.sourceDeclarationTree(
                     Realm.SOURCE,
@@ -120,8 +120,8 @@ class DeclarationTreeHandlerIntegrationTest {
 
     @Test
     fun `module-info`() {
-        dbi.withHandle { handle ->
-            val bytes = handle.select("select annotations from source_file natural join artifact where artifact.string_id = 'java/14' and source_file.path = 'jdk.crypto.cryptoki/module-info.java'")[0]["annotations"] as ByteArray
+        dbi.withHandle<Unit, Exception> { handle ->
+            val bytes = handle.select("select annotations from source_file natural join artifact where artifact.string_id = 'java/14' and source_file.path = 'jdk.crypto.cryptoki/module-info.java'").mapToMap().toList()[0]["annotations"] as ByteArray
             val annotations = cborMapper.readValue<List<PositionedAnnotation>>(bytes)
             val iterator = handler.sourceDeclarationTree(
                     Realm.SOURCE,

@@ -6,8 +6,8 @@ import at.yawk.javabrowser.server.view.ReferenceDetailView
 import com.google.common.collect.ImmutableList
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import org.testng.Assert
 import org.testng.annotations.BeforeClass
 import org.testng.annotations.Optional
@@ -23,7 +23,7 @@ inline fun <T : Any?> Iterator<T>.find(predicate: (T) -> Boolean): T {
 }
 
 class ReferenceDetailResourceIntegrationTest {
-    private lateinit var dbi: DBI
+    private lateinit var dbi: Jdbi
     private lateinit var artifactIndex: ArtifactIndex
     private lateinit var referenceDetailResource: ReferenceDetailResource
 
@@ -37,7 +37,7 @@ class ReferenceDetailResourceIntegrationTest {
 
     @Test
     fun full() {
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
             val view = referenceDetailResource.handleRequest(
                     conn,
                     Realm.SOURCE,
@@ -73,7 +73,7 @@ class ReferenceDetailResourceIntegrationTest {
 
     @Test
     fun `full render`() {
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
             val view = referenceDetailResource.handleRequest(
                     conn,
                     Realm.SOURCE,
@@ -88,7 +88,7 @@ class ReferenceDetailResourceIntegrationTest {
 
     @Test
     fun `filter type`() {
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
             val view = referenceDetailResource.handleRequest(
                     conn,
                     Realm.SOURCE,
@@ -113,7 +113,7 @@ class ReferenceDetailResourceIntegrationTest {
 
     @Test
     fun `filter artifact`() {
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
             val view = referenceDetailResource.handleRequest(
                     conn,
                     Realm.SOURCE,
@@ -143,7 +143,7 @@ class ReferenceDetailResourceIntegrationTest {
 
     @Test
     fun limit() {
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
             val view = referenceDetailResource.handleRequest(
                     conn,
                     Realm.SOURCE,

@@ -2,10 +2,10 @@ package at.yawk.javabrowser.generator.bytecode
 
 import at.yawk.javabrowser.Style
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
 import org.objectweb.asm.signature.SignatureReader
 import org.objectweb.asm.signature.SignatureVisitor
 import org.objectweb.asm.util.TraceSignatureVisitor
-import org.skife.jdbi.asm.Type
 
 private class SignatureOutput(
         val printer: BytecodePrinter,

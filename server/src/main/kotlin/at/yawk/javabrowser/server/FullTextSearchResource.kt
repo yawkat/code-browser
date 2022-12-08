@@ -10,15 +10,15 @@ import com.google.common.annotations.VisibleForTesting
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.StatusCodes
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import javax.inject.Inject
 
 /**
  * @author yawkat
  */
 class FullTextSearchResource @Inject constructor(
-        @param:LongRunningDbi private val dbi: DBI,
+        @param:LongRunningDbi private val dbi: Jdbi,
         private val ftl: Ftl,
         private val bindingResolver: BindingResolver,
         private val artifactIndex: ArtifactIndex
@@ -37,7 +37,7 @@ class FullTextSearchResource @Inject constructor(
         }
         val useSymbolsParameter = exchange.queryParameters["useSymbols"]?.peekFirst()?.toBoolean()
 
-        dbi.withHandle { conn: Handle ->
+        dbi.withHandle<Unit, Exception> { conn: Handle ->
             ftl.render(exchange, handleRequest(
                     query = query,
                     realm = realm,
@@ -104,14 +104,14 @@ class FullTextSearchResource @Inject constructor(
         }
 
         conn.begin()
-        conn.update("""
+        conn.createUpdate("""
 CREATE AGGREGATE array_accum (anyarray)
 (
 sfunc = array_cat,
 stype = anyarray,
 initcond = '{}'
 )
-        """)
+        """).execute()
 
         val itr = conn.createQuery(
                 """
@@ -131,12 +131,12 @@ group by source_file.realm, source_file.artifact_id, source_file.source_file_id
                 """
         )
                 // prepare immediately so that int arrays are transmitted as binary
-                .addStatementCustomizer(PrepareStatementImmediately)
+                .addCustomizer(PrepareStatementImmediately)
                 .setFetchSize(50)
                 .bind("realm", realm.id)
                 .bind("query", tsQuery.toString())
                 .bind("searchArtifact", searchArtifact?.dbId)
-                .map { _, r, _ ->
+                .map { r, _, _ ->
                     val artifactId = r.getLong("artifactId")
                     @Suppress("UNCHECKED_CAST")
                     FileResult(

@@ -2,9 +2,8 @@ package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.server.artifact.ArtifactNode
 import org.eclipse.collections.api.map.primitive.LongObjectMap
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
-import org.skife.jdbi.v2.TransactionStatus
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import java.util.NavigableMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,7 +14,7 @@ import javax.inject.Singleton
 @Singleton
 class ArtifactIndex @Inject constructor(
         artifactUpdater: ArtifactUpdater,
-        private val dbi: DBI
+        private val dbi: Jdbi
 ) {
     private var rootArtifact = fetch()
 
@@ -24,8 +23,8 @@ class ArtifactIndex @Inject constructor(
     }
 
     private fun fetch(): ArtifactNode {
-        return dbi.inTransaction { conn: Handle, _: TransactionStatus ->
-            ArtifactNode.build(conn.select("select artifact_id, string_id from artifact").map {
+        return dbi.inTransaction<ArtifactNode, Exception> { conn: Handle ->
+            ArtifactNode.build(conn.select("select artifact_id, string_id from artifact").mapToMap().toList().map {
                 ArtifactNode.Prototype(dbId = (it["artifact_id"] as Number).toLong(), stringId = it["string_id"] as String)
             })
         }

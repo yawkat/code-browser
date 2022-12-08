@@ -12,8 +12,8 @@ import com.google.common.collect.PeekingIterator
 import com.google.common.collect.Table
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -23,7 +23,7 @@ import javax.inject.Inject
  * @author yawkat
  */
 class ReferenceDetailResource @Inject constructor(
-        @param:LongRunningDbi private val dbi: DBI,
+        @param:LongRunningDbi private val dbi: Jdbi,
         private val ftl: Ftl,
         private val artifactIndex: ArtifactIndex
 ) : HttpHandler {
@@ -61,7 +61,7 @@ class ReferenceDetailResource @Inject constructor(
                 }
             }
         }
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
             // render within the transaction so we can stream results
             ftl.render(exchange, handleRequest(conn, realm, targetBinding, sourceArtifact, type, limit))
         }
@@ -87,7 +87,7 @@ class ReferenceDetailResource @Inject constructor(
                     select binding_id, type, source_artifact_id, count count from binding_reference_count_view v
                     right join binding on binding.realm = v.realm and binding.binding_id = v.target
                     where v.realm = ? and binding.binding = ?
-                """, realm.id, targetBinding)) {
+                """).bind(0, realm.id).bind(1, targetBinding).mapToMap()) {
             val bindingId = BindingId((row["binding_id"] as Number).toLong())
             if (bindingIdTmp != null) {
                 if (bindingIdTmp != bindingId) {
@@ -158,15 +158,7 @@ class ReferenceDetailResource @Inject constructor(
                     ${if (sourceArtifact != null) "and binding_reference.source_artifact_id = :sourceArtifactId" else ""}
                     order by type, source_artifact_id, source_file.path, source_file_ref_id
                     ${if (hitResultLimit) "limit :limit" else ""}
-                """).map { _, r, _ ->
-            Row(
-                    type = BindingRefType.byIdOrNull(r.getInt(1)),
-                    sourceArtifactId = r.getLong(2),
-                    sourceFile = r.getString(3),
-                    sourceFileLine = r.getInt(4),
-                    sourceFileRefId = r.getInt(5)
-            )
-        }
+                """)
         query.bind("realm", realm.id)
         query.bind("targetBinding", overview.bindingId.hash)
         if (type != null) query.bind("type", type.id)
@@ -189,7 +181,15 @@ class ReferenceDetailResource @Inject constructor(
                 hitResultLimit = hitResultLimit,
                 totalCountInSelection = totalCountInSelection,
 
-                results = TypeIterator(query.iterator())
+                results = TypeIterator(query.map { r, _, _ ->
+                    Row(
+                        type = BindingRefType.byIdOrNull(r.getInt(1)),
+                        sourceArtifactId = r.getLong(2),
+                        sourceFile = r.getString(3),
+                        sourceFileLine = r.getInt(4),
+                        sourceFileRefId = r.getInt(5)
+                    )
+                }.iterator())
         )
     }
 

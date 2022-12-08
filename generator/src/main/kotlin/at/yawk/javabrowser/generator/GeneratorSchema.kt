@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.generator
 
-import org.skife.jdbi.v2.Handle
+import at.yawk.javabrowser.loadScript
+import org.jdbi.v3.core.Handle
 import org.slf4j.LoggerFactory
 
 private val log = LoggerFactory.getLogger(GeneratorSchema::class.java)
@@ -8,16 +9,16 @@ private val log = LoggerFactory.getLogger(GeneratorSchema::class.java)
 class GeneratorSchema(private val conn: Handle) {
     private fun executeAndLogStatement(stmt: String) {
         log.info("{}", stmt)
-        conn.createStatement(stmt).execute()
+        conn.createUpdate(stmt).execute()
     }
 
     fun createSchema() {
         // this is fast, don't log
-        conn.createScript("at/yawk/javabrowser/generator/DataSchema.sql").execute()
+        conn.loadScript("/at/yawk/javabrowser/generator/DataSchema.sql").execute()
     }
 
     fun createIndices() {
-        val script = conn.createScript("at/yawk/javabrowser/generator/DataIndex.sql")
+        val script = conn.loadScript("/at/yawk/javabrowser/generator/DataIndex.sql")
         for (statement in script.statements) {
             executeAndLogStatement(statement)
         }

@@ -13,8 +13,8 @@ import com.google.common.collect.PeekingIterator
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import org.eclipse.collections.impl.EmptyIterator
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import java.net.URLEncoder
 import java.util.Collections
 import javax.inject.Inject
@@ -24,7 +24,7 @@ private const val FETCH_NODE_LIMIT = 1000L
 
 @Singleton
 class DeclarationTreeHandler @Inject constructor(
-        private val dbi: DBI,
+        private val dbi: Jdbi,
         private val ftl: Ftl,
         private val artifactIndex: ArtifactIndex
 ) : HttpHandler {
@@ -47,7 +47,7 @@ natural left join source_file
 where binding.realm = ? and artifact.string_id = ? and binding.binding = ?""",
                 realm.id,
                 artifactId,
-                binding)
+                binding).mapToMap().toList()
         if (result.isEmpty()) {
             return null
         } else {
@@ -76,7 +76,7 @@ where binding.realm = ? and artifact.string_id = ? and binding.binding = ?""",
                 ?: throw HttpException(404, "Need to pass binding")
         val diffArtifactId = exchange.queryParameters["diff"]?.peekFirst()
 
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
             ftl.render(exchange, handleRequest(
                     conn,
                     realm,
@@ -168,7 +168,7 @@ ${if (limit != null) "limit ? + 1" else ""}
 
         if (limit != null) query = query.bind(3, limit)
         val nodes = query
-                .map { _, rs, _ ->
+                .map { rs, _, _ ->
                     val parent = rs.getObject(1)?.let { BindingId((it as Number).toLong()) }
                     val bindingId = BindingId(rs.getLong(2))
                     val binding = rs.getString(3)
@@ -200,7 +200,7 @@ ${if (limit != null) "limit ? + 1" else ""}
 
     private fun getBindingId(conn: Handle, realm: Realm, artifactId: Long, binding: String): BindingId? {
         val result = conn.select("select binding_id from binding where realm = ? and artifact_id = ? and binding = ?",
-                realm.id, artifactId, binding)
+                realm.id, artifactId, binding).mapToMap()
         val id = (result.singleOrNull() ?: return null)["binding_id"] as Number
         return BindingId(id.toLong())
     }

@@ -65,7 +65,7 @@ open class SearchIndex<K, V>(
             while (true) {
                 val bestIndex = depthIterators.indices
                         .filter { depthIterators[it].hasNext() }
-                        .minBy { depthIterators[it].peek().name } ?: break
+                        .minByOrNull { depthIterators[it].peek().name } ?: break
                 val bestEntry = depthIterators[bestIndex].next()
                 if (returnedEntries.add(bestEntry)) {
                     val name = if (depth == 0) bestEntry.simpleName else bestEntry.name

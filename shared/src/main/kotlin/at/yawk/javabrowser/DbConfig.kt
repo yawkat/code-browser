@@ -2,7 +2,9 @@ package at.yawk.javabrowser
 
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import org.skife.jdbi.v2.DBI
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
+import org.jdbi.v3.sqlobject.SqlObjectPlugin
 
 /**
  * @author yawkat
@@ -17,7 +19,7 @@ data class DbConfig(
         GENERATOR,
     }
 
-    fun start(mode: Mode, closure: (HikariConfig) -> Unit = {}): DBI {
+    fun start(mode: Mode, closure: (HikariConfig) -> Unit = {}): Jdbi {
         val hikariConfig = HikariConfig()
         hikariConfig.jdbcUrl = url
         hikariConfig.username = user
@@ -30,6 +32,8 @@ data class DbConfig(
         closure(hikariConfig)
         val dataSource = HikariDataSource(hikariConfig)
 
-        return DBI(dataSource)
+        return Jdbi.create(dataSource).installPlugin(SqlObjectPlugin())
     }
 }
+
+fun Handle.loadScript(path: String) = createScript(DbConfig::class.java.getResourceAsStream(path).use { it!!.bufferedReader().readText() })

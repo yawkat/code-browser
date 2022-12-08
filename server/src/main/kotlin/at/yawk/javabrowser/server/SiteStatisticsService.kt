@@ -1,8 +1,8 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.server.view.SiteStatistics
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.sqlobject.SqlQuery
+import org.jdbi.v3.core.Jdbi
+import org.jdbi.v3.sqlobject.statement.SqlQuery
 import org.slf4j.LoggerFactory
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,7 +14,7 @@ private val log = LoggerFactory.getLogger(SiteStatisticsService::class.java)
 
 @Singleton
 class SiteStatisticsService @Inject constructor(
-        private val dbi: DBI,
+        private val dbi: Jdbi,
         artifactUpdater: ArtifactUpdater
 ) {
     private val debouncer = Debouncer()
@@ -29,7 +29,7 @@ class SiteStatisticsService @Inject constructor(
         }
     }
 
-    private fun loadStatistics(): SiteStatistics = dbi.withHandle {
+    private fun loadStatistics(): SiteStatistics = dbi.withHandle<SiteStatistics, Exception> {
         log.info("Loading site statistics")
         val dao = it.attach(Dao::class.java)
         val siteStatistics = SiteStatistics(

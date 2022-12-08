@@ -7,7 +7,7 @@ import at.yawk.javabrowser.server.view.DeclarationNode
 import at.yawk.javabrowser.server.view.DirectoryView
 import com.google.common.annotations.VisibleForTesting
 import com.google.common.collect.Iterators
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -59,7 +59,7 @@ order by common_prefix
             .bind("realm", realm.id)
             .bind("prefix", parsedPath.sourceFilePath)
             .bind("artifactId", parsedPath.artifact.dbId)
-            .map { _, r, _ ->
+            .map { r, _, _ ->
                 val commonPrefix = r.getString("common_prefix")
                 val isDirectory = r.getString("sample") != commonPrefix
                 val name =
@@ -90,7 +90,7 @@ where source_file.path like ${escapeLike("?")} || '%'
         """
         )
             .bind(0, parsedPath.sourceFilePath)
-            .map { _, r, _ ->
+            .map { r, _, _ ->
                 artifactIndex.allArtifactsByDbId[r.getLong(1)]
             }
             .list()

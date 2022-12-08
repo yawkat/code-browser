@@ -11,8 +11,8 @@ import com.google.common.net.MediaType
 import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import java.net.URLDecoder
 import javax.inject.Inject
 
@@ -20,7 +20,7 @@ import javax.inject.Inject
  * @author yawkat
  */
 class ReferenceResource @Inject constructor(
-        private val dbi: DBI,
+        private val dbi: Jdbi,
         private val objectMapper: ObjectMapper,
         private val artifactIndex: ArtifactIndex
 ) : HttpHandler {
@@ -42,7 +42,7 @@ class ReferenceResource @Inject constructor(
         val targetArtifact = artifactIndex.allArtifactsByStringId[targetArtifactId]
                 ?: throw HttpException(404, "No such artifact")
 
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val typeResults = handleRequest(conn, realm, targetBinding, limit, targetArtifact)
 
             exchange.responseHeaders.put(Headers.CONTENT_TYPE, MediaType.JSON_UTF_8.toString())
@@ -110,7 +110,7 @@ order by type, source_artifact_id != :targetArtifactId, source_artifact_id, path
                 .bind("targetArtifactId", targetArtifact.dbId)
                 .bind("excludeArtifactIds", targetArtifact.parent!!.children.mapNotNull { it.value.dbId }.toLongArray())
                 .setFetchSize(1000)
-        return RootIterator(query.map { _, r, _ ->
+        return RootIterator(query.map { r, _, _ ->
             Row(
                     type = BindingRefType.byIdOrNull(r.getInt(1)),
                     artifactId = r.getLong(2),

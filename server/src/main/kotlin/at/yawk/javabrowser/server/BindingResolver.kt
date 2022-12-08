@@ -4,8 +4,8 @@ import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.Realm
 import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,7 +16,7 @@ import javax.inject.Singleton
 @Singleton
 class BindingResolver @Inject constructor(
         artifactUpdater: ArtifactUpdater,
-        private val dbi: DBI,
+        private val dbi: Jdbi,
         private val artifactIndex: ArtifactIndex
 ) {
     private val caches = Realm.values().associate {
@@ -31,11 +31,11 @@ class BindingResolver @Inject constructor(
     }
 
     private fun resolveBinding0(realm: Realm, binding: BindingId): List<BindingLocation> {
-        return dbi.inTransaction { conn: Handle, _ ->
+        return dbi.inTransaction<List<BindingLocation>, Exception> { conn: Handle ->
             conn.createQuery("select artifact_id, source_file.path, binding.binding from binding natural join source_file where realm = ? and binding_id = ?")
                     .bind(0, realm.id)
                     .bind(1, binding.hash)
-                    .map { _, r, _ -> BindingLocation(artifactIndex.allArtifactsByDbId[r.getLong(1)].stringId, r.getString(2), r.getString(3)) }
+                    .map { r, _, _ -> BindingLocation(artifactIndex.allArtifactsByDbId[r.getLong(1)].stringId, r.getString(2), r.getString(3)) }
                     .list()
         }
     }

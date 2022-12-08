@@ -1,6 +1,7 @@
 package at.yawk.javabrowser.server
 
 import at.yawk.javabrowser.DbConfig
+import at.yawk.javabrowser.loadScript
 import at.yawk.javabrowser.server.typesearch.SearchResource
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -22,9 +23,7 @@ import io.undertow.server.handlers.resource.ResourceHandler
 import io.undertow.server.handlers.resource.ResourceManager
 import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.exceptions.CallbackFailedException
-import org.skife.jdbi.v2.exceptions.TransactionFailedException
+import org.jdbi.v3.core.Jdbi
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -38,10 +37,10 @@ fun main(args: Array<String>) {
     val config = ObjectMapper(YAMLFactory()).findAndRegisterModules().readValue(File(args[0]), Config::class.java)
 
     val guice = Guice.createInjector(Module { binder ->
-        binder.bind(DBI::class.java).toInstance(config.database.start(mode = DbConfig.Mode.FRONTEND) {
+        binder.bind(Jdbi::class.java).toInstance(config.database.start(mode = DbConfig.Mode.FRONTEND) {
             it.poolName = "Normal pool"
         })
-        binder.bind(DBI::class.java)
+        binder.bind(Jdbi::class.java)
                 .annotatedWith(LongRunningDbi::class.java)
                 .toInstance(config.database.start(mode = DbConfig.Mode.FRONTEND) {
                     it.poolName = "Long-running pool"
@@ -57,12 +56,6 @@ fun main(args: Array<String>) {
     val exceptions: (ExceptionHandler) -> Unit = {
         it.addExceptionHandler(Throwable::class.java) { exc ->
             var exception = exc.getAttachment(ExceptionHandler.THROWABLE)
-            if (exception is CallbackFailedException) {
-                exception = exception.cause
-                if (exception is TransactionFailedException && exception.cause != null) {
-                    exception = exception.cause
-                }
-            }
             if (exception is HttpException) {
                 exc.statusCode = exception.status
                 exc.responseHeaders.put(Headers.CONTENT_TYPE, "text/plain")
@@ -76,10 +69,10 @@ fun main(args: Array<String>) {
         }
     }
 
-    guice.getInstance(DBI::class.java).inTransaction { conn, _ ->
-        conn.createScript("at/yawk/javabrowser/server/InitInteractiveSchema.sql").execute()
+    guice.getInstance(Jdbi::class.java).inTransaction<Unit, Exception> { conn ->
+        conn.loadScript("/at/yawk/javabrowser/server/InitInteractiveSchema.sql").execute()
     }
-    guice.getInstance(ArtifactUpdater::class.java).listenForUpdates(guice.getInstance(DBI::class.java))
+    guice.getInstance(ArtifactUpdater::class.java).listenForUpdates(guice.getInstance(Jdbi::class.java))
 
     var handler: HttpHandler = PathTemplateHandler(guice.getInstance(BaseHandler::class.java)).also {
         it.add(SearchResource.PATTERN, guice.getInstance(SearchResource::class.java))

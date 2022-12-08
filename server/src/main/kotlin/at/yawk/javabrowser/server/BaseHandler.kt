@@ -12,8 +12,8 @@ import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.HttpString
 import io.undertow.util.StatusCodes
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
@@ -24,7 +24,7 @@ import javax.inject.Inject
  * @author yawkat
  */
 class BaseHandler @Inject constructor(
-        private val dbi: DBI,
+        private val dbi: Jdbi,
         private val ftl: Ftl,
         private val bindingResolver: BindingResolver,
         private val artifactIndex: ArtifactIndex,
@@ -51,7 +51,7 @@ class BaseHandler @Inject constructor(
     override fun handleRequest(exchange: HttpServerExchange) {
         val path = parsePath(exchange.relativePath)
 
-        dbi.inTransaction { conn: Handle, _ ->
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
             val view = when (path) {
                 is ParsedPath.SourceFile -> sourceFile(exchange, conn, path)
                 is ParsedPath.LeafArtifact -> leafArtifact(exchange, conn, path)
@@ -144,7 +144,7 @@ class BaseHandler @Inject constructor(
             realm.id,
             parsedPath.artifact.dbId,
             parsedPath.sourceFilePath
-        )
+        ).mapToMap().toList()
         if (result.isEmpty()) {
             return null
         }
@@ -167,10 +167,11 @@ class BaseHandler @Inject constructor(
         if (!exchange.isCrawler()) {
             // increment hit counter for this time bin
             val timestamp = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS)
-            conn.update("insert into hits (timestamp, sourceFile, artifactId, hits) values (?, ?, ?, 1) on conflict (timestamp, sourceFile, artifactId) do update set hits = hits.hits + 1",
-                    timestamp.toLocalDateTime(),
-                    parsedPath.sourceFilePath,
-                    parsedPath.artifact.stringId)
+            conn.createUpdate("insert into hits (timestamp, sourceFile, artifactId, hits) values (?, ?, ?, 1) on conflict (timestamp, sourceFile, artifactId) do update set hits = hits.hits + 1")
+                .bind(0, timestamp.toLocalDateTime())
+                .bind(1, parsedPath.sourceFilePath)
+                .bind(2, parsedPath.artifact.stringId)
+                .execute()
         }
         if (diffWith != null) {
             // do not index diff pages
@@ -200,7 +201,7 @@ class BaseHandler @Inject constructor(
             conn.createQuery("select artifact_id, path from source_file where realm = ? and path = ?")
                     .bind(0, parsedPathRealm.id)
                     .bind(1, path)
-                    .map { _, r, _ ->
+                    .map { r, _, _ ->
                         ParsedPath.SourceFile(
                             artifactIndex.allArtifactsByDbId[r.getLong(1)]!!,
                             r.getString(2)
@@ -231,7 +232,7 @@ class BaseHandler @Inject constructor(
                         .bind(0, parsedPathRealm.id)
                         .bind(1, modernJavaArtifacts)
                         .bind(2, parsedPath.sourceFilePath)
-                        .map { _, r, _ ->
+                        .map { r, _, _ ->
                             ParsedPath.SourceFile(
                                 artifactIndex.allArtifactsByDbId[r.getLong(1)]!!,
                                 r.getString(2)

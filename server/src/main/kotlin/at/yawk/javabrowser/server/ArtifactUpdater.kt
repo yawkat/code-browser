@@ -1,7 +1,7 @@
 package at.yawk.javabrowser.server
 
+import org.jdbi.v3.core.Jdbi
 import org.postgresql.PGConnection
-import org.skife.jdbi.v2.DBI
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
@@ -54,12 +54,12 @@ class ArtifactUpdater @Inject constructor() {
         }
     }
 
-    fun listenForUpdates(dbi: DBI) {
+    fun listenForUpdates(dbi: Jdbi) {
         Thread({
             while (true) {
                 try {
-                    dbi.useHandle {
-                        it.update("listen artifact")
+                    dbi.useHandle<Exception> {
+                        it.createUpdate("listen artifact").execute()
 
                         while (true) {
                             val notifications = it.connection.unwrap(PGConnection::class.java).getNotifications(0)

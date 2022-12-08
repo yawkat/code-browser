@@ -17,8 +17,8 @@ import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import org.slf4j.LoggerFactory
 import javax.annotation.concurrent.ThreadSafe
 import javax.inject.Inject
@@ -32,7 +32,7 @@ private val log = LoggerFactory.getLogger(SearchResource::class.java)
 @ThreadSafe
 @Singleton
 class SearchResource @Inject constructor(
-        @param:LongRunningDbi private val dbi: DBI,
+        @param:LongRunningDbi private val dbi: Jdbi,
         private val objectMapper: ObjectMapper,
         artifactUpdater: ArtifactUpdater,
         private val aliasIndex: AliasIndex,
@@ -52,8 +52,8 @@ class SearchResource @Inject constructor(
 
     init {
         artifactUpdater.addArtifactUpdateListener { stringId ->
-            dbi.inTransaction { conn: Handle, _ ->
-                val id = conn.select("select artifact_id from artifact where string_id = ?", stringId)
+            dbi.inTransaction<Unit, Exception> { conn: Handle ->
+                val id = conn.select("select artifact_id from artifact where string_id = ?", stringId).mapToMap()
                         .single()["artifact_id"] as Number
                 update(conn, id.toLong(), stringId)
             }
@@ -61,8 +61,8 @@ class SearchResource @Inject constructor(
     }
 
     fun firstUpdate() {
-        dbi.inTransaction { conn: Handle, _ ->
-            for ((artifactId, artifactStringId) in conn.createQuery("select artifact_id, string_id from artifact").map { _, r, _ -> r.getLong(1) to r.getString(2) }) {
+        dbi.inTransaction<Unit, Exception> { conn: Handle ->
+            for ((artifactId, artifactStringId) in conn.createQuery("select artifact_id, string_id from artifact").map { r, _, _ -> r.getLong(1) to r.getString(2) }) {
                 update(conn, artifactId, artifactStringId)
             }
         }
@@ -74,7 +74,7 @@ class SearchResource @Inject constructor(
             val itr = conn.createQuery("select binding.binding, source_file.path from binding natural join source_file where realm = ? and include_in_type_search and artifact_id = ?")
                     .bind(0, realm.id)
                     .bind(1, artifactId)
-                    .map { _, r, _ ->
+                    .map { r, _, _ ->
                         SearchIndex.Input(
                                 string = r.getString(1),
                                 value = r.getString(2))
@@ -127,7 +127,7 @@ class SearchResource @Inject constructor(
             if (artifact.dbId == null) throw HttpException(StatusCodes.NOT_FOUND, "Not a leaf artifact")
             val dependencies =
                     if (includeDependencies)
-                        dbi.inTransaction { conn: Handle, _ ->
+                        dbi.inTransaction<List<String>, Exception> { conn: Handle ->
                             conn.attach(DependencyDao::class.java).getDependencies(artifact.dbId)
                         }.mapNotNull(::findDependencyNode)
                     else emptySet<ArtifactNode>()

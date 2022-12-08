@@ -10,7 +10,7 @@ import com.fasterxml.jackson.module.kotlin.SingletonSupport
 import com.google.common.collect.ImmutableList
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
-import org.skife.jdbi.v2.DBI
+import org.jdbi.v3.core.Jdbi
 import org.testng.Assert
 import org.testng.annotations.BeforeClass
 import org.testng.annotations.Optional
@@ -18,7 +18,7 @@ import org.testng.annotations.Parameters
 import org.testng.annotations.Test
 
 class BaseHandlerIntegrationTest {
-    private lateinit var dbi: DBI
+    private lateinit var dbi: Jdbi
     private lateinit var artifactIndex: ArtifactIndex
     private lateinit var handler: BaseHandler
     private lateinit var directoryHandler: DirectoryHandler
@@ -47,7 +47,7 @@ class BaseHandlerIntegrationTest {
 
     @Test
     fun `source file`() {
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val java8 = artifactIndex.allArtifactsByStringId["java/8"]!!
             val view = handler.sourceFile(
                 conn,
@@ -69,7 +69,7 @@ class BaseHandlerIntegrationTest {
 
     @Test
     fun diff() {
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val java8 = artifactIndex.allArtifactsByStringId["java/8"]!!
             val java11 = artifactIndex.allArtifactsByStringId["java/11"]!!
             val view = handler.sourceFile(
@@ -92,7 +92,7 @@ class BaseHandlerIntegrationTest {
 
     @Test
     fun leafArtifact() {
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val java8 = artifactIndex.allArtifactsByStringId["java/8"]!!
             val java11 = artifactIndex.allArtifactsByStringId["java/11"]!!
             val view = handler.leafArtifact(
@@ -114,7 +114,7 @@ class BaseHandlerIntegrationTest {
 
     @Test
     fun `directory entries`() {
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val java11 = artifactIndex.allArtifactsByStringId["java/11"]!!
             val info = directoryHandler.getDirectoryEntries(
                 conn,
@@ -140,7 +140,7 @@ class BaseHandlerIntegrationTest {
 
     @Test
     fun `directory view`() {
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val java11 = artifactIndex.allArtifactsByStringId["java/11"]!!
             val view = directoryHandler.directoryView(
                 conn,
@@ -161,7 +161,7 @@ class BaseHandlerIntegrationTest {
 
     @Test
     fun `directory view diff`() {
-        dbi.inTransaction { conn, _ ->
+        dbi.inTransaction<Unit, Exception> { conn ->
             val java7 = artifactIndex.allArtifactsByStringId["java/7"]!!
             val java8 = artifactIndex.allArtifactsByStringId["java/8"]!!
             val view = directoryHandler.directoryView(

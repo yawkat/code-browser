@@ -4,7 +4,7 @@ import at.yawk.javabrowser.BindingId
 import at.yawk.javabrowser.BindingRefType
 import at.yawk.javabrowser.Realm
 import at.yawk.javabrowser.TsVector
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
 
 class DirectTransaction(
         private val conn: Handle
@@ -13,15 +13,26 @@ class DirectTransaction(
     private val declBatch = conn.prepareBatch("insert into binding (realm, artifact_id, binding_id, binding, source_file_id, include_in_type_search, description, modifiers, parent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
 
     override suspend fun insertArtifact(id: Long, stringId: String, compilerVersion: Int, metaBytes: ByteArray) {
-        conn.insert("insert into artifact (artifact_id, string_id, last_compile_version, metadata) values (?, ?, ?, ?)", id, stringId, compilerVersion, metaBytes)
+        conn.createUpdate("insert into artifact (artifact_id, string_id, last_compile_version, metadata) values (?, ?, ?, ?)")
+            .bind(0, id)
+            .bind(1, stringId)
+            .bind(2, compilerVersion)
+            .bind(3, metaBytes)
+            .execute()
     }
 
     override suspend fun insertDependency(from: Long, to: String) {
-        conn.insert("insert into dependency (from_artifact, to_artifact) values (?, ?)", from, to)
+        conn.createUpdate("insert into dependency (from_artifact, to_artifact) values (?, ?)")
+            .bind(0, from)
+            .bind(1, to)
+            .execute()
     }
 
     override suspend fun insertAlias(from: Long, alias: String) {
-        conn.insert("insert into artifact_alias (artifact_id, alias) values (?, ?)", from, alias)
+        conn.createUpdate("insert into artifact_alias (artifact_id, alias) values (?, ?)")
+            .bind(0, from)
+            .bind(1, alias)
+            .execute()
     }
 
     override suspend fun insertSourceFile(
@@ -33,16 +44,16 @@ class DirectTransaction(
             textBytes: ByteArray,
             annotationBytes: ByteArray
     ) {
-        conn.insert(
-                "insert into source_file (realm, artifact_id, source_file_id, hash, path, text, annotations) values (?, ?, ?, ?, ?, ?, ?)",
-                realm.id,
-                artifactId,
-                sourceFileId,
-                hash,
-                path,
-                textBytes,
-                annotationBytes
-        )
+        conn.createUpdate(
+                "insert into source_file (realm, artifact_id, source_file_id, hash, path, text, annotations) values (?, ?, ?, ?, ?, ?, ?)")
+            .bind(0, realm.id)
+            .bind(1, artifactId)
+            .bind(2, sourceFileId)
+            .bind(3, hash)
+            .bind(4, path)
+            .bind(5, textBytes)
+            .bind(6, annotationBytes)
+            .execute()
     }
 
     override suspend fun insertRef(
@@ -63,7 +74,7 @@ class DirectTransaction(
                 line,
                 idInSourceFile
         )
-        if (refBatch.size >= 100) refBatch.execute()
+        if (refBatch.size() >= 100) refBatch.execute()
     }
 
     override suspend fun insertDecl(
@@ -88,7 +99,7 @@ class DirectTransaction(
                 modifiers,
                 parent?.hash
         )
-        if (declBatch.size >= 100) declBatch.execute()
+        if (declBatch.size() >= 100) declBatch.execute()
     }
 
     override suspend fun insertLexemes(
@@ -100,19 +111,21 @@ class DirectTransaction(
             starts: IntArray,
             lengths: IntArray
     ) {
-        conn.update(
-                "insert into ${set.table} (realm, artifact_id, source_file_id, lexemes, starts, lengths) values (?, ?, ?, ?::tsvector, ?, ?)",
-                realm.id,
-                artifactId,
-                sourceFileId,
-                lexemes.toSql(),
-                starts,
-                lengths
-        )
+        conn.createUpdate(
+                "insert into ${set.table} (realm, artifact_id, source_file_id, lexemes, starts, lengths) values (?, ?, ?, ?::tsvector, ?, ?)")
+            .bind(0, realm.id)
+            .bind(1, artifactId)
+            .bind(2, sourceFileId)
+            .bind(3, lexemes.toSql())
+            .bind(4, starts)
+            .bind(5, lengths)
+            .execute()
     }
 
     fun deleteArtifact(artifactStringId: String) {
-        conn.update("delete from artifact where string_id = ?", artifactStringId)
+        conn.createUpdate("delete from artifact where string_id = ?")
+            .bind(0, artifactStringId)
+            .execute()
     }
 
     fun flush() {

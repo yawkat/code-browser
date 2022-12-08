@@ -88,7 +88,7 @@ class JavadocRendererTest {
         }
         val blocks = document.getElementsByClass("detail")
         Assert.assertEquals(blocks.size, 2)
-        val childNodes = blocks.last().childNodes()
+        val childNodes = blocks.last()!!.childNodes()
         return childNodes.drop(childNodes.indexOfFirst { it is Element && it.hasClass("memberSignature") } + 1)
     }
 

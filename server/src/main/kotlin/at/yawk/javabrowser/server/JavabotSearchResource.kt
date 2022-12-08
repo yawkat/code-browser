@@ -11,14 +11,13 @@ import io.undertow.server.HttpHandler
 import io.undertow.server.HttpServerExchange
 import io.undertow.util.Headers
 import io.undertow.util.StatusCodes
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
-import org.skife.jdbi.v2.StatementContext
-import org.skife.jdbi.v2.TransactionStatus
-import org.skife.jdbi.v2.sqlobject.Bind
-import org.skife.jdbi.v2.sqlobject.SqlQuery
-import org.skife.jdbi.v2.sqlobject.customizers.RegisterMapper
-import org.skife.jdbi.v2.tweak.ResultSetMapper
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
+import org.jdbi.v3.core.mapper.RowMapper
+import org.jdbi.v3.core.statement.StatementContext
+import org.jdbi.v3.sqlobject.config.RegisterRowMapper
+import org.jdbi.v3.sqlobject.customizer.Bind
+import org.jdbi.v3.sqlobject.statement.SqlQuery
 import java.net.URI
 import java.sql.ResultSet
 import java.util.Objects
@@ -28,7 +27,7 @@ import javax.inject.Inject
  * @author yawkat
  */
 class JavabotSearchResource @Inject constructor(
-        private val dbi: DBI,
+        private val dbi: Jdbi,
         private val objectMapper: ObjectMapper,
         private val artifactIndex: ArtifactIndex
 ) : HttpHandler {
@@ -56,7 +55,7 @@ class JavabotSearchResource @Inject constructor(
 
     @VisibleForTesting
     internal fun handleRequest(term: String, artifact: String?): List<ResultRow> {
-        return dbi.inTransaction { conn: Handle, _: TransactionStatus ->
+        return dbi.inTransaction<List<ResultRow>, Exception> { conn: Handle ->
             handleRequest(conn.attach(Dao::class.java), term, artifact)
         }
     }
@@ -147,7 +146,7 @@ class JavabotSearchResource @Inject constructor(
             if (artifacts == null) topLevelClassPattern(classPattern)
             else topLevelClassPattern(artifacts, classPattern)
 
-    @RegisterMapper(ResultRowMapper::class)
+    @RegisterRowMapper(ResultRowMapper::class)
     private interface Dao {
         companion object {
             private const val INTEREST_COLUMNS = "artifact.string_id, binding.binding, source_file.path"
@@ -177,8 +176,8 @@ class JavabotSearchResource @Inject constructor(
         fun topLevelClassPattern(@Bind("classPattern") classPattern: String): Iterator<ResultRow>
     }
 
-    class ResultRowMapper : ResultSetMapper<ResultRow> {
-        override fun map(index: Int, r: ResultSet, ctx: StatementContext) = ResultRow(
+    class ResultRowMapper : RowMapper<ResultRow> {
+        override fun map(r: ResultSet, ctx: StatementContext) = ResultRow(
                 r.getString(1),
                 r.getString(2),
                 r.getString(3)

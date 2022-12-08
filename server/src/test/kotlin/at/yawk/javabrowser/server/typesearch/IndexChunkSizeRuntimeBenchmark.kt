@@ -1,17 +1,17 @@
 package at.yawk.javabrowser.server.typesearch
 
 import com.google.common.io.MoreFiles
+import org.jdbi.v3.core.Jdbi
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.OptionsBuilder
 import org.openjdk.jmh.runner.options.TimeValue
-import org.skife.jdbi.v2.DBI
 import java.nio.file.Files
 import java.nio.file.Paths
 
 fun benchmarkGetEntries(args: Array<String>): List<SearchIndex.SplitEntry> {
-    val dbi = DBI.open(args[0])
+    val dbi = Jdbi.open(args[0])
     return dbi.createQuery("select binding from data.bindings where realm = 0 and isType")
-            .map { _, rs, _ ->
+            .map { rs, _, _ ->
                 SearchIndex.SplitEntry(rs.getString(1), BindingTokenizer.Java)
             }
             .toList()

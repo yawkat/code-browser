@@ -6,8 +6,8 @@ import org.eclipse.collections.api.collection.primitive.MutableLongCollection
 import org.eclipse.collections.api.map.primitive.MutableObjectLongMap
 import org.eclipse.collections.api.tuple.primitive.ObjectLongPair
 import org.eclipse.collections.impl.factory.primitive.ObjectLongMaps
-import org.skife.jdbi.v2.Handle
-import org.skife.jdbi.v2.TransactionIsolationLevel
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.transaction.TransactionIsolationLevel
 import java.util.TreeSet
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicLong
@@ -29,8 +29,8 @@ fun main(args: Array<String>) {
 
     val frequencyMap = ObjectLongMaps.mutable.empty<String>()
 
-    dbi.inTransaction { conn, _ ->
-        conn.setTransactionIsolation(TransactionIsolationLevel.READ_UNCOMMITTED)
+    dbi.inTransaction<Unit, Exception> { conn ->
+        conn.transactionIsolationLevel = TransactionIsolationLevel.READ_UNCOMMITTED
 
         TableVisitor("source_file", "annotations", frequencyMap).run(conn)
         TableVisitor("binding", "description", frequencyMap).run(conn)
@@ -64,11 +64,11 @@ private class TableVisitor(private val table: String,
         parserThread.start()
 
         println("Loading input size for $table")
-        rowCount.set((conn.select("select count(*) from $table").single().values.single() as Number).toLong())
+        rowCount.set((conn.select("select count(*) from $table").mapToMap().single().values.single() as Number).toLong())
         println("Working $rowCount rows")
         for (bytes in conn.createQuery("select $column from $table")
                 .setFetchSize(FETCH_SIZE)
-                .map { _, r, _ -> r.getBytes(1) }) {
+                .map { r, _, _ -> r.getBytes(1) }) {
             queue.put(bytes)
         }
         queue.put(POISON_PILL)

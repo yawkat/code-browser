@@ -2,20 +2,17 @@ package at.yawk.javabrowser.generator.db
 
 import at.yawk.javabrowser.generator.COMPILER_VERSION
 import org.intellij.lang.annotations.Language
-import org.skife.jdbi.v2.DBI
-import org.skife.jdbi.v2.Handle
-import org.skife.jdbi.v2.TransactionStatus
-import org.skife.jdbi.v2.exceptions.TransactionFailedException
+import org.jdbi.v3.core.Handle
+import org.jdbi.v3.core.Jdbi
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal suspend fun <R> DBI.inTransactionSuspend(task: suspend (Handle, TransactionStatus) -> R): R {
+internal suspend fun <R> Jdbi.inTransactionSuspend(task: suspend (Handle) -> R): R {
     return open().use { handle ->
         val failed = AtomicBoolean(false)
-        val status = TransactionStatus { failed.set(true) }
         val r: R
         try {
             handle.begin()
-            r = task(handle, status)
+            r = task(handle)
             if (!failed.get()) {
                 handle.commit()
             }
@@ -29,7 +26,7 @@ internal suspend fun <R> DBI.inTransactionSuspend(task: suspend (Handle, Transac
         }
         if (failed.get()) {
             handle.rollback()
-            throw TransactionFailedException("Set to rollback only")
+            throw Exception("Set to rollback only")
         }
         r
     }
@@ -37,33 +34,34 @@ internal suspend fun <R> DBI.inTransactionSuspend(task: suspend (Handle, Transac
 
 abstract class UpdateStrategy(
     @Language(value = "sql", prefix = "set search_path = ") private val workSchema: String,
-    protected val dbi: DBI
+    protected val dbi: Jdbi
 ) : TransactionProvider {
-    fun hasSchema() = dbi.inTransaction { conn, _ -> hasSchema(conn) }
+    fun hasSchema() = dbi.inTransaction<Boolean, Exception> { conn -> hasSchema(conn) }
 
-    override suspend fun claimArtifactId(): Long = dbi.inTransaction { conn, _ ->
+    override suspend fun claimArtifactId(): Long = dbi.inTransaction<Long, Exception> { conn ->
         setConnectionSchema(conn)
-        (conn.select("select nextval('artifact_id_sequence')").single()["nextval"] as Number).toLong()
+        (conn.select("select nextval('artifact_id_sequence')").mapToMap().single()["nextval"] as Number).toLong()
     }
 
     protected fun hasSchema(conn: Handle) =
         conn.select(
             "select 1 from information_schema.tables where table_schema = ? and table_name = 'artifact'",
             workSchema
-        ).any()
+        ).mapToMap().any()
 
     protected fun setConnectionSchema(conn: Handle) {
-        conn.update("set search_path = $workSchema")
+        conn.createUpdate("set search_path = $workSchema").execute()
     }
 
     protected fun notifyUpdate(conn: Handle, artifactStringId: String) {
-        conn.update("select pg_notify('artifact', ?)", artifactStringId)
+        conn.createUpdate("select pg_notify('artifact', ?)").bind(0, artifactStringId).execute()
     }
 
     fun listUpToDate(): List<String> {
-        return dbi.inTransaction { conn: Handle, _ ->
+        return dbi.inTransaction<List<String>, Exception> { conn: Handle ->
             setConnectionSchema(conn)
             conn.select("select string_id from artifact where last_compile_version >= ?", COMPILER_VERSION)
+                .mapToMap().toList()
                 .map { it["string_id"] as String }
         }
     }

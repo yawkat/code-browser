@@ -139,7 +139,7 @@ class PrepareMavenWorker(
 
         tempDirProvider.withTempDir(artifactId) { tmp ->
             val src = tmp.resolve("src")
-            FileSystems.newFileSystem(sourceJar, null).use {
+            FileSystems.newFileSystem(sourceJar, null as ClassLoader).use {
                 val root = it.rootDirectories.single()
                 copyDirectory(root, src)
             }

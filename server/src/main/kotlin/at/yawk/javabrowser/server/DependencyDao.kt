@@ -1,7 +1,7 @@
 package at.yawk.javabrowser.server
 
-import org.skife.jdbi.v2.sqlobject.Bind
-import org.skife.jdbi.v2.sqlobject.SqlQuery
+import org.jdbi.v3.sqlobject.customizer.Bind
+import org.jdbi.v3.sqlobject.statement.SqlQuery
 
 /**
  * @author yawkat

@@ -7,7 +7,7 @@ import at.yawk.numaec.LargeByteBufferAllocator
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.eclipse.collections.impl.list.mutable.primitive.LongArrayList
-import org.skife.jdbi.v2.Handle
+import org.jdbi.v3.core.Handle
 import java.io.File
 import java.util.concurrent.Semaphore
 
@@ -44,15 +44,15 @@ fun main(args: Array<String>) {
 
     val dbi = config.database.start(mode = DbConfig.Mode.FRONTEND)
     val semaphore = Semaphore(1)
-    dbi.inTransaction { outerConn: Handle, _ ->
-        val artifacts = outerConn.createQuery("select id from artifacts").map { _, r, _ -> r.getString(1) }.list()
+    dbi.inTransaction<Unit, Exception> { outerConn: Handle ->
+        val artifacts = outerConn.createQuery("select id from artifacts").map { r, _, _ -> r.getString(1) }.list()
         artifacts.stream().parallel().forEach { artifactId ->
             semaphore.acquire()
-            dbi.inTransaction { conn: Handle, _ ->
+            dbi.inTransaction<Unit, Exception> { conn: Handle ->
                 println("  Building index for $artifactId")
                 val itr = conn.createQuery("select binding, sourceFile from bindings where realm = 0 and isType and artifactId = ?")
                         .bind(0, artifactId)
-                        .map { _, r, _ ->
+                        .map { r, _, _ ->
                             SearchIndex.Input(
                                     string = r.getString(1),
                                     value = r.getString(2))

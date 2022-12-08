@@ -5,14 +5,14 @@ import at.yawk.javabrowser.server.view.FullTextSearchResultView
 import com.google.common.collect.ImmutableList
 import org.hamcrest.MatcherAssert
 import org.hamcrest.Matchers
-import org.skife.jdbi.v2.DBI
+import org.jdbi.v3.core.Jdbi
 import org.testng.annotations.BeforeClass
 import org.testng.annotations.Optional
 import org.testng.annotations.Parameters
 import org.testng.annotations.Test
 
 class FullTextSearchResourceIntegrationTest {
-    private lateinit var dbi: DBI
+    private lateinit var dbi: Jdbi
     private lateinit var artifactIndex: ArtifactIndex
     private lateinit var fts: FullTextSearchResource
 
@@ -26,7 +26,7 @@ class FullTextSearchResourceIntegrationTest {
 
     @Test
     fun string() {
-        dbi.withHandle { conn ->
+        dbi.withHandle<Unit, Exception> { conn ->
             val view = fts.handleRequest(
                     query = "count is negative",
                     realm = Realm.SOURCE,
@@ -48,7 +48,7 @@ class FullTextSearchResourceIntegrationTest {
 
     @Test
     fun `string try render`() {
-        dbi.withHandle { conn ->
+        dbi.withHandle<Unit, Exception> { conn ->
             val view = fts.handleRequest(
                     query = "count is negative",
                     realm = Realm.SOURCE,
@@ -63,7 +63,7 @@ class FullTextSearchResourceIntegrationTest {
 
     @Test
     fun symbols() {
-        dbi.withHandle { conn ->
+        dbi.withHandle<Unit, Exception> { conn ->
             val view = fts.handleRequest(
                     query = "count < 0",
                     realm = Realm.SOURCE,
